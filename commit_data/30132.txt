@@ -1,18 +1,29 @@
-commit 57d06fff3e7e020510fe9460ccfa247370c472ba
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 7 10:29:32 2017 -0500
+commit c60d9a33bfd4af38399b4caf76be0ced4c64c839
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Oct 18 14:56:19 2016 -0700
 
-    cmd/go, go/build: better defenses against GOPATH=GOROOT
+    net/http: fix redirect logic to handle mutations of cookies
     
-    Fixes #18863.
+    In the situation where the Client.Jar is set and the Request.Header
+    has cookies manually inserted, the redirect logic needs to be
+    able to apply changes to cookies from "Set-Cookie" headers to both
+    the Jar and the manually inserted Header cookies.
     
-    Change-Id: I0723563cd23728b0d43ebcc25979bf8d21e2a72c
-    Reviewed-on: https://go-review.googlesource.com/36427
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Since Header cookies lack information about the original domain
+    and path, the logic in this CL simply removes cookies from the
+    initial Header if any subsequent "Set-Cookie" matches. Thus,
+    in the event of cookie conflicts, the logic preserves the behavior
+    prior to change made in golang.org/cl/28930.
+    
+    Fixes #17494
+    Updates #4800
+    
+    Change-Id: I645194d9f97ff4d95bd07ca36de1d6cdf2f32429
+    Reviewed-on: https://go-review.googlesource.com/31435
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go          | 198 ++++++++++++++---------------------------
- src/cmd/go/internal/get/get.go |   2 +-
- src/cmd/go/main.go             |   2 +-
- src/go/build/build.go          |   2 +-
- 4 files changed, 71 insertions(+), 133 deletions(-)
+ src/net/http/client.go      | 93 +++++++++++++++++++++++++++++++++++--------
+ src/net/http/client_test.go | 96 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 173 insertions(+), 16 deletions(-)

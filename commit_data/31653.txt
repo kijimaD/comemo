@@ -1,28 +1,50 @@
-commit d4a8828eee13932883235ddd46ccb2ae3b9c5360
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 24 00:36:23 2017 +0000
+commit 0efc8b21881ab35fdb45547088b1935fc8ebf263
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 20 22:37:07 2017 -0500
 
-    vendor: update golang.org/x/net/http2/hpack
+    runtime: avoid repeated findmoduledatap calls
     
-    Updates golang.org/x/net/http2/hpack to x/net git rev 4dbf598 for:
+    Currently almost every function that deals with a *_func has to first
+    look up the *moduledata for the module containing the function's entry
+    point. This means we almost always do at least two identical module
+    lookups whenever we deal with a *_func (one to get the *_func and
+    another to get something from its module data) and sometimes several
+    more.
     
-       http2/hpack: remove unused pair function from package
-       https://golang.org/cl/43851
+    Fix this by making findfunc return a new funcInfo type that embeds
+    *_func, but also includes the *moduledata, and making all of the
+    functions that currently take a *_func instead take a funcInfo and use
+    the already-found *moduledata.
     
-       http2/hpack: remove pair function and initialize directly
-       https://golang.org/cl/43190
+    This transformation is trivial for the most part, since the *_func
+    type is usually inferred. The annoying part is that we can no longer
+    use nil to indicate failure, so this introduces a funcInfo.valid()
+    method and replaces nil checks with calls to valid.
     
-       http2/hpack: move initialization to a static table
-       https://golang.org/cl/43090
-    
-    Updates #6853
-    
-    Change-Id: I933a094623143c7333a0da7867d5d2e41da05234
-    Reviewed-on: https://go-review.googlesource.com/44007
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Change-Id: I9b8075ef1c31185c1943596d96dec45c7ab5100f
+    Reviewed-on: https://go-review.googlesource.com/37331
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- .../golang_org/x/net/http2/hpack/hpack_test.go     |   4 +
- src/vendor/golang_org/x/net/http2/hpack/tables.go  | 131 +++++++++++----------
- 2 files changed, 70 insertions(+), 65 deletions(-)
+ src/runtime/extern.go             |  4 +-
+ src/runtime/heapdump.go           |  2 +-
+ src/runtime/mbitmap.go            |  2 +-
+ src/runtime/os3_plan9.go          |  2 +-
+ src/runtime/plugin.go             |  4 +-
+ src/runtime/proc.go               |  2 +-
+ src/runtime/race.go               |  2 +-
+ src/runtime/runtime2.go           |  2 +-
+ src/runtime/signal_386.go         |  2 +-
+ src/runtime/signal_amd64x.go      |  2 +-
+ src/runtime/signal_arm.go         |  2 +-
+ src/runtime/signal_arm64.go       |  2 +-
+ src/runtime/signal_linux_s390x.go |  2 +-
+ src/runtime/signal_mips64x.go     |  2 +-
+ src/runtime/signal_mipsx.go       |  2 +-
+ src/runtime/signal_ppc64x.go      |  2 +-
+ src/runtime/stack.go              |  6 +--
+ src/runtime/symtab.go             | 87 ++++++++++++++++++++++-----------------
+ src/runtime/trace.go              |  2 +-
+ src/runtime/traceback.go          | 26 ++++++------
+ 20 files changed, 84 insertions(+), 73 deletions(-)

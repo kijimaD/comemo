@@ -1,28 +1,32 @@
-commit a7a0f0305035948f4c86e08e6e64409ab11a6f67
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Wed Apr 1 03:21:03 2020 -0700
+commit c70e5475e6ad21f4b5685ef18567a3e4e9388bbc
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Sep 28 00:05:54 2019 +0200
 
-    cmd/compile: mark 'store multiple' as clobbering flags on s390x
+    cmd/compile: in poset, implement path collapsing
     
-    Store multiple instructions can clobber flags on s390x when the
-    offset passed into the assembler is outside the range representable
-    with a signed 20 bit integer. This is because the assembler uses
-    the agfi instruction to implement the large offset. The assembler
-    could use a different sequence of instructions, but for now just
-    mark the instruction as 'clobberFlags' since this is risk free.
+    Sometimes, poset needs to collapse a path making all nodes in
+    the path aliases. For instance, we know that A<=N1<=B and we
+    learn that B<=A, we can deduce A==N1==B, and thus we can
+    collapse all paths from A to B into a single aliased node.
     
-    Noticed while investigating #38195.
+    Currently, this is a TODO. This CL implements the path-collapsing
+    primitive by doing a DFS walk to build a bitset of all nodes
+    across all paths, and then calling the new aliasnodes that allow
+    to mark multiple nodes as aliases of a single master node.
     
-    No test yet since I'm not sure how to get this bug to trigger and
-    I haven't seen it affect real code.
+    This helps only 4 times in std+cmd, but it will be fundamental
+    when we will rely on poset to calculate numerical limits, to
+    calculate the correct values.
     
-    Change-Id: I4a6ab96455a3ef8ffacb76ef0166b97eb40ff925
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226759
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    This also fixes #35157, a bug uncovered by a previous CL in this
+    serie. A testcase will be added soon.
+    
+    Change-Id: I5fc54259711769d7bd7c2d166a5abc1cddc26350
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200861
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/S390XOps.go | 6 ++++++
- src/cmd/compile/internal/ssa/opGen.go        | 6 ++++++
- 2 files changed, 12 insertions(+)
+ src/cmd/compile/internal/ssa/poset.go      |  51 +++++++++---
+ src/cmd/compile/internal/ssa/poset_test.go | 122 ++++++++++++++++++++++++++++-
+ 2 files changed, 161 insertions(+), 12 deletions(-)

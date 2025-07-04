@@ -1,17 +1,18 @@
-commit 353e111455d6b81fdce0a6d3190baba6adca3372
-Author: KimMachineGun <geon0250@gmail.com>
-Date:   Tue Feb 16 15:51:32 2021 +0000
+commit c082c1fea376403182444371bbbaf6d203dc12b9
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jun 2 15:33:58 2020 -0400
 
-    doc/go1.16: fix mismatched id attribute
+    doc/go1.15: remove TODOs for tools and go command sections
     
-    For #40700.
+    For #37419
     
-    Change-Id: I186a21899404bfb79c08bfa8623caf9da74b6b0d
-    GitHub-Last-Rev: 25d240db3c0e2a923720bb9667ef0599ec06819e
-    GitHub-Pull-Request: golang/go#44145
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/290329
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I35a5cf86ff09a3962959627dce58155b26ad4748
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236160
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- doc/go1.16.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.15.html | 8 --------
+ 1 file changed, 8 deletions(-)

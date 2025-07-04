@@ -1,15 +1,14 @@
-commit e69012ce2a366e54bc86cd17f2fb1d73fc567a89
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed May 15 11:10:26 2013 +0400
+commit 3de593d94bd7c9c1e75afcc45f5ca89b629d5e64
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 15 15:34:47 2013 +1000
 
-    runtime: use enums instead static vars for debugging
-    Compiler can detect and delete dead code with enums,
-    but can not with static vars.
+    misc/cgo/test: add missing import
     
-    R=golang-dev, dave, r
+    Fixes windows build.
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/9377043
+    https://golang.org/cl/9429043
 
- src/pkg/runtime/chan.c  | 4 ++--
- src/pkg/runtime/slice.c | 5 ++++-
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ misc/cgo/test/issue5337w.go | 2 ++
+ 1 file changed, 2 insertions(+)

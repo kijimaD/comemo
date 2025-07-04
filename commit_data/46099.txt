@@ -1,36 +1,28 @@
-commit ab9aaf46ee5585317b5c796d6fb7e31383385eeb
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 19 15:52:53 2021 -0700
+commit 8ce2605c5b4bc64432e1711a1273f91eee3a41fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 5 00:02:46 2020 -0500
 
-    cmd/compile/internal/syntax: add PosBase.Trimmed
+    [dev.regabi] cmd/compile: untangle ir.Dump printing
     
-    With types2, some syntax.PosBases need to be constructed from export
-    data, which must only contain "trimmed" filenames (i.e., that they've
-    already been made absolute and undergone -trimpath processing).
-    However, it's not safe to apply trimming to a filename multiple times,
-    and in general we can't distinguish trimmed from untrimmed filenames.
+    The Node printing code is tangled up due to the multiple printing modes.
+    Split out the Dump mode into its own code, which clarifies it considerably.
+    We are going to have to change the code for the new Node representations,
+    so it is nice to have it in an understandable form first.
     
-    This CL resolves this by adding a PosBase.Trimmed boolean so we can
-    distinguish whether the associated filename has been trimmed yet. This
-    is a bit hacky, but is the least bad solution I've come up with so
-    far.
+    The output of Dump is unchanged except for the removal of spurious
+    mid-Dump blank lines that have been printed for a while but don't
+    really make sense and appear to be a bug.
     
-    This unblocks enabling -G=3 by default.
+    The %+v verb on Op prints the name ("ADD" not "+"), matching
+    %+v on Node and %+v on Nodes to get Dump and DumpList formats.
     
-    Change-Id: I7383becfb704680a36f7603e3246af38b21f100b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343731
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I07f0f245859f1f785e10bdd671855ca43c51b545
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275774
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/importer/iimport.go |  2 +-
- src/cmd/compile/internal/noder/noder.go      | 26 ++++++++++++++++++--------
- src/cmd/compile/internal/noder/posmap.go     |  6 ++++--
- src/cmd/compile/internal/noder/reader.go     |  7 +++----
- src/cmd/compile/internal/noder/reader2.go    |  5 ++---
- src/cmd/compile/internal/noder/writer.go     |  6 +-----
- src/cmd/compile/internal/syntax/parser.go    |  4 +++-
- src/cmd/compile/internal/syntax/pos.go       | 19 ++++++++++++++++---
- 8 files changed, 48 insertions(+), 27 deletions(-)
+ src/cmd/compile/fmtmap_test.go     |   4 +-
+ src/cmd/compile/internal/ir/fmt.go | 272 +++++++++++++++++++------------------
+ 2 files changed, 144 insertions(+), 132 deletions(-)

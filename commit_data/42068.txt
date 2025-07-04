@@ -1,28 +1,28 @@
-commit 0ee4b13830572ad66cdcc045d1e4ae1e15a87ebb
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Wed Apr 22 16:24:30 2020 -0400
+commit a120cc8b365be33d3f82bbf8b79584e0e3439b9b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 28 18:38:17 2019 +0000
 
-    net/http/pprof: allow "seconds" parameters to most profiles
+    runtime: compute whether a span needs zeroing in the new page allocator
     
-    golang.org/cl/147598 added the support for delta computation for mutex
-    and block profiles. In fact, this delta computation makes sense for
-    other types of profiles.
+    This change adds the allocNeedZero method to mheap which uses the new
+    heapArena field zeroedBase to determine whether a new allocation needs
+    zeroing. The purpose of this work is to avoid zeroing memory that is
+    fresh from the OS in the context of the new allocator, where we no
+    longer have the concept of a free span to track this information.
     
-    For example, /debug/pprof/allocs?seconds=x will provide how much allocation
-    was made during the specified period. /debug/pprof/goroutine?seconds=x will
-    provide the changes in the list of goroutines. This also makes sense for
-    custom profiles.
+    The new field in heapArena, zeroedBase, is small, which runs counter to
+    the advice in the doc comment for heapArena. Since heapArenas are
+    already not a multiple of the system page size, this advice seems stale,
+    and we're OK with using an extra physical page for a heapArena. So, this
+    change also deletes the comment with that advice.
     
-    Update #23401
-    Update google/pprof#526
+    Updates #35112.
     
-    Change-Id: I45e9073eb001ea5b3f3d16e5a57f635193610656
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229537
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I688cd9fd3c57a98a6d43c45cf699543ce16697e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203858
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/pprof/pprof.go      | 8 ++++++--
- src/net/http/pprof/pprof_test.go | 1 +
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/runtime/mheap.go | 75 +++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 68 insertions(+), 7 deletions(-)

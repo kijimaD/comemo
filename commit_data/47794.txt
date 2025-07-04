@@ -1,21 +1,17 @@
-commit 0f05ed3b7821db1d73954aa9e7fd49e5a19ec12a
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 10 21:17:12 2021 -0500
+commit 954bd8203bfe3033b9794ad4ec2c82cfd6be1414
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Apr 11 14:53:18 2021 +0200
 
-    os: enable TestClosedPipeRace* on FreeBSD
+    cmd/cgo: use tabs to indent _cgoPREFIX_Cfunc__CMalloc function body
     
-    This test has worked since CL 165801 (committed March 12, 2019), so
-    stop skipping it. With this, we check that Close makes concurrent I/O
-    operations on pipes return Errclosed on all platforms.
+    All other _cgoPREFIX_Cfunc_* functions are indented using tabs.
     
-    Updates #19093.
-    
-    Change-Id: Ic090c70996c115abf80d8f9b93ca2aeaf347c9d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371016
-    Trust: Austin Clements <austin@google.com>
+    Change-Id: Ic5cfccd3000d34d0bbe08d035f18640af5e05473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308993
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/pipe_test.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/cgo/out.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

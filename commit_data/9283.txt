@@ -1,25 +1,12 @@
-commit dc7f82559d61b09843daa5a3312aae2f05dfbdc6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 4 00:22:48 2011 -0400
+commit 6500065543fa21a0918d78d528911012aabb1999
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Thu Aug 4 00:22:39 2011 -0400
 
-    syscall: update routing message support for BSD variants
+    runtime: remove unnecessary locking
     
-    R=rsc
+    R=rsc, dvyukov
     CC=golang-dev
-    https://golang.org/cl/4826056
+    https://golang.org/cl/4819051
 
- src/pkg/syscall/Makefile                  |  2 +
- src/pkg/syscall/route_bsd.go              | 61 ++++++++++++++++---------------
- src/pkg/syscall/route_darwin.go           | 48 ++++++++++++++++++++++++
- src/pkg/syscall/route_freebsd.go          | 48 ++++++++++++++++++++++++
- src/pkg/syscall/types_darwin.c            |  4 ++
- src/pkg/syscall/types_freebsd.c           |  2 +
- src/pkg/syscall/zsyscall_darwin_386.go    | 20 +++++-----
- src/pkg/syscall/zsyscall_darwin_amd64.go  | 20 +++++-----
- src/pkg/syscall/zsyscall_freebsd_386.go   | 20 +++++-----
- src/pkg/syscall/zsyscall_freebsd_amd64.go | 20 +++++-----
- src/pkg/syscall/ztypes_darwin_386.go      | 23 ++++++++++++
- src/pkg/syscall/ztypes_darwin_amd64.go    | 23 ++++++++++++
- src/pkg/syscall/ztypes_freebsd_386.go     | 11 ++++++
- src/pkg/syscall/ztypes_freebsd_amd64.go   | 11 ++++++
- 14 files changed, 244 insertions(+), 69 deletions(-)
+ src/pkg/runtime/proc.c | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,31 +1,14 @@
-commit 23f75541946884167364a5cc513699661dcfe8ff
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Fri Sep 21 16:06:32 2018 -0300
+commit ef99381676fb008d418720a1169184cea21f4bb6
+Author: azat <kaumov.a.r@gmail.com>
+Date:   Thu Nov 30 22:32:39 2017 +0300
 
-    internal/bytealg: improve performance of IndexByte for ppc64x
+    os: Add example for Expand function.
     
-    Use addi+lvx instruction fusion and remove register dependencies in
-    the main loop to improve performance.
-    
-    benchmark                      old ns/op     new ns/op     delta
-    BenchmarkIndexByte/10-192      9.86          9.75          -1.12%
-    BenchmarkIndexByte/32-192      15.6          11.2          -28.21%
-    BenchmarkIndexByte/4K-192      155           97.6          -37.03%
-    BenchmarkIndexByte/4M-192      171790        129650        -24.53%
-    BenchmarkIndexByte/64M-192     6530982       5018424       -23.16%
-    
-    benchmark                      old MB/s     new MB/s     speedup
-    BenchmarkIndexByte/10-192      1013.72      1025.76      1.01x
-    BenchmarkIndexByte/32-192      2049.47      2868.01      1.40x
-    BenchmarkIndexByte/4K-192      26422.69     41975.67     1.59x
-    BenchmarkIndexByte/4M-192      24415.17     32350.74     1.33x
-    BenchmarkIndexByte/64M-192     10275.46     13372.50     1.30x
-    
-    Change-Id: Iedf17f01f374d58e85dcd6a972209bfcb7eb6063
-    Reviewed-on: https://go-review.googlesource.com/137415
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I581492c29158e57ca2f98b75f47870791965a7ff
+    Reviewed-on: https://go-review.googlesource.com/81155
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/internal/bytealg/indexbyte_ppc64x.s | 28 ++++++++++++++++------------
- 1 file changed, 16 insertions(+), 12 deletions(-)
+ src/os/example_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

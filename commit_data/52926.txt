@@ -1,23 +1,20 @@
-commit 8d5065ce6e09dcded85c32b7eb7768c6f7fd3b7c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 8 13:39:27 2023 -0400
+commit 97bfc77f3897d6268cf4f9bb6756b97ff5e7cc03
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Jun 10 19:08:14 2022 +0800
 
-    cmd: vendor golang.org/x/tools/cmd/bisect
+    syscall, runtime/internal/syscall: always zero the higher bits of return value on linux/loong64
     
-    Vendoring for use with the internal/godebug test
-    and eventually the cmd/compile test as well.
+    All loong64 syscalls return values only via R4/A0, and R5/A1 may contain unrelated
+    content. Always zero the second return value.
     
-    Change-Id: I3f7151949cff584705cb32ba39bf5de5cd45c3f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493597
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I62af59369bece5bd8028b937c74f4694150f7a55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411615
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/tools/tools.go                             |  11 +
- .../vendor/golang.org/x/tools/cmd/bisect/go119.go  |  13 +
- .../vendor/golang.org/x/tools/cmd/bisect/go120.go  |  26 +
- .../vendor/golang.org/x/tools/cmd/bisect/main.go   | 609 +++++++++++++++++++++
- .../vendor/golang.org/x/tools/cmd/bisect/rand.go   |  20 +
- .../golang.org/x/tools/internal/bisect/bisect.go   | 503 +++++++++++++++++
- src/cmd/vendor/modules.txt                         |   2 +
- 7 files changed, 1184 insertions(+)
+ src/runtime/internal/syscall/asm_linux_loong64.s | 2 +-
+ src/syscall/asm_linux_loong64.s                  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

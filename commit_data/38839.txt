@@ -1,30 +1,22 @@
-commit 78f0de10eccf3606dbc4b854a4cd3a7e502edc07
-Author: Maya Rashish <maya@netbsd.org>
-Date:   Sat Apr 20 11:57:11 2019 +0000
+commit 3ce9e5a10e19055610d82e87c3fef44d71f1afc5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 30 12:26:10 2018 -0800
 
-    runtime: move linux specific code into linux specific files
+    go/internal/gccgoimporter: fix test when using gccgo 4.7
     
-    Allows us to stop whitelisting this error on many OS/arch combinations
+    TestInstallationImporter checks that it can read the export data for a
+    list of known standard library packages. It was failing on the SmartOS
+    builder which has GCC 4.7 installed. Skip packages that did not exist
+    in GCC 4.7. Most packages are still there and the missing packages are
+    fairly simple, so this doesn't really affect test quality.
     
-    XXX I'm not sure I am running vet correctly, and testing all platforms right.
+    Updates #29006
     
-    Change-Id: I29f548bd5f4a63bd13c4d0667d4209c75c886fd9
-    GitHub-Last-Rev: 52f6ff4a6b986e86f8b26c3d19da7707d39f1664
-    GitHub-Pull-Request: golang/go#31583
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173157
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: If7ae6f83d51d40168a9692acb0b99c9bf21f2a4d
+    Reviewed-on: https://go-review.googlesource.com/c/152077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- src/cmd/vet/all/whitelist/darwin_arm.txt   | 5 -----
- src/cmd/vet/all/whitelist/darwin_arm64.txt | 3 ---
- src/cmd/vet/all/whitelist/freebsd_arm.txt  | 1 -
- src/cmd/vet/all/whitelist/nacl_arm.txt     | 1 -
- src/cmd/vet/all/whitelist/netbsd_arm.txt   | 1 -
- src/cmd/vet/all/whitelist/openbsd_arm.txt  | 1 -
- src/cmd/vet/all/whitelist/plan9_arm.txt    | 1 -
- src/runtime/asm_arm.s                      | 3 ---
- src/runtime/asm_arm64.s                    | 3 ---
- src/runtime/sys_linux_arm.s                | 3 +++
- src/runtime/sys_linux_arm64.s              | 3 +++
- 11 files changed, 6 insertions(+), 19 deletions(-)
+ src/go/internal/gccgoimporter/gccgoinstallation_test.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

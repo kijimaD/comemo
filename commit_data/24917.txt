@@ -1,14 +1,12 @@
-commit f2eb3de6360629657e20b4eaaf34fa6b32a255ba
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 4 14:03:06 2015 -0500
+commit d862753cccd537ef56dbc8b42b4969dac93461c6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 8 22:28:50 2015 -0700
 
-    cmd/compile: document -trimpath
+    doc: fix typo in go1.6.txt
     
-    Fixes #8999.
-    
-    Change-Id: I1390605bdf908f59b596975ea51eb04bd03bbae0
-    Reviewed-on: https://go-review.googlesource.com/16918
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3bf1862c304ff08bfb87f84b6ccbb50204225244
+    Reviewed-on: https://go-review.googlesource.com/14407
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/doc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go1.6.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

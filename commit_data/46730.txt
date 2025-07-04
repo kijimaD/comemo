@@ -1,20 +1,13 @@
-commit 81b7ec1ad5b50b8e73a63b44d8c2538154def535
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 4 16:42:13 2021 -0700
+commit b634f5d97a6e65f19057c00ed2095a1a872c7fa8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 22 20:38:29 2021 -0800
 
-    cmd/dist: omit cmd/cgo from toolchain1
+    doc/go1.16: add crypto/x509 memory optimization
     
-    We don't need cmd/cgo for building go_bootstrap or toolchain2, so skip
-    building it as part of toolchain1.
-    
-    This allows cmd/cgo to assume a current go/ast; e.g., that
-    ast.IndexListExpr exists (needed for next CL).
-    
-    Change-Id: I642bba780bf273e6ea9c6e7c5d5d7ccfe86bf462
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353884
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0c61b0e0d1430f66e3f7dbf07817264258a1c15a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285682
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/build.go     | 2 +-
- src/cmd/dist/buildtool.go | 8 +-------
- 2 files changed, 2 insertions(+), 8 deletions(-)
+ doc/go1.16.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

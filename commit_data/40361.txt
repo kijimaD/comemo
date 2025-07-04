@@ -1,21 +1,19 @@
-commit 2e0aa581b4a2544249ad2f8e86e17204ca778ca7
+commit 8280455de4728d76f1e084e33284d57eb6ba10ac
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 10 17:56:18 2019 -0700
+Date:   Mon May 6 14:23:05 2019 -0700
 
-    runtime: add new addtimer function
+    cmd/go: don't print phdrs running "go version" on ELF files
     
-    When we add a timer, make sure that the network poller is initialized,
-    since we will use it if we have to wait for the timer to be ready.
+    I assume this was for debugging purposes.
     
-    Updates #27707
+    Updates #31624
     
-    Change-Id: I0637fe646bade2cc5ce50b745712292aa9c445b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171830
+    Change-Id: Ie158fde0574c9bbbd9d1b684f51af5681974aff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175449
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/netpoll.go      |  9 +++++--
- src/runtime/netpoll_stub.go |  4 +++
- src/runtime/time.go         | 63 ++++++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 73 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/version/exe.go | 1 -
+ 1 file changed, 1 deletion(-)

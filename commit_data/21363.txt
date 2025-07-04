@@ -1,33 +1,30 @@
-commit 67f8a8131648346f6bf9b525cd989bd2f7293b3f
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Dec 22 22:31:55 2014 +0300
+commit 76cc881ef09e0358dd72106860d5da5e4c517f2a
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Tue Dec 23 20:44:10 2014 +0100
 
-    reflect: cache call frames
+    sort: simplify rotate and reduce calls to it
     
-    Call frame allocations can account for significant portion
-    of all allocations in a program, if call is executed
-    in an inner loop (e.g. to process every line in a log).
-    On the other hand, the allocation is easy to remove
-    using sync.Pool since the allocation is strictly scoped.
+    Move the checks for empty rotate changes
+    from the beginning of rotate to the callers.
     
-    benchmark           old ns/op     new ns/op     delta
-    BenchmarkCall       634           338           -46.69%
-    BenchmarkCall-4     496           167           -66.33%
+    Remove additional variable p used instead of existing m with same value.
     
-    benchmark           old allocs     new allocs     delta
-    BenchmarkCall       1              0              -100.00%
-    BenchmarkCall-4     1              0              -100.00%
+    Remove special casing of equal ranges (i==j) to exit early as no
+    work is saved vs checking (i!=j) and  making a single
+    swapRange call if this is false.
     
-    Update #7818
+    benchmark                   old ns/op      new ns/op      delta
+    BenchmarkStableString1K     417195         425218         +1.92%
+    BenchmarkStableInt1K        126661         124498         -1.71%
+    BenchmarkStableInt64K       10365014       10417438       +0.51%
+    BenchmarkStable1e2          132151         130648         -1.14%
+    BenchmarkStable1e4          42027428       40812649       -2.89%
+    BenchmarkStable1e6          8524772364     8430192391     -1.11%
     
-    Change-Id: Icf60cce0a9be82e6171f0c0bd80dee2393db54a7
-    Reviewed-on: https://go-review.googlesource.com/1954
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia7642e9d31408496970c700f5843d53cc3ebe817
+    Reviewed-on: https://go-review.googlesource.com/2100
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/all_test.go    | 11 ++++++++++
- src/reflect/export_test.go |  4 ++--
- src/reflect/makefunc.go    |  4 ++--
- src/reflect/type.go        | 13 +++++++----
- src/reflect/value.go       | 55 +++++++++++++++++++++++++++++++++-------------
- src/runtime/stubs.go       |  5 +++++
- 6 files changed, 69 insertions(+), 23 deletions(-)
+ src/sort/sort.go | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

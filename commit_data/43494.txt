@@ -1,29 +1,18 @@
-commit c91dffbc9aeaacd087eb0c0c3f718739bc5f8c4a
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 7 22:53:52 2020 -0400
+commit 7694bf329d89c15d34e9b58d48de472ec50d537a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 7 16:39:42 2020 -0700
 
-    runtime: tidy cgocallback
+    os/exec: use subprocess deadline in TestExtraFiles
     
-    On amd64 and 386, we have a very roundabout way of remembering that we
-    need to dropm on return that currently involves saving a zero to
-    needm's argument slot and later bringing it back. Just store the zero.
+    Try to get some output even if the subprocess hangs.
     
-    This also makes amd64 and 386 more consistent with cgocallback on all
-    other platforms: rather than saving the old M to the G stack, they now
-    save it to a named slot on the G0 stack.
+    For #25628
     
-    The needm function no longer needs a dummy argument to get the SP, so
-    we drop that.
-    
-    Change-Id: I7e84bb4a5ff9552de70dcf41d8accf02310535e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263268
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4cc0a8f2c52b03a322b8fd0a620cba37b06ff10a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227517
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/asm_386.s      | 18 +++++++-----------
- src/runtime/asm_amd64.s    | 16 ++++++----------
- src/runtime/proc.go        |  6 +++---
- src/runtime/signal_unix.go |  6 +++---
- 4 files changed, 19 insertions(+), 27 deletions(-)
+ src/os/exec/exec_test.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

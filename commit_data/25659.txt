@@ -1,14 +1,20 @@
-commit b4c9d01d81d90a78a4330d3e3567bc5533e8c659
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 23 23:43:08 2016 -0500
+commit d3a4e8ed3c7a1929eea13f9de9fb1aa3cab71ad4
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Nov 12 10:41:09 2015 -0800
 
-    crypto: document that Signer.Sign does not hash
+    compress/gzip: specify when Reader.Header is valid
     
-    Fixes #13938.
+    The gzip package is asymmetrical in the way it handles headers.
+    In Writer, the Header is written on the first call to Write, Flush, or Close.
+    In Reader, the Header is read on calls to NewReader or Reset as opposed to
+    after the first Read. Thus, we document this difference.
     
-    Change-Id: I0b4842b8bc22dc79323d6894c123cde638f52d3f
-    Reviewed-on: https://go-review.googlesource.com/18856
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Fixes #13211
+    
+    Change-Id: I5f87beff036e5e2fd68a02a15fdb7137e9ca4c37
+    Reviewed-on: https://go-review.googlesource.com/16838
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/crypto.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/compress/gzip/gunzip.go | 5 ++++-
+ src/compress/gzip/gzip.go   | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

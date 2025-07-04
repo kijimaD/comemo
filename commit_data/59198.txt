@@ -1,16 +1,21 @@
-commit eec3745bd7861f447bfe5fe5a27314079d46acec
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Mar 29 19:49:25 2025 +0100
+commit 7db8b9e518311c1ee707a3f2fe6343e7c595c936
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Feb 23 13:38:27 2024 +0100
 
-    cmd/compile/internal/ssa: replace uses of interface{} with Sym/Aux
+    path/filepath: support multiple TestAbs runs on Windows
     
-    Change-Id: I0a3ce2e823697eee5bb5e7d5ea0ef025132c0689
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661655
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    TestAbs modifies the absTests global variable on Windows, which makes
+    the test to fail if it is run more than once, i.e. executing
+    "go test -run ^TestAbs$ -count 2 path/filepath".
+    
+    This CL fixes the issue by clipping the absTests slices before
+    appending more elements to it.
+    
+    Change-Id: I8f1144b2f10b8fa1b847e6639c0bda7baafc2dac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566396
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/ssa/rewrite.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/path/filepath/path_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

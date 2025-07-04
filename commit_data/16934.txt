@@ -1,14 +1,14 @@
-commit 1794880299eaac110dad1fb972c91cb8a6e17086
+commit 6a13897bc6b92cf5c80ae6d4e58fadf55fa10e82
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 30 23:21:07 2013 -0400
+Date:   Tue Jul 30 22:58:38 2013 -0400
 
-    runtime: fix build on FreeBSD
+    runtime: ARM _sfloat has no arguments
     
-    This is what I get for being talked into a test.
+    Fixes one build failure.
     
-    TBR=bradfitz
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/12045044
+    https://golang.org/cl/12139043
 
- src/pkg/runtime/map_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/runtime/vlop_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

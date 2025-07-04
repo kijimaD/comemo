@@ -1,17 +1,13 @@
-commit 7825ca6a63502e3b8decb0b569513dd6b5954aa7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 2 12:33:34 2016 -0700
+commit 5103fbfdb29278533c666163a9d56f85408224d9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 6 02:51:55 2016 +0000
 
-    doc/go1.7.html: net/mail.ParseAddress is stricter
+    runtime: merge os_linux.go into os1_linux.go
     
-    Fixes #15940.
-    
-    Change-Id: Ie6da6fef235c6a251caa96d45f606c05d118a0ac
-    Reviewed-on: https://go-review.googlesource.com/23710
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Travis Beatty <travisby@gmail.com>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I791c47014fe69e8529c7b2f0b9a554e47902d46c
+    Reviewed-on: https://go-review.googlesource.com/21566
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- doc/go1.7.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/runtime/os1_linux.go | 29 +++++++++++++++++++++++++++++
+ src/runtime/os_linux.go  | 36 ------------------------------------
+ 2 files changed, 29 insertions(+), 36 deletions(-)

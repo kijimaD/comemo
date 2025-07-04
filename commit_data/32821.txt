@@ -1,14 +1,29 @@
-commit 6171d055dc39b316fbc051a43ce7473798bb5561
-Author: Shawn Smith <shawnpsmith@gmail.com>
-Date:   Sat Sep 23 17:43:16 2017 +0900
+commit 3a27f28e9b62fc4e7229dbf9b08fbb8f3d65157b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Jun 6 11:25:17 2017 +0200
 
-    cmd/vet: remove extraneous "//" in dead.go so its comment does not
+    strings: document Split{,N,After,AfterN} edge cases
     
-    appear at the top of vet's godoc output
+    Apparently people get confused by the fact that
     
-    Change-Id: I2593d294b0497aeb9e8c54a4dad052b5c33ecaee
-    Reviewed-on: https://go-review.googlesource.com/65630
-    Reviewed-by: Rob Pike <r@golang.org>
+      Split("", ",")
+    
+    returns []{""} instead of []{}.
+    
+    This is actually just a consequence of the fact that if the separator
+    sep (2nd argument) is not found the string s (1st argument), then the
+    Split* functions return a length 1 slice with the string s in it.
+    
+    Document the general case: if sep is not in s, what you get is a len 1
+    slice with s in it; unless both s and sep are "", in that case you get
+    an empty slice of length 0.
+    
+    Fixes #19726
+    
+    Change-Id: I64c8220b91acd1e5aa1cc1829199e0cd8c47c404
+    Reviewed-on: https://go-review.googlesource.com/44950
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/vet/dead.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/strings/strings.go | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

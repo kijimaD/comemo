@@ -1,20 +1,42 @@
-commit a08adda12c2af7f597dad9d280282c7e70d4a2dc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 3 08:04:40 2021 -0800
+commit 27e3778793c4ae4e54d27185f6955bc5c180151b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Aug 2 19:36:28 2020 -0400
 
-    os/signal: remove comments about SA_RESTART
+    [dev.link] cmd: remove "2", another round
     
-    It's no longer necessary for non-Go signal handlers to use SA_RESTART.
+    Rename the goobj2 package to goobj.
     
-    For #20400
-    Fixes #44761
-    
-    Change-Id: Ie3c7fecc631a4a2822331754296ea09b308e1391
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298269
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Iff97b5575cbac45ac44de96b6bd9d555b9a4a12a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246444
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/signal/doc.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go             |   4 +-
+ src/cmd/compile/internal/gc/iimport.go             |   4 +-
+ src/cmd/compile/internal/gc/main.go                |   4 +-
+ src/cmd/dist/buildtool.go                          |   2 +-
+ src/cmd/internal/archive/read.go                   |   4 +-
+ src/cmd/internal/{goobj2 => goobj}/builtin.go      |   2 +-
+ src/cmd/internal/{goobj2 => goobj}/builtinlist.go  |   2 +-
+ src/cmd/internal/{goobj2 => goobj}/funcinfo.go     |   2 +-
+ src/cmd/internal/{goobj2 => goobj}/mkbuiltin.go    |   2 +-
+ src/cmd/internal/{goobj2 => goobj}/objfile.go      |   2 +-
+ src/cmd/internal/{goobj2 => goobj}/objfile_test.go |   2 +-
+ src/cmd/internal/obj/line.go                       |   6 +-
+ src/cmd/internal/obj/link.go                       |  10 +-
+ src/cmd/internal/obj/objfile2.go                   | 152 ++++++++++-----------
+ src/cmd/internal/obj/objfile_test.go               |   6 +-
+ src/cmd/internal/obj/pcln.go                       |   6 +-
+ src/cmd/internal/obj/sym.go                        |  18 +--
+ src/cmd/internal/objfile/goobj.go                  |  34 ++---
+ src/cmd/link/internal/ld/deadcode.go               |   4 +-
+ src/cmd/link/internal/ld/ld.go                     |   6 +-
+ src/cmd/link/internal/ld/lib.go                    |   6 +-
+ src/cmd/link/internal/ld/main.go                   |   4 +-
+ src/cmd/link/internal/ld/pcln.go                   |   4 +-
+ src/cmd/link/internal/loader/loader.go             | 132 +++++++++---------
+ src/cmd/link/internal/loader/loader_test.go        |   6 +-
+ src/cmd/link/internal/loader/symbolbuilder.go      |   8 +-
+ src/cmd/link/internal/sym/library.go               |   6 +-
+ 27 files changed, 219 insertions(+), 219 deletions(-)

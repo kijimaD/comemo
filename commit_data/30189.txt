@@ -1,35 +1,33 @@
-commit 3fd3171c2c2b3f55cb9692b45f2ebb842e9b0b42
+commit 03d81b5ed91dfb3a2d1041bfe80dd94e7f06a3c4
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 9 16:00:23 2017 -0800
+Date:   Tue Oct 25 14:09:18 2016 -0700
 
-    cmd/compile/internal/syntax: removed gcCompat code needed to pass orig. tests
+    cmd/compile: import/export of alias declarations
     
-    The gcCompat mode was introduced to match the new parser's node position
-    setup exactly with the positions used by the original parser. Some of the
-    gcCompat adjustments were required to satisfy syntax error test cases,
-    and the rest were required to make toolstash cmp pass.
+    This CL completes support for alias declarations in the compiler.
     
-    This change removes the former gcCompat adjustments and instead adjusts
-    the respective test cases as necessary. In some cases this makes the error
-    lines consistent with the ones reported by gccgo.
+    Also:
+    - increased export format version
+    - updated various comments
     
-    Where it has changed, the position associated with a given syntactic construct
-    is the position (line/col number) of the left-most token belonging to the
-    construct.
+    For #16339.
+    Fixes #17487.
     
-    Change-Id: I5b60c00c5999a895c4d6d6e9b383c6405ccf725c
-    Reviewed-on: https://go-review.googlesource.com/36695
+    Change-Id: Ic6945fc44c0041771eaf9dcfe973f601d14de069
+    Reviewed-on: https://go-review.googlesource.com/32090
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/syntax/parser.go | 23 ++++---------------
- src/runtime/trace/trace_stack_test.go     |  2 +-
- test/fixedbugs/issue16369.go              |  4 ++--
- test/fixedbugs/issue9432.go               |  4 ++--
- test/import5.go                           | 36 ++++-------------------------
- test/import6.go                           | 38 +++++++++++++++++++++++++++++++
- test/live.go                              |  4 ++--
- test/switch5.go                           |  4 ++--
- test/typeswitch2.go                       |  4 ++--
- 9 files changed, 57 insertions(+), 62 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 109 ++++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/bimport.go |  26 ++++++--
+ src/cmd/compile/internal/gc/go.go      |   1 +
+ src/cmd/compile/internal/gc/main.go    |   4 +-
+ src/cmd/compile/internal/gc/noder.go   |   8 ++-
+ src/go/internal/gcimporter/bimport.go  |   4 +-
+ test/alias2.go                         |  12 ++--
+ test/alias3.dir/a.go                   |  54 ++++++++++++++++
+ test/alias3.dir/b.go                   |  61 ++++++++++++++++++
+ test/alias3.dir/c.go                   |  66 ++++++++++++++++++++
+ test/alias3.go                         |   7 +++
+ 11 files changed, 291 insertions(+), 61 deletions(-)

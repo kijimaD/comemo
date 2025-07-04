@@ -1,17 +1,36 @@
-commit 4799955004ccc99bd7d50ebfdc4e42d726ec32a9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 22:41:18 2020 -0700
+commit 11da2b227a71c9c041320e22843047ad9b0ab1a8
+Author: David Chase <drchase@google.com>
+Date:   Fri Nov 8 16:11:29 2019 -0500
 
-    cmd/compile: convert inlineable memmove rules to typed aux
+    runtime: copy some functions from math/bits to runtime/internal/sys
     
-    Passes toolstash-check.
+    CL 201765 activated calls from the runtime to functions in math/bits.
+    When coverage and race detection were simultaneously enabled,
+    this caused a crash when the covered+race-checked code in
+    math/bits was called from the runtime before there was even a P.
     
-    Change-Id: I0190c5403040f930895a083181da2092a5c297e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229688
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    PS Win for gdlv in helping sort this out.
+    
+    TODO - next CL intrinsifies the new functions in
+    runtime/internal/sys
+    
+    TODO/Would-be-nice - Ctz64 and TrailingZeros64 are the same
+    function; 386.s is intrinsified; clean all that up.
+    
+    Fixes #35461.
+    Updates #35112.
+    
+    Change-Id: I750a54dba493130ad3e68a06530ede7687d41e1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206199
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 16 +++----
- src/cmd/compile/internal/ssa/rewritegeneric.go | 64 +++++++++++++-------------
- 2 files changed, 40 insertions(+), 40 deletions(-)
+ src/go/build/deps_test.go                     |  94 ++++++++---------
+ src/runtime/export_test.go                    |   5 +-
+ src/runtime/internal/sys/intrinsics.go        |  46 +++------
+ src/runtime/internal/sys/intrinsics_common.go | 143 ++++++++++++++++++++++++++
+ src/runtime/mgcscavenge.go                    |   8 +-
+ src/runtime/mpagecache.go                     |   6 +-
+ src/runtime/mpallocbits.go                    |  36 +++----
+ 7 files changed, 232 insertions(+), 106 deletions(-)

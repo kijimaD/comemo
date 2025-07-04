@@ -1,23 +1,23 @@
-commit 3426b7201da8140bb0fb433facd9e1fd3f267dfb
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jun 8 10:46:42 2022 -0400
+commit 805d38a3529918a708875b068ccee46a7edcead0
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Aug 13 15:03:14 2021 -0400
 
-    runtime: gofmt
+    cmd/compile/internal/types2: no need to validate substituted instances
     
-    libfuzzerHookStrCmp is manually reformatted into a proper go doc list.
+    When substituting a type instance, we rely on the instance being
+    expanded and do not call validType, so there is need to depend on
+    subster.pos for error reporting or to use subst.check for creating the
+    new Named type. Errors will be reported for the unsubstituted instance.
     
-    We don't always format testdata, but these test programs are standard Go
-    programs that can be formatted.
+    This is a superficial change, but justifies some later simplification
+    where we don't have access to pos or check.
     
-    Change-Id: I4dde398bca225ae8c72e787e4d43fd0ccfd0a90b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411114
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I1f3f12aa245d821512c6242ad829c940f20afae4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342150
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/libfuzzer.go                           | 20 ++++++++++----------
- src/runtime/testdata/testprog/crash.go             |  6 +++---
- src/runtime/testdata/testprogcgo/pprof_callback.go |  2 +-
- src/runtime/testdata/testwinlib/main.go            |  2 ++
- 4 files changed, 16 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/types2/subst.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

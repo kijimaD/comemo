@@ -1,16 +1,12 @@
-commit b32e2105866c3d43c522123ef6d63da7578fb3da
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Aug 3 16:46:35 2011 +1000
+commit 16cdba8572ef96ec51e162fc9c1280df46d9e7d1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 2 15:19:44 2011 -0400
 
-    misc/vim: Godoc command.
-    vim command 'Godoc' to see godoc.
+    errchk: add -0 flag
     
-    R=golang-dev, dsymonds
+    R=lvd
     CC=golang-dev
-    https://golang.org/cl/4815071
+    https://golang.org/cl/4837049
 
- misc/vim/ftplugin/go/godoc.vim |  13 +++++
- misc/vim/plugin/godoc.vim      | 123 +++++++++++++++++++++++++++++++++++++++++
- misc/vim/readme.txt            |  11 ++++
- misc/vim/syntax/godoc.vim      |  20 +++++++
- 4 files changed, 167 insertions(+)
+ test/errchk | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

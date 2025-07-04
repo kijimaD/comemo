@@ -1,20 +1,14 @@
-commit 13772edbbdba1fa9dc904dbf41846d2b06519a18
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 5 18:49:36 2017 -0700
+commit 541029636a926caabe425258cb1f3de3ecc1dbc3
+Author: Ibrahim AshShohail <ibra.sho@gmail.com>
+Date:   Tue May 9 17:54:26 2017 +0300
 
-    cmd/compile: simplify exporting universal 'error' type
+    go/token: remove excess parenthesis in NoPos.IsValid() documentation
     
-    There shouldn't be any problems setting error's "Orig" (underlying)
-    type to a separate anonymous interface, as this is already how
-    go/types defines it.
+    Fixes #20294
     
-    Change-Id: I44e9c4048ffe362ce329e8306632e38b5ccfecff
-    Reviewed-on: https://go-review.googlesource.com/61790
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I32ac862fe00180210a04103cc94c4d9fef5d1b6c
+    Reviewed-on: https://go-review.googlesource.com/42992
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go  | 16 +---------------
- src/cmd/compile/internal/gc/universe.go |  5 +----
- 2 files changed, 2 insertions(+), 19 deletions(-)
+ src/go/token/position.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

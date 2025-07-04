@@ -1,23 +1,19 @@
-commit a4b95cd092aa10b40c6be82a3e0bf1052e27122d
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Oct 8 11:18:02 2020 -0700
+commit b816cb2cd5f1b7cee660c6e4b85d8130b960752a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Mar 18 14:59:44 2020 -0400
 
-    cmd/compile: fix incorrect comparison folding
+    cmd/go: update 'go help modules' for automatic vendoring
     
-    We lost a sign extension that was necessary. The nonnegative comparison
-    didn't have the correct extension on it. If the larger constant is
-    positive, but its shorter sign extension is negative, the rule breaks.
+    * Mention vendor/modules.txt verification with -mod=vendor.
+    * Update "Modules and vendoring" section.
     
-    Fixes #41872
+    Fixes #37930
     
-    Change-Id: I6592ef103f840fbb786bf8cb94fd8804c760c976
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260701
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Ia3ee72457daabaa2fc15b7ea7427eb324c088b8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223926
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go |  8 ++++----
- test/fixedbugs/issue41872.go                 | 26 ++++++++++++++++++++++++++
- 3 files changed, 32 insertions(+), 6 deletions(-)
+ src/cmd/go/alldocs.go               | 52 +++++++++++++++++++++++--------------
+ src/cmd/go/internal/modload/help.go | 52 +++++++++++++++++++++++--------------
+ 2 files changed, 66 insertions(+), 38 deletions(-)

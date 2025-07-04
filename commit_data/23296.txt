@@ -1,35 +1,21 @@
-commit 7089ea4e475a11beaed6837027b7f5254449989f
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Sun Jun 7 21:28:58 2015 +0200
+commit 9b184fd23c47a8eae3587b247d05b25f8cab04ed
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 1 07:49:12 2015 +0900
 
-    testing/quick: probabilistically generate nil pointers
+    net: deflake listener tests
     
-    The documentation for quick.Value says that it "returns an arbitrary
-    value of the given type." In spite of this, nil values for pointers were
-    never generated, which seems more like an oversight than an intentional
-    choice.
+    This change makes TestDualStack{TCP,UDP}Listener work more properly by
+    attempting to book an available service port before testing.
     
-    The lack of nil values meant that testing recursive type like
+    Also simplifies error messages in tests.
     
-      type Node struct {
-            Next *Node
-      }
+    Fixes #5001.
     
-    with testing/quick would lead to a stack overflow since the data
-    structure would never terminate.
-    
-    This change may break tests that don't check for nil with pointers
-    returned from quick.Value. Two such instances were found in the standard
-    library, one of which was in the testing/quick package itself.
-    
-    Fixes #8818.
-    
-    Change-Id: Id390dcce649d12fbbaa801ce6f58f5defed77e60
-    Reviewed-on: https://go-review.googlesource.com/10821
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: If13b0d0039878c9bd32061a0440664e4fa7abaf7
+    Reviewed-on: https://go-review.googlesource.com/9661
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/pem/pem_test.go    | 12 ++++++------
- src/testing/quick/quick.go      | 14 +++++++++-----
- src/testing/quick/quick_test.go | 17 +++++++++++++++++
- 3 files changed, 32 insertions(+), 11 deletions(-)
+ src/net/dial_test.go       |  40 ++++
+ src/net/listen_test.go     | 544 ++++++++++++++++++++++++---------------------
+ src/net/mockserver_test.go |  63 ++++++
+ 3 files changed, 391 insertions(+), 256 deletions(-)

@@ -1,23 +1,22 @@
-commit c451a02a6d3e95d279260bd8c1edae676d62997d
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Thu Apr 7 23:53:12 2022 +0800
+commit 07ca28d529e1afb64a9f6f068214c05ee9772d34
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 8 19:45:41 2021 -0400
 
-    strings, bytes: improve the description of simple case-folding in EqualFold
+    cmd/link: fix bug in -strictdups checking of BSS symbols
     
-    This CL removes the problem description pointed out by @bjkail.
-    Second, synchronously modify the comments of the bytes package.
+    The linker's -strictdups debugging option was not properly checking
+    for cases where you have two dupok BSS symbols with different length
+    (the check examined data length and content, but not symbol size).
     
-    Updates #52022
-    Fixes #52204
+    Updates #46653.
     
-    Change-Id: I0aa52c774f40bb91f32bebdd2a62a11067a77be0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398736
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Change-Id: I3844f25ef76dd6e4a84ffd5caed5d19a1b1a57c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326210
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/bytes/bytes.go     | 2 +-
- src/strings/strings.go | 2 --
- 2 files changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 12 +++++++---
+ src/cmd/link/link_test.go              | 43 +++++++++++++++++++++++++---------
+ 2 files changed, 41 insertions(+), 14 deletions(-)

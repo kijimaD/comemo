@@ -1,16 +1,18 @@
-commit f5e58442da1c08f5cd503f0a5f8eeafd858210cc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 2 10:27:55 2018 -0700
+commit 18db93d7e673b72628e5b277b5be87f4f78135f6
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Fri May 25 18:20:36 2018 -0400
 
-    cmd/compile: update fmt_test (fix build for long-running tests)
+    [dev.boringcrypto] crypto/tls: restore AES-GCM priority when BoringCrypto is enabled
     
-    Follow-up on https://golang.org/cl/136397.
+    This patch used to be in crypto/internal/cipherhw.AESGCMSupport which
+    was removed from the tree. It was meant and documented to affect only
+    crypto/tls, so move the logic there.
     
-    Change-Id: Ib0df690847c7c92d8de406dadc16a10507bfda39
-    Reviewed-on: https://go-review.googlesource.com/c/139059
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I36ed4f08a5fe2abaab18907910899ae0297d1611
+    Reviewed-on: https://go-review.googlesource.com/114816
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/fmt_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/crypto/tls/common.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

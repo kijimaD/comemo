@@ -1,24 +1,25 @@
-commit 6808da0163a353f7c4d871a215417e0da4db71f8
+commit 32f3770ec51a8317214ac5b3725fb827c5b98e86
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 18:04:12 2011 -0700
+Date:   Thu Oct 27 18:03:52 2011 -0700
 
-    runtime: lock the main goroutine to the main OS thread during init
+    pkg: remove .String() from some print arguments
     
-    We only guarantee that the main goroutine runs on the
-    main OS thread for initialization.  Programs that wish to
-    preserve that property for main.main can call runtime.LockOSThread.
-    This is what programs used to do before we unleashed
-    goroutines during init, so it is both a simple fix and keeps
-    existing programs working.
+    I found these by adding a check to govet, but the check
+    produces far too many false positives to be useful.
+    Even so, these few seem worth cleaning up.
     
-    R=iant, r, dave, dvyukov
+    R=golang-dev, bradfitz, iant
     CC=golang-dev
-    https://golang.org/cl/5309070
+    https://golang.org/cl/5311067
 
- src/pkg/runtime/386/asm.s   | 11 +--------
- src/pkg/runtime/amd64/asm.s | 11 +--------
- src/pkg/runtime/arm/asm.s   | 16 +------------
- src/pkg/runtime/debug.go    |  1 -
- src/pkg/runtime/proc.c      | 57 +++++++++++++++++++++++++++++++++++----------
- src/pkg/runtime/runtime.h   |  2 ++
- 6 files changed, 50 insertions(+), 48 deletions(-)
+ src/pkg/crypto/bcrypt/bcrypt_test.go |  2 +-
+ src/pkg/exp/gui/x11/conn.go          |  6 +++---
+ src/pkg/expvar/expvar.go             |  2 +-
+ src/pkg/go/ast/print.go              |  6 +++---
+ src/pkg/go/scanner/errors.go         |  2 +-
+ src/pkg/go/scanner/scanner_test.go   |  8 ++++----
+ src/pkg/gob/decode.go                |  4 ++--
+ src/pkg/gob/encode.go                |  2 +-
+ src/pkg/smtp/smtp_test.go            | 22 +++++++++++-----------
+ src/pkg/strconv/fp_test.go           |  2 +-
+ 10 files changed, 28 insertions(+), 28 deletions(-)

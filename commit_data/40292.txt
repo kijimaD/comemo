@@ -1,22 +1,35 @@
-commit f9226454b9830dd7fe6405bdb2953a6747dce41b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 17 13:16:15 2019 -0700
+commit 40036a99a07ee89f59864c42af056bb5e33e696e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Feb 5 00:06:55 2019 +0000
 
-    cmd/compile: fix -d=checkptr for named unsafe.Pointer types
+    runtime: change the span allocation policy to first-fit
     
-    We need to explicitly convert pointers to unsafe.Pointer before
-    passing to the runtime checkptr instrumentation in case the user
-    declared their own type with underlying type unsafe.Pointer.
+    This change modifies the treap implementation to be address-ordered
+    instead of size-ordered, and further augments it so it may be used for
+    allocation. It then modifies the find method to implement a first-fit
+    allocation policy.
     
-    Updates #22218.
-    Fixes #34966.
+    This change to the treap implementation consequently makes it so that
+    spans are scavenged in highest-address-first order without any
+    additional changes to the scavenging code. Because the treap itself is
+    now address ordered, and the scavenging code iterates over it in
+    reverse, the highest address is now chosen instead of the largest span.
     
-    Change-Id: I3baa2809d77f8257167cd78f57156f819130baa8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201782
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    This change also renames the now wrongly-named "scavengeLargest" method
+    on mheap to just "scavengeLocked" and also fixes up logic in that method
+    which made assumptions about size.
+    
+    For #30333.
+    
+    Change-Id: I94b6f3209211cc1bfdc8cdaea04152a232cfbbb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164101
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/walk.go |  9 ++++++---
- test/fixedbugs/issue34966.go        | 14 ++++++++++++++
- 2 files changed, 20 insertions(+), 3 deletions(-)
+ src/runtime/export_test.go |   1 +
+ src/runtime/mgclarge.go    | 255 +++++++++++++++++++++++++++++----------------
+ src/runtime/mheap.go       |  43 ++++----
+ src/runtime/proc.go        |   2 +-
+ src/runtime/treap_test.go  |  26 +++--
+ 5 files changed, 196 insertions(+), 131 deletions(-)

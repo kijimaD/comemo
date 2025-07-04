@@ -1,18 +1,20 @@
-commit f7c7ed7c41b28ba999f81ab1a3f66c2e35468fd0
-Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
-Date:   Sun Nov 8 23:30:43 2015 -0800
+commit 1c2975c305b2b2c32f2673c93ab51204c5a5bff5
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 8 16:23:50 2015 -0700
 
-    cmd/go: set buildmode=pie default for android/arm64.
+    [dev.ssa] cmd/compile/internal/gc: avoid generating test binary file
     
-    Just like android/arm, android/arm64 refuses to execute non-PIE
-    binaries. In addition, starting from the M release (Marshmallow),
-    Android refuses to execute binaries with any text relocations
-    (this was just a warning in the L release). This makes "-shared"
-    necessary as well when building executables for Android.
+    Using the main package causes a binary to be generated.  That binary
+    clutters up git listings.
     
-    Change-Id: Id8802de5be98ff472fc370f8d22ffbde316aaf1e
-    Reviewed-on: https://go-review.googlesource.com/16744
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Use a non-main package instead, so the results of a successful
+    compilation are thrown away.
+    
+    Change-Id: I3ac91fd69ad297a5c0fe035c22fdef290b7dfbc4
+    Reviewed-on: https://go-review.googlesource.com/14399
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/build.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/testdata/deferNoReturn_ssa.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

@@ -1,35 +1,15 @@
-commit 5279e534b5ced1eaea19e8b75968498287ff6228
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 29 11:14:05 2021 -0700
+commit 9f43a9e07b1379a808de38559e408040b17ced1c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 20 20:09:18 2021 -0800
 
-    cmd/compile/internal/syntax: allow eliding interface in constraint literals
+    doc/go1.16: mention new debug/elf constants
     
-    This CL permits an arbitrary type as well as the type sets  ~T and A|B
-    in constraint position, without the need of a surrrounding interface.
-    For instance, the type parameter list
+    For #40700
     
-            [P interface{ ~map[K]V }, K comparable, V interface{ ~string }]
-    
-    may be written as
-    
-            [P ~map[K]V, K comparable, V ~string]
-    
-    The feature must be enabled explicitly with the AllowTypeSets mode
-    and is only available if AllowGenerics is set as well.
-    
-    For #48424.
-    
-    Change-Id: Ic70bb97a49ff75e67e040853eac10e6aed0fef1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353133
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: If105d2f043539bb0893f577a984f14ee3e7ca753
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285212
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/syntax/error_test.go      |  2 +-
- src/cmd/compile/internal/syntax/parser.go          | 68 +++++++++++++++-----
- src/cmd/compile/internal/syntax/parser_test.go     |  6 +-
- src/cmd/compile/internal/syntax/printer_test.go    |  6 +-
- src/cmd/compile/internal/syntax/syntax.go          |  1 +
- .../compile/internal/syntax/testdata/typeset.go2   | 72 ++++++++++++++++++++++
- 6 files changed, 133 insertions(+), 22 deletions(-)
+ doc/go1.16.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

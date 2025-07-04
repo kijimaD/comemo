@@ -1,12 +1,12 @@
-commit cdfd5b2bede93497f4c74fa0959c3d6c8445fd57
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sun Feb 5 14:50:38 2012 +1100
+commit 8f0602fb077f44b310567330fa5cc463a9b91ac7
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Sun Feb 5 00:36:20 2012 -0200
 
-    build: fix sudo.bash.
+    .hgignore: add VERSION.cache
     
-    R=rsc, balasanjay, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5630051
+    https://golang.org/cl/5627051
 
- src/sudo.bash | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

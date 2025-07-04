@@ -1,18 +1,13 @@
-commit b53856c16dc1facdc5c0257bd8b0ef4cff13d350
+commit f99b4128139fddf7a7a3dd05ddbb9c86d1b76694
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 15 18:21:38 2011 -0500
+Date:   Thu Dec 15 18:21:29 2011 -0500
 
-    os/exec: fix -test.run argument for new 'go test'
+    io/ioutil, old/template: do not assume _test exists for scratch space
     
-    In 'go test' I deleted the leading package. prefix
-    from all the test names, since it contained no actual
-    information.  Adjust the -test.run argument accordingly.
-    This will still work with the current gotest too, since
-    the argument is an unanchored pattern.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5491058
+    https://golang.org/cl/5496052
 
- src/pkg/os/exec/exec_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/io/ioutil/ioutil_test.go      |  6 +++++-
+ src/pkg/old/template/template_test.go | 14 ++++++++++----
+ 2 files changed, 15 insertions(+), 5 deletions(-)

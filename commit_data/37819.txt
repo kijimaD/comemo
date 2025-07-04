@@ -1,21 +1,14 @@
-commit abd1dde1f717f86f94774ce9ab56053947f2d175
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Mon Dec 31 15:03:33 2018 -0800
+commit 796e4bdc6b3edef2d838ddc3c4d35aee3f8e89cc
+Author: Dylan Waits <dylan@waits.io>
+Date:   Thu Aug 30 13:04:09 2018 -0600
 
-    cmd/compile: fix no-op instruction used by s390x
+    fmt: add example for Fprintln
     
-    CL 152537 introduced a new use for ginsnop, the arch-dependent
-    routine that generates nops. The previous s390x nop clobbered flags.
-    It turns out the previous uses of this nop did not require flags
-    to be preserved, but the new use does.
-    
-    Use a real nop: the 4-byte preferred nop.
-    
-    Fixes #29453
-    
-    Change-Id: I95310dfdd831932e26f5d5b6608324687f4c3162
-    Reviewed-on: https://go-review.googlesource.com/c/155926
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Idc4aa53e443b89eeba496d00f6b409268e29ec21
+    Reviewed-on: https://go-review.googlesource.com/132241
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/s390x/ggen.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/fmt/example_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

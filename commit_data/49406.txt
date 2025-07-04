@@ -1,35 +1,42 @@
-commit a71ca3dfbd32faf351ff68bcc26a4d5abd9b06d7
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 26 16:53:50 2022 -0500
+commit 9c5eb16f6cba2b3d75f440dfec157183cc6d0f35
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 11 19:34:22 2021 -0800
 
-    runtime, sync, sync/atomic: document happens-before guarantees
+    net: reduce allocation size in ReadFromUDP
     
-    A few of these are copied from the memory model doc.
-    Many are entirely new, following discussion on #47141.
-    See https://research.swtch.com/gomm for background.
+    Switch to concrete types. Bring your own object to fill in.
     
-    The rule we are establishing is that each type that is meant
-    to help synchronize a Go program should document its
-    happens-before guarantees.
+    Allocate just enough for the IP byte slice.
+    The allocation is now just 4 bytes for IPv4,
+    which puts it in the tiny allocator, which is much faster.
     
-    For #50859.
+    name                  old time/op    new time/op    delta
+    WriteToReadFromUDP-8    13.7µs ± 1%    13.4µs ± 2%   -2.49%  (p=0.000 n=10+10)
     
-    Change-Id: I947c40639b263abe67499fa74f68711a97873a39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381316
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    name                  old alloc/op   new alloc/op   delta
+    WriteToReadFromUDP-8     32.0B ± 0%      4.0B ± 0%  -87.50%  (p=0.000 n=10+10)
+    
+    name                  old allocs/op  new allocs/op  delta
+    WriteToReadFromUDP-8      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    
+    Windows is temporarily stubbed out.
+    
+    Updates #43451
+    
+    Change-Id: Ief506f891b401d28715d22dce6ebda037941924e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331490
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/mfinal.go  | 14 +++++++++++++-
- src/sync/atomic/doc.go |  8 ++++++++
- src/sync/cond.go       |  8 +++++++-
- src/sync/map.go        |  7 +++++++
- src/sync/mutex.go      |  7 +++++++
- src/sync/once.go       |  4 ++++
- src/sync/pool.go       |  5 +++++
- src/sync/rwmutex.go    |  8 ++++++++
- src/sync/waitgroup.go  |  3 +++
- 9 files changed, 62 insertions(+), 2 deletions(-)
+ api/next.txt                    | 52 +++++++++++++++++++++++++++++++++++++++
+ src/internal/poll/fd_unix.go    | 54 +++++++++++++++++++++++++++++++++++++++++
+ src/internal/poll/fd_windows.go | 18 ++++++++++++++
+ src/net/fd_posix.go             | 11 +++++++++
+ src/net/net_fake.go             |  8 ++++++
+ src/net/udpsock_posix.go        | 26 ++++++++++++++------
+ src/syscall/net_js.go           |  8 ++++++
+ src/syscall/syscall_unix.go     | 27 +++++++++++++++++++++
+ 8 files changed, 197 insertions(+), 7 deletions(-)

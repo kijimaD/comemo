@@ -1,19 +1,19 @@
-commit d1593b7a4a8cd60e30bfc41df83fb22ab8393d51
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Aug 19 22:32:08 2023 -0700
+commit d9d2ef991caabb3d2d0d419b652e7894cd2f4546
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Sep 24 13:13:14 2022 +0800
 
-    cmd/compile: do some TODOs about Fatalf
+    net/http: fix the potential leak of textproto.Reader from pool
     
-    Separate CL in case I'm mistaken.
+    Fixes #55835
     
-    Change-Id: I6b5fa0efb27a6b4fb4c133698bd7e2f01b4cccdb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521195
+    Change-Id: I6109bab2941b859e8cfef22f65a6a3a5f977a8d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433835
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/devirtualize/devirtualize.go |  6 +-----
- src/cmd/compile/internal/typecheck/expr.go            | 12 +++++++++---
- 2 files changed, 10 insertions(+), 8 deletions(-)
+ src/net/http/request.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

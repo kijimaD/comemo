@@ -1,18 +1,17 @@
-commit 5408d799501432aa247307604df33c622d6a73d3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 16 15:58:46 2018 -0800
+commit d1bef43daf850912b52f6f743f8fce31dc7c7481
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Sun Oct 1 14:24:16 2017 +0300
 
-    go/parser: remove newly introduced TODO (cleanup)
+    net/http: make TimeoutHandler recover child handler panics
     
-    R=go1.11
+    Fixes #22084.
     
-    No semantic change.
-    
-    For #23434.
-    
-    Change-Id: Iafdb062b0ebe6cd6e51f9a98b62b1d10f1bacc5c
-    Reviewed-on: https://go-review.googlesource.com/87899
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If405ffdc57fcf81de3c0e8473c45fc504db735bc
+    Reviewed-on: https://go-review.googlesource.com/67410
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/go/parser/parser.go | 116 +++++++++++++++++++-----------------------------
- 1 file changed, 45 insertions(+), 71 deletions(-)
+ src/net/http/serve_test.go | 28 ++++++++++++++++++++--------
+ src/net/http/server.go     |  8 ++++++++
+ 2 files changed, 28 insertions(+), 8 deletions(-)

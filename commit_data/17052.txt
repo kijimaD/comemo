@@ -1,40 +1,14 @@
-commit 6a76bca362083a2794b5c7d4ccc61d5c9bec7111
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Aug 6 23:42:33 2013 +0900
+commit b2fcdfa5fd7d0bba1933c1c6f6c478549bb4cd82
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 6 07:18:06 2013 -0700
 
-    net: separate pollster initialization from network file descriptor allocation
+    net: detect bad F_DUPFD_CLOEXEC on OS X 10.6
     
-    Unlike the existing net package own pollster, runtime-integrated
-    network pollster on BSD variants, actually kqueue, requires a socket
-    that has beed passed to syscall.Listen previously for a stream
-    listener.
+    On 10.6, OS X's fcntl returns EBADF instead of EINVAL.
     
-    This CL separates pollDesc.Init (actually runtime_pollOpen) from newFD
-    to allow control of each state of sockets and adds init method to netFD
-    instead. Upcoming CLs will rearrange the call order of runtime-integrated
-    pollster and syscall functions like the following;
-    
-    - For dialers that open active connections, runtime_pollOpen will be
-      called in between syscall.Bind and syscall.Connect.
-    
-    - For stream listeners that open passive stream connections,
-      runtime_pollOpen will be called just after syscall.Listen.
-    
-    - For datagram listeners that open datagram connections,
-      runtime_pollOpen will be called just after syscall.Bind.
-    
-    This is in preparation for runtime-integrated network pollster for BSD
-    variants.
-    
-    Update #5199
-    
-    R=dvyukov, alex.brainman, minux.ma
+    R=golang-dev, iant, dave
     CC=golang-dev
-    https://golang.org/cl/8608044
+    https://golang.org/cl/12493043
 
- src/pkg/net/fd_poll_runtime.go |  7 +++++++
- src/pkg/net/fd_unix.go         | 22 ++++++++++++----------
- src/pkg/net/fd_windows.go      | 18 ++++++++++--------
- src/pkg/net/file_unix.go       |  4 ++++
- src/pkg/net/sock_posix.go      |  4 ++++
- 5 files changed, 37 insertions(+), 18 deletions(-)
+ src/pkg/net/fd_unix.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

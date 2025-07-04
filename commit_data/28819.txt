@@ -1,18 +1,24 @@
-commit abbd502d638262fa80e142ad18a89d6c75490672
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 11 09:23:39 2016 +0000
+commit 6317c213c953d0879fe88593b4372f03d25f369b
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 1 20:04:25 2016 -0700
 
-    net/http: allow Handlers to test Hijacked conn without spamming error log
+    cmd/doc: ensure functions with unexported return values are shown
     
-    Make a zero-byte write to a hijacked connection not log anything, so handlers
-    can test whether a connection is hacked by doing a Write(nil).
+    The commit in golang.org/cl/22354 groups constructors functions under
+    the type that they construct to. However, this caused a minor regression
+    where functions that had unexported return values were not being printed
+    at all. Thus, we forgo the grouping logic if the type the constructor falls
+    under is not going to be printed.
     
-    Fixes #16456
+    Fixes #16568
     
-    Change-Id: Id56caf822c8592067bd8422672f0c1aec89e866c
-    Reviewed-on: https://go-review.googlesource.com/30812
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Idc14f5d03770282a519dc22187646bda676af612
+    Reviewed-on: https://go-review.googlesource.com/25369
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/serve_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     |  4 +++-
- 2 files changed, 48 insertions(+), 1 deletion(-)
+ src/cmd/doc/doc_test.go     | 8 +++++---
+ src/cmd/doc/pkg.go          | 4 +++-
+ src/cmd/doc/testdata/pkg.go | 3 +++
+ 3 files changed, 11 insertions(+), 4 deletions(-)

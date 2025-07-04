@@ -1,16 +1,28 @@
-commit fb8b1764d8e8afdaf5d8fd00af3720e42d96ad9c
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Wed Oct 13 22:16:37 2021 +0800
+commit cd3b4ca9f20fd14187ed4cdfdee1a02ea87e5cd8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Mar 2 10:00:53 2021 -0800
 
-    errors: add errors.Unwrap example
+    archive/zip: fix panic in Reader.Open
     
-    Change-Id: Id2336a6059f7a8d627e6c0661a4d4c05485b65f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355589
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    When operating on a Zip file that contains a file prefixed with "../",
+    Open(...) would cause a panic in toValidName when attempting to strip
+    the prefixed path components.
+    
+    Fixes CVE-2021-27919
+    Fixes #44916
+    
+    Change-Id: Ic755d8126cb0897e2cbbdacf572439c38dde7b35
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1004761
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Katie Hockman <katiehockman@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300489
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/errors/wrap_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/archive/zip/reader.go      |  2 +-
+ src/archive/zip/reader_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)

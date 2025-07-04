@@ -1,17 +1,14 @@
-commit 32efa16c3d63dd630e2190a8c0f30c0a941f6fd7
-Author: David Chase <drchase@google.com>
-Date:   Fri Apr 1 14:51:29 2016 -0400
+commit 1b1d0a9a802deadf8e21517575eed4e6f02d3995
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Feb 26 16:48:16 2016 +0300
 
-    cmd/compile: added stats printing to stackalloc
+    [dev.ssa] cmd/compile: Use movups for xmm->xmm mov
     
-    This is controlled by the "regalloc" stats flag, since regalloc
-    calls stackalloc.  The plan is for this to allow comparison
-    of cheaper stack allocation algorithms with what we have now.
+    Movups is 1 byte smaller than movapd that we currently use.
     
-    Change-Id: Ibf64a780344c69babfcbb328fd6d053ea2e02cfc
-    Reviewed-on: https://go-review.googlesource.com/21393
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I22f771f066529352722a28543535ec43497cb9c5
+    Reviewed-on: https://go-review.googlesource.com/19938
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/stackalloc.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

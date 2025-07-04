@@ -1,26 +1,18 @@
-commit 9a44df66758c65e6f0b3ab0002a297d2fc266d7c
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 8 11:19:05 2025 -0500
+commit e7d582b55dda36e76ce4d0ce770139ca0915b7c5
+Author: Ezzno J <ezzno@ezzno.site>
+Date:   Tue Nov 14 02:52:31 2023 +0000
 
-    cmd/go/testdata/script: fix TestScript/env_gocacheprog on Windows
+    runtime: remove useless nil checking during init of itab
     
-    The backslashes on the windows paths will be escaped, so when checking
-    for them in the regular expression we'd have to have quadruple
-    backslashes '\\\\'. Since it's difficult to escape $GOCACHEPROG properly
-    for both json and regexp, just check for a string that ends in
-    cacheprog$GOEXE. We already check that the proper value is reported in
-    go env and go env -changed, and the json test case is mostly useful to
-    verify that GOCACHEPROG shows up in the json output.
-    
-    For #71059
-    
-    Change-Id: I52d49de61f2309a139f84c4d232b4cd94546ec8c
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641375
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I8ef12221e18e163b695d88f4bb8c309763341ec3
+    GitHub-Last-Rev: d3d4d4cb79418ccbb027a08892a95368888acbbf
+    GitHub-Pull-Request: golang/go#64107
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542116
+    Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/go/testdata/script/env_gocacheprog.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/iface.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

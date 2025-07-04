@@ -1,15 +1,18 @@
-commit 47a54ab2ad7ab29bfdb92f4be282e6c6637578c1
+commit 245dc62ca4a0dd0d9f797a6c756f0992517e56ee
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Mar 29 15:07:38 2013 +0900
+Date:   Fri Mar 29 15:06:43 2013 +0900
 
-    api: remove Zone of net.IPNet from next.txt
+    net: update documentation for ListenTCP, ListenUDP
     
-    Update #4234.
-    Update #4501.
+    Adds the missing wildcard port assignment description to ListenUDP.
+    Also updates the wildcard port description on ListenTCP.
     
-    R=golang-dev, dave, bradfitz
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/8129043
+    https://golang.org/cl/8063043
 
- api/next.txt | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/net/tcpsock_plan9.go |  4 ++--
+ src/pkg/net/tcpsock_posix.go |  8 ++++----
+ src/pkg/net/udpsock_plan9.go |  5 ++++-
+ src/pkg/net/udpsock_posix.go | 11 +++++++----
+ 4 files changed, 17 insertions(+), 11 deletions(-)

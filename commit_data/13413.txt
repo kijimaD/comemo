@@ -1,14 +1,12 @@
-commit 8357dc90152ff27670fd9dd880a455802e5abc7a
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Wed Jun 27 18:21:48 2012 -0500
+commit 71643b2fdbc600fea6498ed20a17ec14bb13a841
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 27 17:32:41 2012 -0400
 
-    syscall: add missing argument type
+    runtime: fix string optimization
     
-    And update implementation location comment.
-    
-    R=golang-dev, alex.brainman
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6352046
+    https://golang.org/cl/6354048
 
- src/pkg/syscall/dll_windows.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/string.goc | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

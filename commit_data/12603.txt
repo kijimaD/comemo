@@ -1,14 +1,12 @@
-commit 677caf78139a3f4f46bbc2f96146561232702e2b
+commit 51db4bb4ea3bd8ec2fa8a89919ed4d438239c582
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 13 15:31:39 2012 +1100
+Date:   Tue Mar 13 15:12:05 2012 +1100
 
-    misc/dist: trim space from version string
+    tag weekly.2012-03-12
     
-    This prevents us from writing filenames like "weekly.2012-03-12\n.foo.bar.tar.gz".
-    
-    R=bradfitz
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5783090
+    https://golang.org/cl/5796074
 
- misc/dist/bindist.go | 1 +
- 1 file changed, 1 insertion(+)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,28 +1,17 @@
-commit 6d9df14fec6361a022c9732da0ac87fda7f9963f
-Author: Aamir Khan <syst3m.w0rm@gmail.com>
-Date:   Wed Jun 3 12:51:56 2015 +0900
+commit 198dcedad3c6c5df9551cc0664fa4674a1c35256
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 30 03:01:22 2015 -0700
 
-    text/template: refactor code to accomodate bi-state requirement for templates
+    doc/progs: remove flaky timing-sensitive test
     
-    This is follow-up to CL10607
+    Package time already has enough inherently flaky tests covering its
+    behavior.  No need for more of them.
     
-    - Refactor AddParseTree() to use t.associate()
-    - Refactor Parse() to use AddParseTree() to put entries into common structure
-    - Clone() should not put entry in t.tmpl for undefined template
-    - Clarify documentation for Templates()
-    - Clarify documentation for AddParseTree() to include the error case
+    Fixes #10632.
     
-    Updates #10910
-    Uodates #10926
-    
-    Includes test cases for most of the above changes
-    
-    Change-Id: I25b2fce6f9651272866f881acf44e4dbca04a4a8
-    Reviewed-on: https://go-review.googlesource.com/10622
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1229e9fcc2e28ba2c9b0b79f73638e35dbbe8bbf
+    Reviewed-on: https://go-review.googlesource.com/9517
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/text/template/multi_test.go | 67 +++++++++++++++++++++++++++++++++++++++++
- src/text/template/template.go   | 41 +++++++++++--------------
- 2 files changed, 85 insertions(+), 23 deletions(-)
+ doc/progs/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

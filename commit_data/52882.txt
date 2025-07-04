@@ -1,20 +1,20 @@
-commit 1e51b1fac3b65562ed4d6cf357f96665da55fed1
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Mar 30 11:11:39 2023 -0500
+commit bdde41e3ba4926b9c1143502f299286d5eca6490
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 8 12:24:55 2022 -0400
 
-    runtime/cgo: preserve nonvolatile VRs when crosscalling into Go on PPC64
+    runtime: skip TestGdbBacktrace on gdb bug
     
-    ELFv1 and ELFv2 declare V20-V31 as nonvolatile (callee save) registers.
-    Go does not. Preserve them before calling into Go.
+    Very rarely, GDB will successfully run the whole test and the inferior
+    will exit successfully, and then GDB itself hangs and never exits.
+    Detect this and skip the test as flaky. We could just continue the
+    test since all of the output we need is there, but by skipping it
+    we're less likely to notice serious regressions in this test.
     
-    Change-Id: If60a6d8f71b51b1136a86eab2b90d964900becd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480657
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #37405.
+    
+    Change-Id: I016cbb06f48673f064733da3e3f1ddcbefd58159
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411117
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/cgo/asm_ppc64x.s | 112 ++++---------------------------------------
- 1 file changed, 9 insertions(+), 103 deletions(-)
+ src/runtime/runtime-gdb_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

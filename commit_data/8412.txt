@@ -1,12 +1,13 @@
-commit aea17570c08561c3c455ed9f92beb19aa06f97e3
-Author: Gary Burd <gary@beagledreams.com>
-Date:   Mon May 16 17:48:00 2011 -0400
+commit 8ef0d181f6c05a8c500ad7a47a7d01d5ed92caf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 16 17:47:54 2011 -0400
 
-    net: sort records returned by LookupSRV
+    A+C: Gary Burd (individual CLA)
     
-    R=golang-dev, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4518061
+    https://golang.org/cl/4519064
 
- src/pkg/net/dnsclient.go | 50 +++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 49 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

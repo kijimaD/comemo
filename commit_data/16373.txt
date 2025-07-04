@@ -1,12 +1,18 @@
-commit a3393e1750e88c7f6209936815b51173775a38e5
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu May 23 02:46:07 2013 +0800
+commit c075d82ccac5eb6fca481efccc798acac00f7dae
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 22 22:22:57 2013 +0400
 
-    cmd/go: use "go get" instead of "go install" to install vet
+    runtime: fix and speedup malloc stats
+    Currently per-sizeclass stats are lost for destroyed MCache's. This patch fixes this.
+    Also, only update mstats.heap_alloc on heap operations, because that's the only
+    stat that needs to be promptly updated. Everything else needs to be up-to-date only in ReadMemStats().
     
-    R=golang-dev, r
+    R=golang-dev, remyoudompheng, dave, iant
     CC=golang-dev
-    https://golang.org/cl/9662043
+    https://golang.org/cl/9207047
 
- src/cmd/go/tool.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/malloc.goc | 8 ++++++++
+ src/pkg/runtime/malloc.h   | 7 +++++--
+ src/pkg/runtime/mgc0.c     | 6 ------
+ src/pkg/runtime/mheap.c    | 6 ++++--
+ 4 files changed, 17 insertions(+), 10 deletions(-)

@@ -1,19 +1,45 @@
-commit 1bc116b73ced8ec1ddc46f59acc75c89e5642607
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jan 21 21:44:54 2020 -0800
+commit f18109d7e30c8d1a6e1c87ba3458499ac7ab2a79
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 12 14:54:28 2019 -0400
 
-    cmd/compile: extract function for splitting up x:(Foo) in rewrite rule fragments
+    runtime: grow the heap incrementally
     
-    We had three implementations.
+    Currently, we map and grow the heap a whole arena (64MB) at a time.
+    Unfortunately, in order to fix #32828, we need to switch from
+    scavenging inline with allocation back to scavenging on heap growth,
+    but heap-growth scavenging happens in large jumps because we grow the
+    heap in large jumps.
     
-    Refactor, and document the shared implementation.
+    In order to prepare for better heap-growth scavenging, this CL
+    separates mapping more space for the heap from actually "growing" it
+    (tracking the new space with spans). Instead, growing the heap keeps
+    track of the "current arena" it's growing into. It track that with new
+    spans as needed, and only maps more arena space when the current arena
+    is inadequate. The effect to the user is the same, but this will let
+    us scavenge on much smaller increments of heap growth.
     
-    While we're here, improve the docs for func unbalanced.
+    There are two slightly subtleties to this change:
     
-    Change-Id: I612cce79de15a864247afe377d3739d04a56b9bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216219
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    1. If an allocation requires mapping a new arena and that new arena
+       isn't contiguous with the current arena, we don't want to lose the
+       unused space in the current arena, so we have to immediately track
+       that with a span.
+    
+    2. The mapped space must be accounted as released and idle, even
+       though it isn't actually tracked in a span.
+    
+    For #32828, since this makes heap-growth scavenging far more
+    effective, especially at small heap sizes. For example, this change is
+    necessary for TestPhysicalMemoryUtilization to pass once we remove
+    inline scavenging.
+    
+    Change-Id: I300e74a0534062467e4ce91cdc3508e5ef9aa73a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189957
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 54 ++++++++++++++++++-----------
- 1 file changed, 33 insertions(+), 21 deletions(-)
+ src/runtime/export_test.go |  3 ++
+ src/runtime/mheap.go       | 81 +++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 69 insertions(+), 15 deletions(-)

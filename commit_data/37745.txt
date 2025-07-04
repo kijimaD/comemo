@@ -1,19 +1,33 @@
-commit d063b7c6d342815f196c183693e2300ac3925334
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Nov 17 13:58:38 2018 -0500
+commit 2e8c31b3d2afce1c1c7b0c6af9cc4a9f296af299
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun May 27 08:49:36 2018 +0200
 
-    cmd/dist: enable race detector test on Linux/ARM64
+    runtime: move arm hardware division support detection to internal/cpu
     
-    CL 138675 added the race detector support on Linux/ARM64, but it
-    didn't enable the race detector tests in cmd/dist (therefore in
-    all.bash). Enable them.
+    Assumes mandatory VFP and VFPv3 support to be present by default
+    but not IDIVA if AT_HWCAP is not available.
     
-    Updates #28848
+    Adds GODEBUGCPU options to disable the use of code paths in the runtime
+    that use hardware support for division.
     
-    Change-Id: I4306dad2fb4167021d568436076b9f535d7f6e07
-    Reviewed-on: https://go-review.googlesource.com/c/149967
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ida02311bd9b9701de3fc120697e69445bf6c0853
+    Reviewed-on: https://go-review.googlesource.com/114826
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/cpu/cpu.go         | 10 ++++++++++
+ src/internal/cpu/cpu_arm.go     | 25 +++++++++++++++++++++++++
+ src/internal/cpu/cpu_no_init.go |  1 +
+ src/runtime/cpuflags.go         |  2 ++
+ src/runtime/os_darwin_arm.go    |  2 --
+ src/runtime/os_freebsd.go       |  1 +
+ src/runtime/os_freebsd_arm.go   | 25 +++++++++++++++++--------
+ src/runtime/os_linux_arm.go     | 19 ++++++++++---------
+ src/runtime/os_nacl_arm.go      |  2 --
+ src/runtime/os_netbsd_arm.go    |  2 --
+ src/runtime/os_openbsd_arm.go   |  2 --
+ src/runtime/os_plan9_arm.go     |  2 --
+ src/runtime/vlop_arm.s          |  2 +-
+ 13 files changed, 67 insertions(+), 28 deletions(-)

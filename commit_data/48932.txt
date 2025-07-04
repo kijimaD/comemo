@@ -1,24 +1,76 @@
-commit 15381040fa8cb2f00579595c60594964d73b09b1
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Apr 29 01:08:40 2022 +0700
+commit 1cfa89e5dc22906e18725a9e21890b78c62c720e
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Jun 3 15:09:39 2021 -0400
 
-    cmd/compile: remove go117ExportTypes constant
+    [dev.fuzz] internal/fuzz: use scratch []byte for mutations
     
-    Now, 1.17 is the least supported version, the compiler always write
-    type information when exporting function bodies. So we can get rid of
-    go117ExportTypes constant and all its conditional checking codes.
+    The mutator will now use a scratch []byte when mutating
+    []byte and string types.
     
-    Change-Id: I9ac616509c30601e94f99426049d814328253395
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402974
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    I ran the following target locally:
+    
+        func FuzzBytesFromStringCmp(f *testing.F) {
+            f.Fuzz(func(t *testing.T, a, b string) {
+                bytes.Compare([]byte(a), []byte(b))
+            })
+        }
+    
+    Before the change, execs were <400/sec:
+    
+        === FUZZ  FuzzBytesFromStringCmp
+        fuzzing, elapsed: 3.0s, execs: 1090 (363/sec), workers: 8 ...
+        fuzzing, elapsed: 6.0s, execs: 2290 (382/sec), workers: 8 ...
+        fuzzing, elapsed: 9.0s, execs: 3491 (388/sec), workers: 8 ...
+        fuzzing, elapsed: 12.0s, execs: 4691 (391/sec), workers: 8 ...
+        fuzzing, elapsed: 15.0s, execs: 5869 (391/sec), workers: 8 ...
+        fuzzing, elapsed: 18.0s, execs: 7056 (392/sec), workers: 8 ...
+    
+    After the change, the execs are ~6000/sec
+    
+        === FUZZ  FuzzBytesFromStringCmp
+        fuzzing, elapsed: 3.0s, execs: 155129 (51687/sec), workers: 8 ...
+        fuzzing, elapsed: 6.0s, execs: 303710 (50606/sec), workers: 8 ...
+        fuzzing, elapsed: 9.0s, execs: 454314 (50470/sec), workers: 8 ...
+        fuzzing, elapsed: 12.0s, execs: 603212 (50262/sec), workers: 8 ...
+        fuzzing, elapsed: 15.0s, execs: 756165 (50401/sec), workers: 8 ...
+        fuzzing, elapsed: 18.0s, execs: 899293 (49955/sec), workers: 8 ...
+    
+    Which is comparable to the same target with two []byte as input:
+    
+        === FUZZ  FuzzBytesCmp
+        fuzzing, elapsed: 3.0s, execs: 152348 (50757/sec), workers: 8 ...
+        fuzzing, elapsed: 6.0s, execs: 314386 (52387/sec), workers: 8 ...
+        fuzzing, elapsed: 9.0s, execs: 487413 (54148/sec), workers: 8 ...
+        fuzzing, elapsed: 12.0s, execs: 646886 (53901/sec), workers: 8 ...
+        fuzzing, elapsed: 15.0s, execs: 814257 (54266/sec), workers: 8 ...
+        fuzzing, elapsed: 18.0s, execs: 983214 (54619/sec), workers: 8 ...
+    
+    Benchark results:
+    name                      old time/op    new time/op    delta
+    MutatorBytes/1-8          7.70ms ± 3%    0.00ms ± 3%   -99.99%  (p=0.029 n=4+4)
+    MutatorBytes/10-8         7.88ms ± 2%    0.00ms ± 6%   -99.99%  (p=0.029 n=4+4)
+    MutatorBytes/100-8        7.87ms ± 1%    0.00ms ± 2%   -99.99%  (p=0.029 n=4+4)
+    MutatorBytes/1000-8       8.11ms ± 5%    0.00ms ± 2%   -99.99%  (p=0.029 n=4+4)
+    MutatorBytes/10000-8      8.11ms ± 4%    0.00ms ± 2%   -99.99%  (p=0.029 n=4+4)
+    MutatorBytes/100000-8     8.28ms ±10%    0.00ms ± 4%   -99.96%  (p=0.029 n=4+4)
+    MutatorString/1-8         7.89ms ± 5%    0.00ms ±17%   -99.99%  (p=0.029 n=4+4)
+    MutatorString/10-8        7.91ms ± 4%    0.00ms ± 7%   -99.99%  (p=0.029 n=4+4)
+    MutatorString/100-8       8.08ms ± 4%    0.00ms ± 7%   -99.99%  (p=0.029 n=4+4)
+    MutatorString/1000-8      8.11ms ± 6%    0.00ms ±11%   -99.99%  (p=0.029 n=4+4)
+    MutatorString/10000-8     8.04ms ± 7%    0.00ms ± 8%   -99.98%  (p=0.029 n=4+4)
+    MutatorString/100000-8    8.24ms ± 7%    0.01ms ±13%   -99.82%  (p=0.029 n=4+4)
+    
+    Fixes #46543
+    
+    Change-Id: I8b078ed3adc1bb6310c33afc49bb6cd78e7e976c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324849
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/inline/inl.go        |   4 -
- src/cmd/compile/internal/typecheck/func.go    |  13 --
- src/cmd/compile/internal/typecheck/iexport.go | 180 ++++-----------
- src/cmd/compile/internal/typecheck/iimport.go | 313 +++++++++-----------------
- 4 files changed, 155 insertions(+), 355 deletions(-)
+ src/internal/fuzz/mutator.go      | 34 +++++++++++++++++++++-------------
+ src/internal/fuzz/mutator_test.go | 11 ++++++-----
+ src/testing/fuzz.go               | 13 +++++++++++--
+ 3 files changed, 38 insertions(+), 20 deletions(-)

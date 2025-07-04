@@ -1,39 +1,14 @@
-commit e8f918535e6c9fc7b85a9dadc9e8035a2e1d1fa4
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Aug 26 18:19:03 2020 -0400
+commit 46f9aea80197bfdf4c024c3f5a71be51a2facf59
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 15 20:26:56 2020 +0000
 
-    cmd/link: strip STAB (symbolic debugging) symbols on darwin
+    misc/wasm: avoid implicit boolean to number conversion
     
-    On darwin, with external linking, the system linker produces STAB
-    (symbolic debugging) symbols in the binary's symbol table. These
-    include paths of the intermediate object files, like
-    <tmpdir>/go.o, which changes from run to run, making the build
-    non-reproducible.
+    Fixes #36561
     
-    Since we run dsymutil to produce debug info and combine them
-    back into the binary, we don't need those STAB symbols anymore.
-    Strip them after running dsymutil.
-    
-    If DWARF is not enabled, we don't run dsymutil. We can pass
-    "-Wl,-S" to let the system linker not generate those symbols.
-    
-    While here, also make it more consistent about DWARF combining.
-    Currently we only do DWARF combining on macOS/AMD64, when DWARF
-    is enabled. On ARM64, we run dsymutil, but then throw the result
-    away. This CL changes it to not run dsymutil (and strip) on
-    ARM64.
-    
-    TODO: add a test. We don't do it here as it fails on some
-    (non-darwin) platforms.
-    
-    Fixes #40979.
-    
-    Change-Id: If770f7828cdb858857d6079e0585bf067f8f7a92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250944
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I20cbf95ef4fd7c5c255a93ed3ec3e027a0ce2bc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214944
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/cmd/link/internal/ld/lib.go | 29 +++++++++++++++++++----------
- 1 file changed, 19 insertions(+), 10 deletions(-)
+ misc/wasm/wasm_exec.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

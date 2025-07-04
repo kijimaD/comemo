@@ -1,28 +1,20 @@
-commit ba6974fdc3ce96acc259055a051bbfcbabce2be4
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Jul 17 14:38:52 2018 +0100
+commit 917c33fe8672116b04848cf11545296789cafd3b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 20 10:21:36 2018 +0900
 
-    cmd/compile: fix crash on invalid struct literal
+    net: improve test coverage for syscall.RawConn
     
-    If one tries to use promoted fields in a struct literal, the compiler
-    errors correctly. However, if the embedded fields are of struct pointer
-    type, the field.Type.Sym.Name expression below panics.
+    An application using syscall.RawConn in a particular way must take
+    account of the operating system or platform-dependent behavior.
+    This change consolidates duplicate code and improves the test coverage
+    for applications that use socket options.
     
-    This is because field.Type.Sym is nil in that case. We can simply use
-    field.Sym.Name in this piece of code though, as it only concerns
-    embedded fields, in which case what we are after is the field name.
-    
-    Added a test mirroring fixedbugs/issue23609.go, but with pointer types.
-    
-    Fixes #26416.
-    
-    Change-Id: Ia46ce62995c9e1653f315accb99d592aff2f285e
-    Reviewed-on: https://go-review.googlesource.com/124395
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie42340ac5373875cf1fd9123df0e99a1e7ac280f
+    Reviewed-on: https://go-review.googlesource.com/95335
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- test/fixedbugs/issue26416.go             | 27 +++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/net/rawconn_stub_test.go    |  24 ++++++
+ src/net/rawconn_test.go         | 142 +++++++++++++++++++++++++++++++++
+ src/net/rawconn_unix_test.go    | 169 ++++++++++++++--------------------------
+ src/net/rawconn_windows_test.go | 108 ++++++++++---------------
+ 4 files changed, 266 insertions(+), 177 deletions(-)

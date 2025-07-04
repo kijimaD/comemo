@@ -1,32 +1,20 @@
-commit 483a913a55215a063ee7a7f218e9ed8f3c7ba21b
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Mar 11 16:11:39 2024 -0400
+commit 068d7b1052d788303c1edcbd0119d3e0895845ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 4 08:33:09 2023 -0400
 
-    cmd/compile: add support for telemetry
+    internal/bisect: copy from golang.org/x/tools/bisect
     
-    Add cmd/internal/telemetry to cmd/dist's bootstrapDirs so it's built
-    when bootstrapping the compiler. cmd/internal/telemetry is a wrapper
-    arount telemetry functions that stubs out the functions when built in
-    bootstrap mode to avoid dependencies on x/telemetry in bootstrap mode.
+    We don't want std to depend on x/tools, so just as we
+    did with txtar, copy the bisect package into internal
+    rather than using a require + vendor.
     
-    Call telemetry.Start with an empty config to open the counter file, and
-    increment a counter for when the command is invoked.
-    
-    After flags are parsed, increment a counter for each of the names of the
-    flags that were passed in. The counter names will be compile/flag:<name>
-    so for example we'll have compile/flag:e and compile/flag:E.
-    
-    In FatalfAt, increment a stack counter for internal errors.
-    
-    For #58894
-    
-    Change-Id: Ia5a8a63aa43b2276641181626cbfbea7e4647faa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570679
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Id775254f7c765a9244ba6eaf041c13e6e5c5e9f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492595
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/base/flag.go  | 2 ++
- src/cmd/compile/internal/base/print.go | 5 +++++
- src/cmd/compile/internal/gc/main.go    | 3 +++
- src/cmd/dist/buildtool.go              | 1 +
- 4 files changed, 11 insertions(+)
+ src/internal/bisect/bisect.go      | 503 +++++++++++++++++++++++++++++++++++++
+ src/internal/bisect/bisect_test.go |  35 +++
+ 2 files changed, 538 insertions(+)

@@ -1,14 +1,30 @@
-commit 965d00f82a5efa1a729db71b813bc6c3fd57bcf2
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed May 6 22:10:28 2015 -0400
+commit ab4df700b841fcd9a5d249b77c547bad9574d948
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sat Apr 11 10:01:54 2015 +1200
 
-    buildall.bash: also build for linux/arm with GOARM=5
+    runtime: merge slice and sliceStruct
     
-    Similar for linux/386 with GO386=387.
+    By removing type slice, renaming type sliceStruct to type slice and
+    whacking until it compiles.
     
-    Change-Id: If8b6f8a0659a1b3e078d87a43fcfe8a38af20308
-    Reviewed-on: https://go-review.googlesource.com/9821
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Has a pleasing net reduction of conversions.
+    
+    Fixes #10188
+    
+    Change-Id: I77202b8df637185b632fd7875a1fdd8d52c7a83c
+    Reviewed-on: https://go-review.googlesource.com/8770
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/buildall.bash | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/runtime/alg.go         |  4 ++--
+ src/runtime/cpuprof.go     |  4 ++--
+ src/runtime/export_test.go |  6 ++++--
+ src/runtime/mbarrier.go    |  6 +++---
+ src/runtime/mheap.go       | 12 ++++++------
+ src/runtime/print1.go      |  6 +++---
+ src/runtime/runtime2.go    |  6 ------
+ src/runtime/select.go      | 10 +++++-----
+ src/runtime/slice.go       | 14 +++++++-------
+ src/runtime/string.go      | 14 ++++----------
+ 10 files changed, 36 insertions(+), 46 deletions(-)

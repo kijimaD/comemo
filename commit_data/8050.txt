@@ -1,15 +1,12 @@
-commit ce89a233a27e4e53453c496b44630087d16a1e95
+commit 420a17e37181beaa7dfaa8279a9339ad5e60bbd3
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Apr 12 22:32:03 2011 +1000
+Date:   Tue Apr 12 10:36:41 2011 +1000
 
-    image/ycbcr: new package.
+    net: fix laddr typo in test code.
     
-    R=r, rsc, nigeltao_gnome
-    CC=golang-dev, raph
-    https://golang.org/cl/4374043
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4381050
 
- src/pkg/Makefile                  |   1 +
- src/pkg/image/ycbcr/Makefile      |  11 +++
- src/pkg/image/ycbcr/ycbcr.go      | 174 ++++++++++++++++++++++++++++++++++++++
- src/pkg/image/ycbcr/ycbcr_test.go |  33 ++++++++
- 4 files changed, 219 insertions(+)
+ src/pkg/net/ipraw_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

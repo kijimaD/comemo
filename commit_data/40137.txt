@@ -1,20 +1,37 @@
-commit 047141797c160430c9f41e1225bbfbf562fd7795
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Sep 29 23:42:42 2019 +0700
+commit a1c481d85139f77ab27210526f9dfa2f3b375ef9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 28 13:18:37 2019 -0400
 
-    cmd/compile: lookup methods of base type for named pointer type
+    cmd/go: only add a 'go' directive on 'go mod tidy' or when a conversion occurs
     
-    Passed toolstash-check.
+    If the go.mod file exists and is empty, we initialize it from any of
+    various formats supported by legacy dependency-management tools.
     
-    Updates #21738
-    Fixes #21934
+    We also initialize the 'go' directive at that point: we know that the
+    go.mod file is incomplete, because it does not reflect the information
+    in the legacy configuration file, and since we know that the go.mod
+    file is incomplete, we should complete it with as much information as
+    we have — including the version of the language currently in use.
     
-    Change-Id: I59f0b2c9890146565ff913b04aeeeff7dc7a4499
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197561
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    However, if there is no legacy configuration file present, then we
+    cannot infer that the go.mod file is incomplete: it may correctly
+    specify a module without external dependencies. In that case, we
+    should not initialize the 'go' directive either: the user will not be
+    expecting unnecessary edits to the go.mod file, and we generally do
+    not make unnecessary-but-helpful edits unless 'go mod tidy' is invoked
+    explicitly.
+    
+    Fixes #30790
+    Fixes #31100
+    
+    Change-Id: I05a7872bce54a917c10d910cd9a616cab52e2730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169877
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/subr.go |  7 ++++++-
- test/fixedbugs/issue21934.go        | 26 ++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modcmd/tidy.go            |  1 +
+ src/cmd/go/internal/modload/init.go           | 12 ++++++++----
+ src/cmd/go/testdata/script/mod_init_empty.txt | 16 ++++++++++++++++
+ src/cmd/go/testdata/script/mod_std_vendor.txt |  2 +-
+ 4 files changed, 26 insertions(+), 5 deletions(-)

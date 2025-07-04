@@ -1,80 +1,25 @@
-commit 705f3c74e6af802fcf54f402e6d0862832249712
-Author: Ben Shi <powerman1st@163.com>
-Date:   Thu Jun 21 10:14:18 2018 +0000
+commit 90e860f1a8f1412dad5f0c6ae10b650352c3a6b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 11:10:00 2018 -0400
 
-    cmd/compile: optimize AMD64 with DIVSSload and DIVSDload
+    cmd/go: add go list -deps
     
-    DIVSSload & DIVSDload directly operate on a memory operand. And
-    binary size can be reduced by them, while the performance is
-    not affected.
+    This gives an easy way to query properties of all the deps
+    of a set of packages, in a single go list invocation.
+    Go list has already done the hard work of loading these
+    packages, so exposing them is more efficient than
+    requiring a second invocation.
     
-    The total size of pkg/linux_amd64 (excluding cmd/compile) decreases
-    about 6KB.
+    This will be helpful for tools asking cmd/go about build
+    information.
     
-    There is little regression in the go1 benchmark test (excluding noise).
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              2.63s ± 4%     2.62s ± 4%    ~     (p=0.809 n=30+30)
-    Fannkuch11-4                2.40s ± 2%     2.40s ± 2%    ~     (p=0.109 n=30+30)
-    FmtFprintfEmpty-4          43.1ns ± 4%    43.2ns ± 9%    ~     (p=0.168 n=30+30)
-    FmtFprintfString-4         73.6ns ± 4%    74.1ns ± 4%    ~     (p=0.069 n=30+30)
-    FmtFprintfInt-4            81.0ns ± 3%    81.4ns ± 5%    ~     (p=0.350 n=30+30)
-    FmtFprintfIntInt-4          127ns ± 4%     129ns ± 4%  +0.99%  (p=0.021 n=30+30)
-    FmtFprintfPrefixedInt-4     156ns ± 4%     155ns ± 4%    ~     (p=0.415 n=30+30)
-    FmtFprintfFloat-4           219ns ± 4%     218ns ± 4%    ~     (p=0.071 n=30+30)
-    FmtManyArgs-4               522ns ± 3%     518ns ± 3%  -0.68%  (p=0.034 n=30+30)
-    GobDecode-4                6.49ms ± 6%    6.52ms ± 6%    ~     (p=0.832 n=30+30)
-    GobEncode-4                6.10ms ± 9%    6.14ms ± 7%    ~     (p=0.485 n=30+30)
-    Gzip-4                      227ms ± 1%     224ms ± 4%    ~     (p=0.484 n=24+30)
-    Gunzip-4                   37.2ms ± 3%    36.8ms ± 4%    ~     (p=0.889 n=30+30)
-    HTTPClientServer-4         58.9µs ± 1%    58.7µs ± 2%  -0.42%  (p=0.003 n=28+28)
-    JSONEncode-4               12.0ms ± 3%    12.0ms ± 4%    ~     (p=0.523 n=30+30)
-    JSONDecode-4               54.6ms ± 4%    54.5ms ± 4%    ~     (p=0.708 n=30+30)
-    Mandelbrot200-4            3.78ms ± 4%    3.81ms ± 3%  +0.99%  (p=0.016 n=30+30)
-    GoParse-4                  3.20ms ± 4%    3.20ms ± 5%    ~     (p=0.994 n=30+30)
-    RegexpMatchEasy0_32-4      77.0ns ± 4%    75.9ns ± 3%  -1.39%  (p=0.006 n=29+30)
-    RegexpMatchEasy0_1K-4       255ns ± 4%     253ns ± 4%    ~     (p=0.091 n=30+30)
-    RegexpMatchEasy1_32-4      69.7ns ± 3%    70.3ns ± 4%    ~     (p=0.120 n=30+30)
-    RegexpMatchEasy1_1K-4       373ns ± 2%     378ns ± 3%  +1.43%  (p=0.000 n=21+26)
-    RegexpMatchMedium_32-4      107ns ± 2%     108ns ± 4%  +1.50%  (p=0.012 n=22+30)
-    RegexpMatchMedium_1K-4     34.0µs ± 1%    34.3µs ± 3%  +1.08%  (p=0.008 n=24+30)
-    RegexpMatchHard_32-4       1.53µs ± 3%    1.54µs ± 3%    ~     (p=0.234 n=30+30)
-    RegexpMatchHard_1K-4       46.7µs ± 4%    47.0µs ± 4%    ~     (p=0.420 n=30+30)
-    Revcomp-4                   411ms ± 7%     415ms ± 6%    ~     (p=0.059 n=30+30)
-    Template-4                 65.5ms ± 5%    66.9ms ± 4%  +2.21%  (p=0.001 n=30+30)
-    TimeParse-4                 317ns ± 3%     311ns ± 3%  -1.97%  (p=0.000 n=30+30)
-    TimeFormat-4                293ns ± 3%     294ns ± 3%    ~     (p=0.243 n=30+30)
-    [Geo mean]                 47.4µs         47.5µs       +0.17%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4               118MB/s ± 5%   118MB/s ± 6%    ~     (p=0.832 n=30+30)
-    GobEncode-4               125MB/s ± 7%   125MB/s ± 7%    ~     (p=0.625 n=29+30)
-    Gzip-4                   85.3MB/s ± 1%  86.6MB/s ± 4%    ~     (p=0.486 n=24+30)
-    Gunzip-4                  522MB/s ± 3%   527MB/s ± 4%    ~     (p=0.889 n=30+30)
-    JSONEncode-4              162MB/s ± 3%   162MB/s ± 4%    ~     (p=0.520 n=30+30)
-    JSONDecode-4             35.5MB/s ± 4%  35.6MB/s ± 4%    ~     (p=0.701 n=30+30)
-    GoParse-4                18.1MB/s ± 4%  18.1MB/s ± 4%    ~     (p=0.891 n=29+30)
-    RegexpMatchEasy0_32-4     416MB/s ± 4%   422MB/s ± 3%  +1.43%  (p=0.005 n=29+30)
-    RegexpMatchEasy0_1K-4    4.01GB/s ± 4%  4.04GB/s ± 4%    ~     (p=0.091 n=30+30)
-    RegexpMatchEasy1_32-4     460MB/s ± 3%   456MB/s ± 5%    ~     (p=0.123 n=30+30)
-    RegexpMatchEasy1_1K-4    2.74GB/s ± 2%  2.70GB/s ± 3%  -1.33%  (p=0.000 n=22+26)
-    RegexpMatchMedium_32-4   9.39MB/s ± 3%  9.19MB/s ± 4%  -2.06%  (p=0.001 n=28+30)
-    RegexpMatchMedium_1K-4   30.1MB/s ± 1%  29.8MB/s ± 3%  -1.04%  (p=0.008 n=24+30)
-    RegexpMatchHard_32-4     20.9MB/s ± 3%  20.8MB/s ± 3%    ~     (p=0.234 n=30+30)
-    RegexpMatchHard_1K-4     21.9MB/s ± 4%  21.8MB/s ± 4%    ~     (p=0.420 n=30+30)
-    Revcomp-4                 619MB/s ± 7%   612MB/s ± 7%    ~     (p=0.059 n=30+30)
-    Template-4               29.6MB/s ± 4%  29.0MB/s ± 4%  -2.16%  (p=0.002 n=30+30)
-    [Geo mean]                123MB/s        123MB/s       -0.33%
-    
-    Change-Id: Ia59e077feae4f2824df79059daea4d0f678e3e4c
-    Reviewed-on: https://go-review.googlesource.com/120275
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Change-Id: I90798e386246b24aad92dd13cb9e3788c7d30e91
+    Reviewed-on: https://go-review.googlesource.com/107776
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go        |   3 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  20 +--
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   2 +
- src/cmd/compile/internal/ssa/opGen.go        |  38 ++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 178 +++++++++++++++++++++++++++
- test/codegen/arithmetic.go                   |   5 +
- 6 files changed, 235 insertions(+), 11 deletions(-)
+ src/cmd/go/alldocs.go            | 15 +++++++++------
+ src/cmd/go/go_test.go            | 15 +++++++++++++++
+ src/cmd/go/internal/list/list.go | 16 +++++++++++++++-
+ 3 files changed, 39 insertions(+), 7 deletions(-)

@@ -1,16 +1,17 @@
-commit 76461c93a15c68044543391307bede2eeaa9aa0e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 11 15:22:24 2016 -0800
+commit be20948e27da60640b7cf27c8ae29214e5a214c2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 5 12:26:55 2016 -0800
 
-    cmd/compile: move lexn and lexname into lex.go (cleanup)
+    cmd/compile: recognize bool(true) as a constant expression
     
-    Missed these two declarations in the previous cleanup.
+    Fixes #13821.
     
-    Change-Id: I54ff3accd387dd90e12847daccf4477169797f81
-    Reviewed-on: https://go-review.googlesource.com/20603
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4a28a92d137edac3061537af25ac9d7aba411a66
+    Reviewed-on: https://go-review.googlesource.com/18262
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/lex.go  | 48 +++++++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/main.go | 46 -----------------------------------
- 2 files changed, 48 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/gc/const.go     |  3 ++-
+ src/cmd/compile/internal/gc/typecheck.go | 14 ++------------
+ test/fixedbugs/issue13821.go             | 15 +++++++++++++++
+ test/fixedbugs/issue13821b.go            | 22 ++++++++++++++++++++++
+ 4 files changed, 41 insertions(+), 13 deletions(-)

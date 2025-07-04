@@ -1,20 +1,12 @@
-commit 991e9a83314216040592e3f303d737cb2dc087ac
-Author: Matthew Cottingham <mattcottingham@gmail.com>
-Date:   Mon Jan 6 10:36:04 2014 -0800
+commit 16134060dea378618b7fa4f2accd6cd4831541f0
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Mon Jan 6 10:32:07 2014 -0800
 
-    net/http: Add more call order tests for request form parsing.
+    time: add tests for Tick, NewTicker with negative duration
     
-    Adds tests for branches handling call ordering which
-    were shown to be untested by the cover tool.
-    
-    This is part of the refactoring of form parsing discussed
-    in CL 44040043. These tests may need to be changed later but
-    should help lock in the current behaviour.
-    
-    R=golang-codereviews, dave, bradfitz
+    R=golang-codereviews, gobot, r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/46750043
+    https://golang.org/cl/37660044
 
- src/pkg/net/http/request.go      |  2 +-
- src/pkg/net/http/request_test.go | 36 ++++++++++++++++++++++++++++++------
- 2 files changed, 31 insertions(+), 7 deletions(-)
+ src/pkg/time/tick_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

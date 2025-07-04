@@ -1,23 +1,12 @@
-commit 9fe8681df6c16d5c534fe43a04e5fd43d7cdc521
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 12 05:20:15 2013 -0700
+commit 88f9ab8926dc3bbd55ab37e053a780985a75e472
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 11 12:46:23 2013 -0700
 
-    runtime: use UMTX_OP_WAIT_UINT on FreeBSD
+    encoding/json: documentation regarding anonymous fields.
     
-    UMTX_OP_WAIT expects that the address points to a uintptr, but
-    the code in lock_futex.c uses a uint32.  UMTX_OP_WAIT_UINT is
-    just like UMTX_OP_WAIT, but the address points to a uint32.
-    This almost certainly makes no difference on a little-endian
-    system, but since the kernel supports it we should do the
-    right thing.  And, who knows, maybe it matters.
-    
-    R=golang-dev, bradfitz, r, ality
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/8699043
+    https://golang.org/cl/8545046
 
- src/pkg/runtime/defs_freebsd.go      | 4 ++--
- src/pkg/runtime/defs_freebsd_386.h   | 4 ++--
- src/pkg/runtime/defs_freebsd_amd64.h | 4 ++--
- src/pkg/runtime/defs_freebsd_arm.h   | 4 ++--
- src/pkg/runtime/os_freebsd.c         | 2 +-
- 5 files changed, 9 insertions(+), 9 deletions(-)
+ src/pkg/encoding/json/encode.go | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)

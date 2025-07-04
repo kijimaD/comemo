@@ -1,22 +1,38 @@
-commit d15d0550544fc6392ff58a99939eeb907a823737
-Author: Keith Randall <khr@google.com>
-Date:   Tue May 29 09:30:12 2018 -0700
+commit 3cb54c86043a92ab080a89c06643d80015a5638e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Feb 19 20:48:58 2018 +0000
 
-    cmd/compile: reject large argument areas
+    text/template: differentiate nil from missing arg
     
-    Extend stack frame limit of 1GB to include large argument/return areas.
-    Argument/return areas are part of the parent frame, not the frame itself,
-    so they need to be handled separately.
+    reflect.Value is a struct and does not have a kind nor any flag for
+    untyped nils. As a result, it is tricky to differentiate when we're
+    missing a value, from when we have one but it is untyped nil.
     
-    Fixes #25507.
+    We could start using *reflect.Value instead, to add one level of
+    indirection, using nil for missing values and new(reflect.Value) for
+    untyped nils. However, that is a fairly invasive change, and would also
+    mean unnecessary allocations.
     
-    Change-Id: I309298a58faee3e7c1dac80bd2f1166c82460087
-    Reviewed-on: https://go-review.googlesource.com/115036
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Instead, use a special reflect.Value that depicts when a value is
+    missing. This is the case for the "final" reflect.Value in multiple
+    scenarios, such as the start of a pipeline. Give it a specific,
+    unexported type too, to make sure it cannot be mistaken for any other
+    valid value.
+    
+    Finally, replace "final.IsValid()" with "final != missingVal", since
+    final.IsValid() will be false when final is an untyped nil.
+    
+    Also add a few test cases, all different variants of the untyped nil
+    versus missing value scenario.
+    
+    Fixes #18716.
+    
+    Change-Id: Ia9257a84660ead5a7007fd1cced7782760b62d9d
+    Reviewed-on: https://go-review.googlesource.com/95215
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go |  3 ++-
- src/go/types/stdlib_test.go         |  1 +
- test/fixedbugs/issue25507.go        | 29 +++++++++++++++++++++++++++++
- 3 files changed, 32 insertions(+), 1 deletion(-)
+ src/text/template/exec.go      | 31 ++++++++++++++++++-------------
+ src/text/template/exec_test.go |  5 +++++
+ 2 files changed, 23 insertions(+), 13 deletions(-)

@@ -1,37 +1,18 @@
-commit f2bd3a977d105f8a4ee3f4c86fe8daf52f629495
+commit b91cf5058514f70750076c25af07d904d2ee7c1b
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 30 16:47:56 2012 -0400
+Date:   Wed May 30 16:10:53 2012 -0400
 
-    cmd/6l, cmd/8l, cmd/5l: add AUNDEF instruction
+    cmd/6l, cmd/8l: fix chaining bug in jump rewrite
     
-    On 6l and 8l, this is a real instruction, guaranteed to
-    cause an 'undefined instruction' exception.
-    
-    On 5l, we simulate it as BL to address 0.
-    
-    The plan is to use it as a signal to the linker that this
-    point in the instruction stream cannot be reached
-    (hence the changes to nofollow).  This will help the
-    compiler explain that panicindex and friends do not
-    return without having to put a list of these functions
-    in the linker.
+    The code was inconsistent about when it used
+    brchain(x) and when it used x directly, with the result
+    that you could end up emitting code for brchain(x) but
+    leave the jump pointing at an unemitted x.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/6255064
+    https://golang.org/cl/6250077
 
- src/cmd/5a/lex.c   | 1 +
- src/cmd/5l/5.out.h | 2 ++
- src/cmd/5l/asm.c   | 9 +++++++++
- src/cmd/5l/optab.c | 2 ++
- src/cmd/5l/pass.c  | 6 +++---
- src/cmd/5l/span.c  | 1 +
- src/cmd/6a/lex.c   | 1 +
- src/cmd/6l/6.out.h | 2 ++
- src/cmd/6l/optab.c | 2 ++
- src/cmd/6l/pass.c  | 1 +
- src/cmd/8a/lex.c   | 1 +
- src/cmd/8l/8.out.h | 2 ++
- src/cmd/8l/optab.c | 2 ++
- src/cmd/8l/pass.c  | 1 +
- 14 files changed, 30 insertions(+), 3 deletions(-)
+ src/cmd/6l/pass.c | 15 ++++++++-------
+ src/cmd/8l/pass.c | 15 ++++++++-------
+ 2 files changed, 16 insertions(+), 14 deletions(-)

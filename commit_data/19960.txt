@@ -1,14 +1,15 @@
-commit f7832df7695c1e5930b2c8ed5e02d529d00f21a4
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 8 12:48:34 2014 +0400
+commit 7c33e5078f5c98fb1e973c65471c6a647927036c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 7 14:56:59 2014 -0400
 
-    encoding/gob: fix data races in benchmarks
-    All goroutines decode into the same value.
+    [dev.power64] cmd/9l: update header files for liblink
     
-    LGTM=r
-    R=r, abursavich
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/123930043
+    https://golang.org/cl/128720044
 
- src/pkg/encoding/gob/timing_test.go | 29 +++++++++++++++++------------
- 1 file changed, 17 insertions(+), 12 deletions(-)
+ src/cmd/9c/gc.h    |   1 -
+ src/cmd/9l/9.out.h |  96 ++++++++++++---
+ src/cmd/9l/l.h     | 351 ++++++-----------------------------------------------
+ 3 files changed, 113 insertions(+), 335 deletions(-)

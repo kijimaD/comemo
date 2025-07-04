@@ -1,13 +1,12 @@
-commit 3811a441035b10c07fd186fe2ba51bc02cff8ec4
+commit 23f541aa54a1835ba7c851e476f3bc040cd9c103
 Author: Anthony Starks <ajstarks@gmail.com>
-Date:   Mon Nov 14 11:19:08 2011 -0800
+Date:   Mon Nov 14 11:18:00 2011 -0800
 
-    misc/notepadplus: error and rune support
+    misc/bbedit: error and rune support
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5376048
+    https://golang.org/cl/5369057
 
- misc/notepadplus/go.xml             | 4 +++-
- misc/notepadplus/userDefineLang.xml | 2 +-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ misc/bbedit/Go.plist | 2 ++
+ 1 file changed, 2 insertions(+)

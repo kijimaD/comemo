@@ -1,20 +1,17 @@
-commit bfdc3baa1e6a5d18dbfb85081f223192dd2fb210
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Wed Feb 29 09:38:58 2012 +1100
+commit 38a03de6a16f3c7489fdc425eba607f8e7f08676
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 28 16:34:41 2012 -0500
 
-    doc/style.css: make selectors more selective.
+    go/build: move code around
     
-    Change #foo to div#foo to avoid selecting headings
-    with anchor foo, such as <h1 id="foo">.
+    Only copy+paste here.
+    Will make next code review's diffs a bit smaller.
     
-    (A more extensive change would be to use class
-    selectors for styling. Perhaps this is better, since id:s
-    should be unique within a document according to
-    http://www.w3.org/TR/CSS2/selector.html#id-selectors)
-    
-    R=golang-dev, gri, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5702044
+    https://golang.org/cl/5704050
 
- doc/style.css | 146 +++++++++++++++++++++++++++++++++-------------------------
- 1 file changed, 84 insertions(+), 62 deletions(-)
+ src/pkg/go/build/build.go | 718 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/go/build/dir.go   | 705 ---------------------------------------------
+ src/pkg/go/build/path.go  |  13 -
+ 3 files changed, 716 insertions(+), 720 deletions(-)

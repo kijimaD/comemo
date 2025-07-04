@@ -1,15 +1,13 @@
-commit b3e0a8df24e5c98f516e542681bb9a752999dc29
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Feb 28 21:45:12 2014 +1100
+commit a9600502bbaace43792e3f00a8f23286ba8a1667
+Author: Robert Sesek <rsesek@google.com>
+Date:   Thu Feb 27 19:11:03 2014 -0800
 
-    cmd/dist: add missing Native Client bits
+    debug/macho: Define CPU constants for other common architectures for OS X/iOS.
     
-    Some parts of CL 15400047 didn't survive the merge.
-    
-    LGTM=rsc
-    R=rsc, iant
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/69870044
+    https://golang.org/cl/69100045
 
- src/cmd/dist/buildruntime.c | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/pkg/debug/macho/macho.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

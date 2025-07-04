@@ -1,23 +1,32 @@
-commit 651869716a449a1868f5a5333796ab47482d7c65
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Jul 7 09:11:46 2023 -0400
+commit a6219737e3eb062282e6483a915c395affb30c69
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Jul 29 22:14:53 2022 +0800
 
-    log/slog: replace nil contexts with context.Background()
+    cmd/compile: intrinsify Sub64 on riscv64
     
-    Passing nil for a context is discouraged. We should avoid it.
+    After this CL, the performance difference in crypto/elliptic
+    benchmarks on linux/riscv64 are:
     
-    Fixes #61219.
+    name                 old time/op    new time/op    delta
+    ScalarBaseMult/P256    1.64ms ± 1%    1.60ms ± 1%   -2.36%  (p=0.008 n=5+5)
+    ScalarBaseMult/P224    1.53ms ± 1%    1.47ms ± 2%   -4.24%  (p=0.008 n=5+5)
+    ScalarBaseMult/P384    5.12ms ± 2%    5.03ms ± 2%     ~     (p=0.095 n=5+5)
+    ScalarBaseMult/P521    22.3ms ± 2%    13.8ms ± 1%  -37.89%  (p=0.008 n=5+5)
+    ScalarMult/P256        4.49ms ± 2%    4.26ms ± 2%   -5.13%  (p=0.008 n=5+5)
+    ScalarMult/P224        4.33ms ± 1%    4.09ms ± 1%   -5.59%  (p=0.008 n=5+5)
+    ScalarMult/P384        16.3ms ± 1%    15.5ms ± 2%   -4.78%  (p=0.008 n=5+5)
+    ScalarMult/P521         101ms ± 0%      47ms ± 2%  -53.36%  (p=0.008 n=5+5)
     
-    Change-Id: I664387070aacb56af580b6b0791ca40982d2a711
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508437
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I31cf0506e27f9d85f576af1813630a19c20dda8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420095
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/log/slog/doc.go                        |  2 +-
- src/log/slog/example_custom_levels_test.go |  8 +++---
- src/log/slog/handler_test.go               |  4 +--
- src/log/slog/json_handler_test.go          |  6 +++--
- src/log/slog/logger.go                     | 16 +++++------
- src/log/slog/logger_test.go                | 43 ++++++++++++++++--------------
- 6 files changed, 42 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 36 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go         |  4 +--
+ test/codegen/mathbits.go                       |  8 ++++++
+ 4 files changed, 50 insertions(+), 2 deletions(-)

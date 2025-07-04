@@ -1,19 +1,29 @@
-commit 7ccddf040a2aacfd65c75de3b54965271a7cbd98
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Nov 3 19:54:41 2023 +0800
+commit 9bd4e9bb1ac06222aee7155b7d4d42a755d05312
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 12 10:15:08 2023 -0800
 
-    sort: add available godoc link
+    go/types: consistently use _ prefix for unexported names that are exported in types2
     
-    Change-Id: I64645fef0ffd1cea7c7710ec974520f85e0f7496
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539579
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ic9b24b4b3a6336782023c7db40cc937f2dc743df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461606
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/sort/search.go | 10 +++++-----
- src/sort/slice.go  |  8 ++++----
- src/sort/sort.go   | 16 ++++++++--------
- 3 files changed, 17 insertions(+), 17 deletions(-)
+ src/go/types/api.go        | 4 ++--
+ src/go/types/call.go       | 2 +-
+ src/go/types/check.go      | 6 +++---
+ src/go/types/check_test.go | 2 +-
+ src/go/types/decl.go       | 6 +++---
+ src/go/types/errors.go     | 2 +-
+ src/go/types/expr.go       | 2 +-
+ src/go/types/generator.go  | 6 +++---
+ src/go/types/named.go      | 2 +-
+ src/go/types/sizes.go      | 4 ++--
+ src/go/types/stmt.go       | 2 +-
+ src/go/types/subst.go      | 2 +-
+ src/go/types/typeset.go    | 2 +-
+ src/go/types/typexpr.go    | 4 ++--
+ 14 files changed, 23 insertions(+), 23 deletions(-)

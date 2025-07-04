@@ -1,18 +1,12 @@
-commit eb4138f48114de303d8844f4fa2ff872e2a7a678
-Author: Joel Sing <jsing@google.com>
-Date:   Sun Jun 3 23:54:14 2012 +1000
+commit b1cb5f5dcb93893efe5cdca45828f5d9e9f2512d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 2 23:57:38 2012 -0400
 
-    net: move cgo address info flags to per-platform files
+    cmd/5g: fix typo
     
-    Move address info flags to per-platform files. This is needed to
-    enable cgo on NetBSD (and later OpenBSD), as some of the currently
-    used AI_* defines do not exist on these platforms.
-    
-    R=golang-dev, rsc
+    TBR=lvd
     CC=golang-dev
-    https://golang.org/cl/6250075
+    https://golang.org/cl/6275048
 
- src/pkg/net/cgo_bsd.go   | 4 ++--
- src/pkg/net/cgo_linux.go | 8 +++++++-
- src/pkg/net/cgo_unix.go  | 8 +-------
- 3 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/5g/gsubr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

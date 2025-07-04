@@ -1,15 +1,20 @@
-commit 9a12a9c5942c590aa7d4aeb429888a236519fc18
-Author: Ryan Slade <ryanslade@gmail.com>
-Date:   Tue Dec 11 13:29:13 2012 -0500
+commit 1a6f8dcbaf123bcf25f5ebebebc481326a5f806a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 11 10:17:33 2012 -0800
 
-    encoding/csv: add Error method to Writer
+    exp/types: filling in more blanks
     
-    Fixed issue 3931
+    - implemented built-in complex()
+    - implemented missing expression switch checks
     
-    R=bradfitz, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6923049
+    https://golang.org/cl/6920046
 
- src/pkg/encoding/csv/writer.go      |  7 +++++++
- src/pkg/encoding/csv/writer_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+)
+ src/pkg/exp/gotype/gotype_test.go       |  6 ++--
+ src/pkg/exp/types/builtins.go           | 50 ++++++++++++++++++++++++++++--
+ src/pkg/exp/types/const.go              | 16 ++++++++++
+ src/pkg/exp/types/stmt.go               | 55 ++++++++++++++++++++++++++-------
+ src/pkg/exp/types/testdata/builtins.src | 31 ++++++++++++++++---
+ src/pkg/exp/types/testdata/stmt0.src    | 26 +++++++++++++++-
+ 6 files changed, 163 insertions(+), 21 deletions(-)

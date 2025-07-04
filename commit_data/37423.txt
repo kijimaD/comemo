@@ -1,18 +1,21 @@
-commit b7ba5233550cadd2b06c4b98c702b45e7904f7ae
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 13 10:23:01 2018 -0500
+commit e351a1600514b6a4ae18c4b44e883b049c314ebd
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Jul 24 03:47:39 2018 +0000
 
-    doc/go_spec: tweak wording to avoid 'explicit assignment' misreading
+    cmd/internal/obj/arm64: reject incorrect form of LDP/STP
     
-    This text changed in CL 139099 to add "explicit" in front of "conversion".
-    But now "explicit conversion or assignment" reads like it might mean
-    "explicit [conversion or assignment]" when what is meant is
-    "[explicit conversion] or assignment". To make clear that explicit does
-    not apply to assignment, use "assignment or explicit conversion".
+    "LDP (R0), (F0, F1)" and "STP (F1, F2), (R0)" are
+    silently accepted by the arm64 assembler without
+    any error message. And this CL fixes that bug.
     
-    Change-Id: I8ff7a5b3ecd9f562793502fa6808242f22264f28
-    Reviewed-on: https://go-review.googlesource.com/c/149340
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    fixes #26556.
+    
+    Change-Id: Ib6fae81956deb39a4ffd95e9409acc8dad3ab2d2
+    Reviewed-on: https://go-review.googlesource.com/125637
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go_spec.html | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  2 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 10 ++++++++++
+ 2 files changed, 12 insertions(+)

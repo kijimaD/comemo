@@ -1,13 +1,15 @@
-commit 785ee50c558a81bd79892c8ba837192ed1a91ff1
+commit c49edc6137e6daf08b6692a8645127ad02967434
 Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 17 11:35:38 2012 +1100
+Date:   Fri Feb 17 10:21:12 2012 +1100
 
-    net/textproto: delete spurious quote
-    Sigh.
+    net/textproto: add Conn to doc comment
     
-    R=golang-dev, gri, nigeltao
+    This revolutionary transfiguration undergirding the code base
+    Fixes #2945.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5675071
+    https://golang.org/cl/5676072
 
- src/pkg/net/textproto/textproto.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/textproto/textproto.go | 3 +++
+ 1 file changed, 3 insertions(+)

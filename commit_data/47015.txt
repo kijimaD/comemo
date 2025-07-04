@@ -1,34 +1,31 @@
-commit 9012996a9a127fd566c72baac5e7d8ba45b4865e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Oct 25 11:51:25 2021 -0400
+commit 02e5a8fdfcc8e237f5b55618ccbe9ad845014427
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 06:01:25 2021 -0500
 
-    cmd/compile: don't clobber LR for tail calls
+    runtime: ignore SPWRITE in syscall functions
     
-    When doing a tail call the link register is live as the callee
-    will directly return to the caller (of the function that does the
-    tail call). Don't allocate or clobber the link register.
+    netbsd/amd64's Syscall9 changes SP using ADD and SUB,
+    which are treated as SPWRITEs (they are not accounted for
+    in the sp-adjust tracking, and there are too many functions that
+    would report mismatched stack adjustments at RET if they were).
+    A traceback starting in Syscall9 as saved by entersyscall complains
+    about the SPWRITE-ness unnecessarily, since the PC/SP are saved
+    at the start of the function. Ignore SPWRITE in that case.
     
-    Fixes #49032.
+    netbsd/arm's Syscall6 also changes SP (R13), using a direct write.
+    So even if we could handle the ADD/SUB in the amd64 case or
+    rewrote that assembly, we'd still be stuck with a more difficult
+    problem in this case. Ignoring the SPWRITE fixes it.
     
-    Change-Id: I2d60f2354e5b6c14aa285c8983a9786687b90223
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358435
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Example crashes:
+    https://build.golang.org/log/160fc7b051a2cf90782b75a99984fff129329e66
+    https://build.golang.org/log/7879e2fecdb400eee616294285e1f952e5b17301
+    
+    Change-Id: I0c8e9696066e90dafed6d4a93d11697da23f0080
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294072
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go     |  2 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  2 +-
- src/cmd/compile/internal/ssa/gen/ARMOps.go     |  2 +-
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  2 +-
- src/cmd/compile/internal/ssa/gen/MIPSOps.go    |  2 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  2 +-
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  8 ++++----
- src/cmd/compile/internal/ssa/gen/S390XOps.go   |  2 +-
- src/cmd/compile/internal/ssa/gen/WasmOps.go    |  2 +-
- src/cmd/compile/internal/ssa/gen/main.go       |  5 +++++
- src/cmd/compile/internal/ssa/op.go             |  1 +
- src/cmd/compile/internal/ssa/opGen.go          | 27 ++++++++++++++++++--------
- src/cmd/compile/internal/ssa/regalloc.go       |  3 ++-
- 14 files changed, 40 insertions(+), 22 deletions(-)
+ src/runtime/traceback.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

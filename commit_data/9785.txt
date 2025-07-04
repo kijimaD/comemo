@@ -1,15 +1,17 @@
-commit cf6d0175d900f1b7a8997f7d7737d1247cde1a4d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Sep 23 10:57:31 2011 -0700
+commit 967d68c00a97c69009dd97a72c1400cbe2b14355
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Sep 23 09:25:10 2011 -0700
 
-    http: add Location method to Response
+    exp/template/html: tighten rules on dynamic attr names.
     
-    Fixes #2300
-    
-    R=golang-dev, rsc
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5117041
+    https://golang.org/cl/5076049
 
- src/pkg/http/response.go      | 18 ++++++++++++++++
- src/pkg/http/response_test.go | 50 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 68 insertions(+)
+ src/pkg/exp/template/html/Makefile       |   1 +
+ src/pkg/exp/template/html/attr.go        | 184 +++++++++++++++++++++++++++++++
+ src/pkg/exp/template/html/content.go     |   4 +
+ src/pkg/exp/template/html/escape_test.go |  40 +++++++
+ src/pkg/exp/template/html/html.go        |  16 ++-
+ src/pkg/exp/template/html/transition.go  |  39 ++-----
+ 6 files changed, 253 insertions(+), 31 deletions(-)

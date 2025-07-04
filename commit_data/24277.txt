@@ -1,23 +1,15 @@
-commit b6d115a583c42cb086de408471dc943ff6704cfb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 10 15:28:01 2015 -0700
+commit 983bc8d1a2d7be649f921a69b2d8e72a5ec032f4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 17 16:47:43 2015 +0000
 
-    runtime: on unexpected netpoll error, throw instead of looping
+    Revert "[dev.ssa] cmd/compile: don't Compile if Unimplemented"
     
-    The current code prints an error message and then tries to carry on.
-    This is not helpful for Go users: they see a message that means
-    nothing and that they can do nothing about.  In the only known case of
-    this message, in issue 11498, the best guess is that the netpoll code
-    went into an infinite loop.  Instead of doing that, crash the program.
+    This reverts commit 766bcc92a5b693f336deffc347be52fe68af884a.
     
-    Fixes #11498.
-    
-    Change-Id: Idda3456c5b708f0df6a6b56c5bb4e796bbc39d7c
-    Reviewed-on: https://go-review.googlesource.com/12047
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I55413c1aa80d82c856a3ea89b4ffccf80fb58013
+    Reviewed-on: https://go-review.googlesource.com/12361
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/netpoll_epoll.go   | 7 +++----
- src/runtime/netpoll_kqueue.go  | 7 +++----
- src/runtime/netpoll_solaris.go | 7 ++-----
- 3 files changed, 8 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go    |  9 ++++-----
+ src/cmd/compile/internal/ssa/print.go | 13 +++----------
+ 2 files changed, 7 insertions(+), 15 deletions(-)

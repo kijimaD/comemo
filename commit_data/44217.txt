@@ -1,38 +1,29 @@
-commit 98f8454a73b569d81d1c5e167d7b68f22e2e3fea
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Feb 1 13:36:50 2021 -0500
+commit 86ed0955bf58ecb738b87892b4377e556e2cc88a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 26 16:11:22 2020 -0400
 
-    cmd/link: don't decode type symbol in shared library in deadcode
+    os: in Symlink, stat the correct target path for drive-relative targets on Windows
     
-    In the linker's deadcode pass we decode type symbols for
-    interface satisfaction analysis. When linking against Go shared
-    libraries, the type symbol may come from a shared library, so it
-    doesn't have data in the current module being linked, so we cannot
-    decode it. We already have code to skip DYNIMPORT symbols. However,
-    this doesn't actually work, because at that point the type symbols'
-    names haven't been mangled, whereas they may be mangled in the
-    shared library. So the symbol definition (in shared library) and
-    reference (in current module) haven't been connected.
+    Previously, when the target (“old”) path passed to os.Symlink was a
+    “root-relative” Windows path,¹ we would erroneously prepend
+    destination (“new”) path when determining which path to Stat,
+    resulting in an invalid path which was then masked by the lack of
+    error propagation for the Stat call (#39183).
     
-    Skip decoding type symbols of type Sxxx (along with DYNIMPORT)
-    when linkShared.
+    If the link target is a directory (rather than a file), that would
+    result in the symlink being created without the
+    SYMBOLIC_LINK_FLAG_DIRECTORY flag, which then fails in os.Open.
     
-    Note: we cannot skip all type symbols, as we still need to mark
-    unexported methods defined in the current module.
+    ¹https://docs.microsoft.com/en-us/windows/win32/fileio/creating-symbolic-links
     
-    Fixes #44031.
+    Updates #39183
     
-    Change-Id: I833d19a060c94edbd6fc448172358f9a7d760657
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288496
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I04f179cd2b0c44f984f34ec330acad2408aa3a20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235317
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testshared/shared_test.go                   |  8 ++++++++
- misc/cgo/testshared/testdata/issue44031/a/a.go       |  9 +++++++++
- misc/cgo/testshared/testdata/issue44031/b/b.go       | 17 +++++++++++++++++
- misc/cgo/testshared/testdata/issue44031/main/main.go | 20 ++++++++++++++++++++
- src/cmd/link/internal/ld/deadcode.go                 | 16 ++++++++++------
- 5 files changed, 64 insertions(+), 6 deletions(-)
+ src/os/file_windows.go    |  14 +++++-
+ src/os/os_windows_test.go | 119 +++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 130 insertions(+), 3 deletions(-)

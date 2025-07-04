@@ -1,27 +1,25 @@
-commit 50f4ebbdd30f53272b5f42ab66c50939eade0a0e
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Aug 11 11:45:11 2021 -0400
+commit c10b0ad628b4c7dd0f327c583702364abebb5132
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 23:05:53 2020 -0800
 
-    cmd/compile/internal/types2: define Identical for instances
+    [dev.regabi] cmd/compile: add Pkg parameter to type constructors
     
-    Instantiation of parameterized types may occur in other packages, so we
-    need an intrinsic notion of type identity for instances.
+    Allows getting rid of the SetPkg method and also addresses a
+    long-standing TODO in the exporter. Suggested by rsc@.
     
-    Add the natural definition: two instances are identical if their bases
-    and type arguments are identical.
+    Passes buildall w/ toolstash -cmp.
     
-    Type unification was already considering type arguments, but has some
-    inaccurate logic with respect to objects. This will be addressed in a
-    follow-up CL.
-    
-    Change-Id: Ib2ce67c05de65eb302ee588cc40c89c60018da50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341856
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ib294f75f1350572efb2e0d993d49efef884de3d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274440
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/types2/api_test.go   | 25 +++++++++++++++++++++++++
- src/cmd/compile/internal/types2/predicates.go | 22 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/unify.go      |  5 -----
- 3 files changed, 47 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/closure.go   |  2 --
+ src/cmd/compile/internal/gc/dcl.go       |  6 +++---
+ src/cmd/compile/internal/gc/iexport.go   |  6 ++----
+ src/cmd/compile/internal/gc/iimport.go   | 11 +++-------
+ src/cmd/compile/internal/gc/pgen_test.go |  4 ++--
+ src/cmd/compile/internal/gc/reflect.go   |  8 +++----
+ src/cmd/compile/internal/gc/universe.go  |  6 +++---
+ src/cmd/compile/internal/types/type.go   | 36 +++++++++++++-------------------
+ 8 files changed, 32 insertions(+), 47 deletions(-)

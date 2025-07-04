@@ -1,27 +1,24 @@
-commit 86e42c2fbfe14c41746fe5cfc5c8bda94bb4bc4e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 9 23:27:48 2021 -0500
+commit 70e022e4a83dc996ac4f108e811fbc399ad5565b
+Author: Christopher Hlubek <christopher.hlubek@networkteam.com>
+Date:   Mon Oct 26 13:44:44 2020 +0100
 
-    cmd/go: suppress SSH password prompts when fetching modules or repos
+    time: fix LoadLocationFromTZData with slim tzdata
     
-    We were already setting GIT_SSH_COMMAND (if unset) to explicitly
-    include 'ControlMaster=no' in order to disable connection pooling.
-    Now we also set 'BatchMode=yes' to suppress password prompts for
-    password-protected keys.
+    The extend information of a time zone file with last transition < now
+    could result in a wrong cached zone because it used the zone of the
+    last transition.
     
-    While we're here, we also set GCM_INTERACTIVE=never to suppress
-    similar prompts from the Git Credential Manager for Windows.
+    This could lead to wrong zones in systems with slim zoneinfo.
     
-    Fixes #44904
+    Fixes #42216
     
-    Change-Id: Iebb050079ff7dd54d5b944c459ae212e9e6f2579
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300157
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7c57c35b5cfa58482ac7925b5d86618c52f5444d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264939
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.17.html                     | 11 +++++++++++
- src/cmd/go/internal/get/get.go      | 16 +++++++++++++---
- src/cmd/go/internal/modload/init.go |  6 +++++-
- 3 files changed, 29 insertions(+), 4 deletions(-)
+ src/time/zoneinfo_read.go | 13 +++++++++++--
+ src/time/zoneinfo_test.go | 19 +++++++++++++++++++
+ 2 files changed, 30 insertions(+), 2 deletions(-)

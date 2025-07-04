@@ -1,16 +1,18 @@
-commit 29df93735c85a5eaf1388df7ffa7f8c410dfce0b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 9 15:01:29 2012 +1100
+commit 947ea6f750809302534bdb57afd2091767bd4038
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 9 14:52:01 2012 +1100
 
-    database/sql: more tests
+    gobuilder: fix windows builder
     
-    Higher level tests for the pointer parameters
-    and scanning, complementing the existing ones
-    included in the previous CL.
+    Do not rewrite commands if they have .bash extnsion.
+    Use path/filepath to manipulate file paths everywhere.
+    Use all.bat on windows, not all.bash.
+    Use HOMEDRIVE/HOMEPATH to find .gobuildkey on windows.
     
-    R=golang-dev, dsymonds
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5646050
+    https://golang.org/cl/5630062
 
- src/pkg/database/sql/sql_test.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ misc/dashboard/builder/exec.go | 13 -----------
+ misc/dashboard/builder/main.go | 50 ++++++++++++++++++++++++++++++------------
+ 2 files changed, 36 insertions(+), 27 deletions(-)

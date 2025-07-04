@@ -1,21 +1,17 @@
-commit fd1f10966d5a3b87d051d92cd854dff8484e19c5
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 15 13:35:59 2011 -0500
+commit ea51dd23b4029649427d3bcb681879808923805b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 15 10:14:57 2011 -0800
 
-    more tags for go/build
+    sql: add Rows.Columns
     
-    R=golang-dev, bradfitz
+    Also, fix package name in error messages.
+    
+    Fixes #2453
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5490047
+    https://golang.org/cl/5483088
 
- src/cmd/godoc/appinit.go                    | 2 ++
- src/pkg/exp/terminal/terminal.go            | 2 ++
- src/pkg/exp/terminal/terminal_test.go       | 2 ++
- src/pkg/exp/terminal/util.go                | 2 ++
- src/pkg/exp/winfsnotify/winfsnotify.go      | 2 ++
- src/pkg/exp/winfsnotify/winfsnotify_test.go | 2 ++
- src/pkg/exp/wingui/Makefile                 | 3 ++-
- src/pkg/exp/wingui/gui.go                   | 2 ++
- src/pkg/exp/wingui/winapi.go                | 2 ++
- src/pkg/exp/wingui/zwinapi.go               | 1 +
- 10 files changed, 19 insertions(+), 1 deletion(-)
+ src/pkg/exp/sql/sql.go      | 41 +++++++++++++++++++++++++++--------------
+ src/pkg/exp/sql/sql_test.go | 25 +++++++++++++++++++++----
+ 2 files changed, 48 insertions(+), 18 deletions(-)

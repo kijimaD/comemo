@@ -1,12 +1,15 @@
-commit 84a8648e1dfab299a00bf13cf1c9ce2fb812dd4c
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Tue Sep 8 17:47:25 2015 -0700
+commit 749b391c55b0139910d86ac0f8a0c42957e01d1c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 21:32:47 2015 -0400
 
-    doc: document go1.5.1
+    encoding/json: document and test overwrite of slice, map during Unmarshal
     
-    Change-Id: I56452559acc432e06c15844d3f25dbeacafe77b7
-    Reviewed-on: https://go-review.googlesource.com/14402
+    Fixes #8837.
+    
+    Change-Id: Iaaecbb0b324004cb74b16b764126b01315e6a16e
+    Reviewed-on: https://go-review.googlesource.com/12209
     Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/devel/release.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/encoding/json/decode.go      | 7 +++++++
+ src/encoding/json/decode_test.go | 9 +++++++++
+ 2 files changed, 16 insertions(+)

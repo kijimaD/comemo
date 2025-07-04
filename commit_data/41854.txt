@@ -1,21 +1,21 @@
-commit 23866aedd960b920d8c95250818d26d2b9023c5a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Apr 6 11:41:23 2020 -0400
+commit 25f5044e46f5d2c9e870e37c95a13bf01c63a6b7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 21 23:25:32 2019 +0700
 
-    cmd/link: fix data race in testDWARF
+    cmd/compile: hard fail if n.Opt() is not nil in walkCheckPtrArithmetic
     
-    Multiple instances of testDWARF run in parallel, with a shared
-    backing store of the env input slice. Do modification of the
-    environment locally, instead of on the shared slice.
+    n.Opt() is used in walkCheckPtrArithmetic to prevent infinite loops. The
+    fact that it's used today because n.Opt() is not used for OCONVNOP
+    during walk.go. If that changes, then it's not safe to repalce it
+    anymore. So doing hard fail if that case happens, the author of new
+    changes will be noticed and must change the usage of n.Opt() inside
+    walkCheckPtrArithmetic, too.
     
-    Fixes #38265.
-    
-    Change-Id: I22a7194c8cd55ba22c9d6c47ac47bf7e710a7027
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227342
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic7094baa1759c647fc10e82457c19026099a0d47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202497
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/dwarf_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

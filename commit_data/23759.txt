@@ -1,12 +1,15 @@
-commit e28ff1f3a154285607ddde23a61005b648dcd0eb
+commit 0beb931c76655f1566572cf1377cda672ee22a04
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 20 12:30:06 2015 -0700
+Date:   Thu Jun 11 07:26:44 2015 -0700
 
-    doc: document net/http.Request.Cancel in go1.5.html
+    cmd/go, cmd/vet: skip tests on Android
     
-    Change-Id: If1c12b43ef467c3ef2cbbaaba1bda4ea98032c7e
-    Reviewed-on: https://go-review.googlesource.com/12430
-    Reviewed-by: Rob Pike <r@golang.org>
+    Might get the Android build passing, or at least going further.
+    
+    Change-Id: I08f97156a687abe5a3d95203922f4ffd84fbb212
+    Reviewed-on: https://go-review.googlesource.com/10924
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- doc/go1.5.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/go/note_test.go | 3 +++
+ src/cmd/vet/vet_test.go | 2 ++
+ 2 files changed, 5 insertions(+)

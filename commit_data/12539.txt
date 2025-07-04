@@ -1,24 +1,20 @@
-commit 49d2d986978f3b3654ff284fbcbeb4c32ec55fad
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 9 11:05:50 2012 -0800
+commit c9e5600f7d3c46d3053eadc83a9b02642413bcb3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 9 00:10:34 2012 -0500
 
-    go/printer, gofmt: nicer formatting of multi-line returns
+    runtime: move runtime.write back to C
     
-    This affects corner (test) cases only; gofmt -w src misc
-    doesn't cause any changes.
+    It may have to switch stacks, since we are calling
+    a DLL instead of a system call.
     
-    - added additional test cases
-    - removed doIndent parameter from printer.valueSpec
-      (was always false)
-    - gofmt -w src misc causes no changes
+    badcallback says where it is, because it is being called
+    on a Windows stack already.
     
-    Fixes #1207.
-    
-    R=dsymonds, rsc
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5786060
+    https://golang.org/cl/5782060
 
- src/pkg/go/printer/nodes.go                   | 56 ++++++++++++++++++++++---
- src/pkg/go/printer/testdata/statements.golden | 59 +++++++++++++++++++++++----
- src/pkg/go/printer/testdata/statements.input  | 43 +++++++++++++++++++
- 3 files changed, 145 insertions(+), 13 deletions(-)
+ src/pkg/runtime/sys_windows_386.s   | 24 ++----------------------
+ src/pkg/runtime/sys_windows_amd64.s | 23 +----------------------
+ src/pkg/runtime/thread_windows.c    | 21 +++++++++++++++++++++
+ 3 files changed, 24 insertions(+), 44 deletions(-)

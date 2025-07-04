@@ -1,34 +1,25 @@
-commit 9d59234cbe55c32b6b64969a4360ecccfce582fd
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 18 16:36:20 2018 -0500
+commit 4745604bcb90f8823f78b6e4f32e972615b6b89a
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Oct 30 09:02:44 2017 -0400
 
-    runtime: move unrecoverable panic handling to the system stack
+    cmd/compile: intrinsify math.RoundToEven on s390x
     
-    Currently parts of unrecoverable panic handling (notably, printing
-    panic messages) can happen on the user stack. This may grow the stack,
-    which is generally fine, but if we're handling a runtime panic, it's
-    better to do as little as possible in case the runtime is in an
-    inconsistent state.
+    The new RoundToEven function can be implemented as a single FIDBR
+    instruction on s390x.
     
-    Hence, this commit rearranges the handling of unrecoverable panics so
-    that it's done entirely on the system stack.
+    name         old time/op  new time/op  delta
+    RoundToEven  5.32ns ± 1%  0.86ns ± 1%  -83.86%  (p=0.000 n=10+10)
     
-    This is mostly a matter of shuffling code a bit so everything can move
-    into a systemstack block. The one slight subtlety is in the "panic
-    during panic" case, where we now depend on startpanic_m's caller to
-    print the stack rather than startpanic_m itself. To make this work,
-    startpanic_m now returns a boolean indicating that the caller should
-    avoid trying to print any panic messages and get right to the stack
-    trace. Since the caller is already in a position to do this, this
-    actually simplifies things a little.
-    
-    Change-Id: Id72febe8c0a9fb31d9369b600a1816d65a49bfed
-    Reviewed-on: https://go-review.googlesource.com/93658
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Iaf597e57a0d1085961701e3c75ff4f6f6dcebb5f
+    Reviewed-on: https://go-review.googlesource.com/74350
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/os3_plan9.go         |  2 +-
- src/runtime/panic.go             | 77 +++++++++++++++++++++++-----------------
- src/runtime/signal_sighandler.go |  2 +-
- 3 files changed, 46 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go        |  8 ++++++++
+ src/cmd/compile/internal/gc/ssa.go             |  5 +++++
+ src/cmd/compile/internal/ssa/gen/S390X.rules   | 11 ++++++-----
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  9 +++++----
+ src/cmd/compile/internal/ssa/opGen.go          |  6 ++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 14 ++++++++++++++
+ 6 files changed, 44 insertions(+), 9 deletions(-)

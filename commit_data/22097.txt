@@ -1,20 +1,15 @@
-commit 6d448440d5a7fc408b11212c649dd29dd86ee19f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 19 09:49:25 2015 -0700
+commit ce137592c0ee5fc262675092c6eea7b71f25850b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 23 13:15:10 2015 -0800
 
-    cmd/internal/gc: fix broken build
+    math/big: fix formatting for 'b' format
     
-    CL 7697 caused doasm failures on 386:
+    Fixes #9939.
     
-    runtime/append_test.go:1: doasm: notfound ft=2 tt=20 00112 (runtime/iface_test.go:207)  CMPL    $0, BX 2 20
-    
-    I think that this should be fixed in liblink,
-    but in the meantime, work around the problem
-    by instead generating CMPL BX, $0.
-    
-    Change-Id: I9c572f8f15fc159507132cf4ace8d7a328a3eb4a
-    Reviewed-on: https://go-review.googlesource.com/7810
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9d60722b648fbc00650115da539a7466c6c86552
+    Reviewed-on: https://go-review.googlesource.com/5640
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/internal/gc/walk.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/big/floatconv.go      |  27 ++++++--
+ src/math/big/floatconv_test.go | 154 ++++++++++++++++++++++++-----------------
+ 2 files changed, 110 insertions(+), 71 deletions(-)

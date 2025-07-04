@@ -1,23 +1,35 @@
-commit 6675fadfb880bd0a3fa1d5524819db02d200bda2
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Sep 2 08:33:21 2017 +0200
+commit 23c5db9bbbfe2d5656b8f153e1cc7327e90d8005
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Sun May 7 15:58:03 2017 +0100
 
-    runtime: cleanup amd64p32 memmove and memclr file organization
+    cmd/asm: enable MOVSD in the encoding end-to-end test
     
-    Move memclr to a separate file to make it consistent
-    with other platforms asm function to file organization.
+    MOVSD is properly handled but its encoding test wasn't enabled. Enable
+    it.
     
-    Remove nacl from the memmove filename as the implementation
-    is generic for the amd64p32 platform even if currently only
-    nacl is supported for amd64p32.
+    For reference this was found with a little tool I wrote [1] to explore
+    which instructions are missing or not tested in the go obj package and
+    assembler:
     
-    Change-Id: I8930b76da430a5cf2664801974e4f5185fc0f82f
-    Reviewed-on: https://go-review.googlesource.com/61031
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    "which SSE2 instructions aren't tested? And don't list instructions
+    which can take MMX operands"
+    
+    $ x86db-gogen list --extension SSE2 --not-tested --not-mmx
+    CLFLUSH mem           [m:  np 0f ae /7] WILLAMETTE,SSE2
+    MOVSD   xmmreg,xmmreg [rm: f2 0f 10 /r] WILLAMETTE,SSE2
+    MOVSD   xmmreg,xmmreg [mr: f2 0f 11 /r] WILLAMETTE,SSE2
+    MOVSD   mem64,xmmreg  [mr: f2 0f 11 /r] WILLAMETTE,SSE2
+    MOVSD   xmmreg,mem64  [rm: f2 0f 10 /r] WILLAMETTE,SSE2
+    
+    (CLFLUSH was introduced with SSE2, but has its own CPUID bit)
+    
+    [1] https://github.com/dlespiau/x86db
+    
+    Change-Id: Ic3af3028cb8d4f02e53fdebb9b30fb311f4ee454
+    Reviewed-on: https://go-review.googlesource.com/42814
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/asm_amd64p32.s                         | 18 -----------------
- src/runtime/memclr_amd64p32.s                      | 23 ++++++++++++++++++++++
- ...{memmove_nacl_amd64p32.s => memmove_amd64p32.s} |  0
- 3 files changed, 23 insertions(+), 18 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

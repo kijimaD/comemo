@@ -1,18 +1,26 @@
-commit 21481a3c52acd269366cd242c56e84a44c19b685
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 24 12:03:08 2023 +0200
+commit ecd112c0d1c90a12d3c87172cf969cdd1f6cbeca
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 14 15:44:20 2022 -0400
 
-    net: remove unused ipv4AddrToInterface
+    runtime/coverage: apis to emit counter data under user control
     
-    It's unused since CL 6497044.
+    Add hooks/apis to support writing of coverage counter data and
+    meta-data under user control (from within an executing "-cover"
+    binary), so as to provide a way to obtain coverage data from programs
+    that do not terminate. This patch also adds a hook for clearing the
+    coverage counter data for a running program, something that can be
+    helpful when the intent is to capture coverage info from a specific
+    window of program execution.
     
-    Change-Id: Iee07e7af7b80fc3f00146b64cebead844daee087
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522196
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Updates #51430.
+    
+    Change-Id: I34ee6cee52e5597fa3698b8b04f1b34a2a2a418f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401236
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/sockopt_posix.go | 29 -----------------------------
- 1 file changed, 29 deletions(-)
+ api/next/51430.txt                       |   5 +
+ src/runtime/coverage/apis.go             | 176 ++++++++++++++
+ src/runtime/coverage/emit.go             |  45 +++-
+ src/runtime/coverage/emitdata_test.go    | 404 +++++++++++++++++++++++++++++++
+ src/runtime/coverage/testdata/harness.go | 258 ++++++++++++++++++++
+ 5 files changed, 887 insertions(+), 1 deletion(-)

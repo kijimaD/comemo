@@ -1,26 +1,37 @@
-commit 9f4aeb36e22f5c7eda76111b4c49c0434b4d2897
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu May 21 14:16:50 2020 -0400
+commit 41348081fa0511c8f442d236d32ff8d589c8c557
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Dec 10 14:27:53 2019 +0000
 
-    all: use a hermetic "go" tool in standard-library tests
+    all: fix a number of misuses of the word "an"
     
-    The go/build package uses the "go" tool from the user's environment,
-    but its tests should not assume that that tool is in any particular
-    state, let alone appropriate for running the test.
+    After golang.org/cl/210124, I wondered if the same error had gone
+    unnoticed elsewhere. I quickly spotted another dozen mistakes after
+    reading through the output of:
     
-    Instead, explicitly use testenv.GoTool, adding it to $PATH in a
-    TestMain when necessary.
+            git grep '\<[Aa]n [bcdfgjklmnpqrtvwyz][a-z]'
     
-    Fixes #39199
-    Fixes #39198
+    Many results are false positives for acronyms like "an mtime", since
+    it's pronounced "an em-time". However, the total amount of output isn't
+    that large given how simple the grep pattern is.
     
-    Change-Id: I56618a55ced473e75dd96eeb3a8f7084e2e64d02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234880
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iaa2ca69e42f4587a9e3137d6c5ed758887906ca6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210678
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Zach Jones <zachj1@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- src/go/build/build_test.go                      |  9 +++++++++
- src/go/internal/srcimporter/srcimporter_test.go | 10 ++++++++++
- src/text/template/link_test.go                  |  2 +-
- 3 files changed, 20 insertions(+), 1 deletion(-)
+ doc/articles/go_command.html          | 2 +-
+ src/archive/tar/reader.go             | 2 +-
+ src/cmd/link/internal/ld/deadcode.go  | 2 +-
+ src/cmd/link/internal/ld/deadcode2.go | 2 +-
+ src/cmd/pprof/readlineui.go           | 2 +-
+ src/crypto/elliptic/p256.go           | 2 +-
+ src/encoding/gob/gobencdec_test.go    | 2 +-
+ src/io/io_test.go                     | 2 +-
+ src/io/multi_test.go                  | 2 +-
+ src/reflect/type.go                   | 2 +-
+ src/runtime/alg.go                    | 2 +-
+ src/runtime/runtime1.go               | 2 +-
+ 12 files changed, 12 insertions(+), 12 deletions(-)

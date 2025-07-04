@@ -1,26 +1,26 @@
-commit d4e0e8e4a41e5e1e7d0359287a1015791ce778ed
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Nov 3 09:40:32 2021 -0700
+commit 9d88a9e2bf89068238ed02a0c960e58f547bb102
+Author: David Chase <drchase@google.com>
+Date:   Mon Feb 22 21:51:35 2021 -0500
 
-    cmd/compile: make pointers to arrays their own shape
+    cmd/compile: implement simple register results
     
-    Pointers to arrays can be used to cast from a slice. We need
-    the shape of such type params to be different so we can compile
-    those casts correctly.
+    at least for ints and strings
     
-    This is kind of a big hammer to fix #49295. It would be nice to
-    only do this when we know there's a []T->*[N]T conversion.
+    includes simple test
     
-    Fixes #49295
+    For #40724.
     
-    Change-Id: Ibda33057fab2dd28162537aab0f1244211d68e3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361135
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: Ib8484e5b957b08f961574a67cfd93d3d26551558
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295309
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go |  4 +++-
- test/typeparam/issue49295.go               | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/abi/abiutils.go     | 64 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/expand_calls.go | 58 ++++++++++++++++---------
+ src/cmd/compile/internal/ssa/lower.go        |  3 +-
+ src/cmd/compile/internal/ssa/op.go           | 25 ++++++++++-
+ src/cmd/compile/internal/ssa/regalloc.go     |  3 ++
+ test/abi/fibish.go                           | 33 ++++++++++++++
+ test/abi/fibish.out                          |  1 +
+ 7 files changed, 164 insertions(+), 23 deletions(-)

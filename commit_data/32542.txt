@@ -1,12 +1,19 @@
-commit ec04f107adb14b2095b827deae160a5f36e362a2
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Aug 29 17:28:15 2017 +0900
+commit c1ac70ff9206191d3e9daf5cf9f9de193f8dd9a8
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 20 16:10:59 2017 -0400
 
-    cmd/cgo: update documentation on implementation details
+    runtime/pprof: use symbol information already in profile in tests
     
-    Change-Id: Iec771d5bbdf510b6c5ec17a614da90e7974a6348
-    Reviewed-on: https://go-review.googlesource.com/59870
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Currently the pprof tests re-symbolize PCs in profiles, and do so in a
+    way that can't handle inlining. Proto profiles already contain full
+    symbol information, so this modifies the tests to use the symbol
+    information already present in the profile.
+    
+    Change-Id: I63cd491de7197080fd158b1e4f782630f1bbbb56
+    Reviewed-on: https://go-review.googlesource.com/41255
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/cgo/doc.go | 99 ++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 66 insertions(+), 33 deletions(-)
+ src/runtime/pprof/pprof_test.go | 73 +++++++++++++++++++++--------------------
+ 1 file changed, 37 insertions(+), 36 deletions(-)

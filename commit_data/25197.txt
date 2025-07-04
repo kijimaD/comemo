@@ -1,28 +1,19 @@
-commit f740d717bd31e1a4b8281072b5cb3dfeb26f3273
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Dec 4 14:17:03 2015 -0800
+commit 40457745e51eb327751de5be4c69c9079db69f66
+Author: Gordon Klaus <gordon.klaus@gmail.com>
+Date:   Mon Oct 5 22:12:46 2015 +0200
 
-    crypto/elliptic: resample private keys if out of range.
+    database/sql: fix conversions to and from user-defined types
     
-    The orders of the curves in crypto/elliptic are all very close to a
-    power of two. None the less, there is a tiny bias in the private key
-    selection.
+    In particular, don't assume that one reflect.Value can be assigned to another just because they have the same reflect.Kind.
     
-    This change makes the distribution uniform by resampling in the case
-    that a private key is >= to the order of the curve. (It also switches
-    from using BitSize to Params().N.BitLen() because, although they're the
-    same value here, the latter is technically the correct thing to do.)
+    Fixes #12401
     
-    The private key sampling and nonce sampling in crypto/ecdsa don't have
-    this issue.
-    
-    Fixes #11082.
-    
-    Change-Id: Ie2aad563209a529fa1cab522abaf5fd505c7269a
-    Reviewed-on: https://go-review.googlesource.com/17460
+    Change-Id: Ia4605a5c46557ff8f8f1d44f26d492850666c6d1
+    Reviewed-on: https://go-review.googlesource.com/15420
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/elliptic/elliptic.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/database/sql/convert.go      |  7 ++++++-
+ src/database/sql/convert_test.go | 40 +++++++++++++++++++++++++++-------------
+ 2 files changed, 33 insertions(+), 14 deletions(-)

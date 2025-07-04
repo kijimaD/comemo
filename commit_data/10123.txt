@@ -1,25 +1,31 @@
-commit 833fb4198d2f4ff3add2e8a14bfe6c91413f7601
+commit bd07e4f25906f4443811e3b6bdb4ff2918beed0c
 Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Oct 27 10:26:11 2011 +1100
+Date:   Thu Oct 27 09:45:53 2011 +1100
 
-    html: parse <style> elements inside <head> element.
+    html: close <option> element when opening <optgroup>
     
-    Also correctly handle EOF inside a <style> element.
-    
-    Pass tests1.dat, test 49:
-    <!DOCTYPE html><style> EOF
+    Pass tests1.dat, test 34:
+    <!DOCTYPE html>A<option>B<optgroup>C<select>D</option>E
     
     | <!DOCTYPE html>
     | <html>
     |   <head>
-    |     <style>
-    |       " EOF"
     |   <body>
+    |     "A"
+    |     <option>
+    |       "B"
+    |     <optgroup>
+    |       "C"
+    |       <select>
+    |         "DE"
+    
+    Also passes tests 35-48. Test 48 is:
+    </ COM--MENT >
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5321057
+    https://golang.org/cl/5311063
 
- src/pkg/html/parse.go      | 4 +++-
+ src/pkg/html/parse.go      | 6 ++++++
  src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ 2 files changed, 7 insertions(+), 1 deletion(-)

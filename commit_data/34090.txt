@@ -1,22 +1,24 @@
-commit 8c8bb96b9285cabe126f5b59ba96198f3c6d36ee
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 29 11:28:17 2018 +1100
+commit 630d176e7d5e42e21d176d1b9d48de0e03e7cec8
+Author: Florian Uekermann <florian@uekermann.me>
+Date:   Fri Sep 29 17:12:58 2017 +0200
 
-    cmd/asm: fix crash on bad symbol for TEXT
+    time: enable ZONEINFO tzdata file support and error reporting
     
-    Was missing a check in validSymbol.
+    Loading location data from tzdata files was only supported
+    from default paths on android. This change enables support on
+    all OS via the ZONEINFO environment variable and reduces the
+    amount of android specific code significantly.
+    Furthermore, unsuccessful calls to LoadLocation now return the
+    first error encountered, including errors from attempting to
+    load a location from the source specified by ZONEINFO.
+    Errors indicating that the source or location was not found are
+    ignored until all possible sources have been traversed.
     
-    Fixes #23580.
-    
-    Can wait for go1.11. Probably safe but the crash is only for
-    invalid input, so not worth the risk.
-    
-    Change-Id: I51f88c5be35a8880536147d1fe5c5dd6798c29de
-    Reviewed-on: https://go-review.googlesource.com/90398
+    Change-Id: I45bc23b92253c9447f12f95f3ca29a7e613ed995
+    Reviewed-on: https://go-review.googlesource.com/67170
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/asm.go         | 2 +-
- src/cmd/asm/internal/asm/pseudo_test.go | 3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/time/zoneinfo.go         | 13 ++++----
+ src/time/zoneinfo_android.go | 55 ----------------------------------
+ src/time/zoneinfo_read.go    | 71 ++++++++++++++++++++++++++++++++++----------
+ 3 files changed, 62 insertions(+), 77 deletions(-)

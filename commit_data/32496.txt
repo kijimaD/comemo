@@ -1,29 +1,44 @@
-commit adbfdfe377fe4b0b4892db097f23f7e1249216cf
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Aug 26 23:05:36 2017 +0200
+commit 14f3ca56eda1120cb9f25f05f7fbf705d2bb0dc3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 24 13:48:35 2017 -0700
 
-    cmd/compile: don't use MOVOstore for move on plan9/amd64
+    cmd/internal/obj: ARM, use immediates instead of constant pool entries
     
-    The SSA compiler currently generates MOVOstore instructions
-    to optimize 16 bytes moves on AMD64 architecture.
+    When a constant doesn't fit in a single instruction, use two
+    paired instructions instead of the constant pool.  For example
     
-    However, we can't use the MOVOstore instruction on Plan 9,
-    because floating point operations are not allowed in the
-    note handler.
+      ADD $0xaa00bb, R0, R1
     
-    We rely on the useSSE flag to disable the use of the
-    MOVOstore instruction on Plan 9 and replace it by two
-    MOVQstore instructions.
+    Used to rewrite to:
     
-    Fixes #21625
+      MOV ?(IP), R11
+      ADD R11, R0, R1
     
-    Change-Id: Idfefcceadccafe1752b059b5fe113ce566c0e71c
-    Reviewed-on: https://go-review.googlesource.com/59171
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Instead, do:
+    
+      ADD $0xaa0000, R0, R1
+      ADD $0xbb, R1, R1
+    
+    Same number of instructions.
+    Good:
+      4 less bytes (no constant pool entry)
+      One less load.
+    Bad:
+      Critical path is one instruction longer.
+    
+    It's probably worth it to avoid the loads, they are expensive.
+    
+    Dave Cheney got us some performance numbers: https://perf.golang.org/search?q=upload:20170426.1
+    TL;DR mean 1.37% improvement.
+    
+    Change-Id: Ib206836161fdc94a3962db6f9caa635c87d57cf1
+    Reviewed-on: https://go-review.googlesource.com/41612
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go      |  33 +++++++++
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  14 +++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 102 +++++++++++++++++++++++----
- 3 files changed, 135 insertions(+), 14 deletions(-)
+ src/cmd/internal/obj/arm/a.out.go   |   7 ++-
+ src/cmd/internal/obj/arm/anames5.go |   1 +
+ src/cmd/internal/obj/arm/asm5.go    |  75 +++++++++++++++++++++++-
+ test/armimm.go                      | 113 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 191 insertions(+), 5 deletions(-)

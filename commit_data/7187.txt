@@ -1,137 +1,32 @@
-commit f2b5a07453277de6bc500dc283799441cc375239
+commit 0849944694543a3446da4b1fa0c3d314781ced14
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 19 23:09:00 2011 -0500
+Date:   Wed Jan 19 23:08:11 2011 -0500
 
-    delete float, complex - code changes
-    also:
-            cmplx -> complex
-            float64(1.0) -> 1.0
-            float64(1) -> 1.0
+    gc: delete float, complex
+    rename cmplx -> complex
     
-    R=gri, r, gri1, r2
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/3991043
+    https://golang.org/cl/4071041
 
- src/pkg/cmath/asin.go                    |   32 +-
- src/pkg/cmath/cmath_test.go              |   62 +-
- src/pkg/cmath/conj.go                    |    2 +-
- src/pkg/cmath/exp.go                     |    2 +-
- src/pkg/cmath/isinf.go                   |    4 +-
- src/pkg/cmath/isnan.go                   |    2 +-
- src/pkg/cmath/log.go                     |    2 +-
- src/pkg/cmath/pow.go                     |    4 +-
- src/pkg/cmath/rect.go                    |    2 +-
- src/pkg/cmath/sin.go                     |    8 +-
- src/pkg/cmath/sqrt.go                    |   14 +-
- src/pkg/cmath/tan.go                     |   16 +-
- src/pkg/container/vector/numbers_test.go |    6 +-
- src/pkg/encoding/binary/binary.go        |    6 +-
- src/pkg/encoding/binary/binary_test.go   |    6 +-
- src/pkg/exp/datafmt/datafmt_test.go      |    6 +-
- src/pkg/exp/eval/Makefile                |    2 +-
- src/pkg/exp/eval/bridge.go               |    2 -
- src/pkg/exp/eval/eval_test.go            |    6 +-
- src/pkg/exp/eval/expr.go                 |    2 +-
- src/pkg/exp/eval/expr1.go                |   37 +-
- src/pkg/exp/eval/gen.go                  |    2 +-
- src/pkg/exp/eval/stmt.go                 |    2 +-
- src/pkg/exp/eval/type.go                 |   10 -
- src/pkg/exp/eval/value.go                |   10 -
- src/pkg/exp/ogle/rtype.go                |    3 -
- src/pkg/expvar/expvar_test.go            |    2 +-
- src/pkg/flag/flag.go                     |   30 -
- src/pkg/flag/flag_test.go                |   15 +-
- src/pkg/fmt/fmt_test.go                  |   68 +-
- src/pkg/fmt/format.go                    |   33 -
- src/pkg/fmt/print.go                     |   14 -
- src/pkg/fmt/scan.go                      |    9 +-
- src/pkg/fmt/scan_test.go                 |   24 +-
- src/pkg/fmt/stringer_test.go             |    4 +-
- src/pkg/go/doc/doc.go                    |    2 +-
- src/pkg/go/printer/nodes.go              |    2 +-
- src/pkg/gob/codec_test.go                |   76 +-
- src/pkg/gob/decode.go                    |   18 +-
- src/pkg/gob/encode.go                    |   22 -
- src/pkg/gob/encoder_test.go              |   16 +-
- src/pkg/gob/type.go                      |    6 +-
- src/pkg/gob/type_test.go                 |    4 +-
- src/pkg/json/decode.go                   |    2 +-
- src/pkg/json/decode_test.go              |   12 +-
- src/pkg/json/stream_test.go              |    4 +-
- src/pkg/math/all_test.go                 |    2 +-
- src/pkg/math/gamma.go                    |    2 +-
- src/pkg/math/jn.go                       |    4 +-
- src/pkg/math/lgamma.go                   |    2 +-
- src/pkg/math/pow.go                      |    2 +-
- src/pkg/rand/rand.go                     |    6 -
- src/pkg/rand/rand_test.go                |    6 +-
- src/pkg/rand/zipf.go                     |    2 +-
- src/pkg/reflect/all_test.go              |   31 +-
- src/pkg/reflect/type.go                  |    5 +-
- src/pkg/reflect/value.go                 |    8 -
- src/pkg/runtime/type.go                  |    2 -
- src/pkg/runtime/type.h                   |    2 -
- src/pkg/sort/search.go                   |   12 +-
- src/pkg/sort/search_test.go              |    6 +-
- src/pkg/sort/sort.go                     |   20 +-
- src/pkg/sort/sort_test.go                |   20 +-
- src/pkg/strconv/atof.go                  |   13 +-
- src/pkg/strconv/atof_test.go             |   25 +-
- src/pkg/strconv/ftoa.go                  |   22 -
- src/pkg/strconv/ftoa_test.go             |    4 -
- src/pkg/testing/quick/quick.go           |   16 +-
- src/pkg/testing/quick/quick_test.go      |    7 +-
- src/pkg/xml/xml_test.go                  |    2 -
- test/append.go                           |    2 +-
- test/blank.go                            |   51 +-
- test/cmplx.go                            |   21 +-
- test/cmplxdivide.c                       |    2 +-
- test/cmplxdivide1.go                     | 4803 +++++++++++++++---------------
- test/complit.go                          |   70 +-
- test/const1.go                           |  111 +-
- test/convlit.go                          |   44 +-
- test/decl.go                             |   12 +-
- test/declbad.go                          |   22 +-
- test/fixedbugs/bug006.go                 |   15 +-
- test/fixedbugs/bug007.go                 |    4 +-
- test/fixedbugs/bug010.go                 |   10 +-
- test/fixedbugs/bug011.go                 |   16 +-
- test/fixedbugs/bug035.go                 |    8 +-
- test/fixedbugs/bug047.go                 |   18 +-
- test/fixedbugs/bug080.go                 |   14 +-
- test/fixedbugs/bug109.go                 |    9 +-
- test/fixedbugs/bug167.go                 |   14 +-
- test/fixedbugs/bug193.go                 |   12 +-
- test/fixedbugs/bug220.go                 |    8 +-
- test/fixedbugs/bug230.go                 |    7 +-
- test/fixedbugs/bug238.go                 |    2 +-
- test/fixedbugs/bug248.dir/bug2.go        |    2 +-
- test/fixedbugs/bug248.dir/bug3.go        |    2 +-
- test/fixedbugs/bug299.go                 |    4 +-
- test/fixedbugs/bug307.go                 |    4 +-
- test/fixedbugs/bug315.go                 |    2 +-
- test/fixedbugs/bug316.go                 |    2 +-
- test/func.go                             |   14 +-
- test/func1.go                            |    4 +-
- test/golden.out                          |    1 -
- test/interface/explicit.go               |   20 +-
- test/iota.go                             |   12 +-
- test/ken/cplx0.go                        |    2 +-
- test/ken/cplx1.go                        |    2 +-
- test/ken/cplx2.go                        |    4 +-
- test/ken/cplx3.go                        |   12 +-
- test/ken/cplx4.go                        |    8 +-
- test/ken/cplx5.go                        |   32 +-
- test/ken/robfunc.go                      |   96 +-
- test/ken/simpconv.go                     |   27 +-
- test/ken/slicearray.go                   |    8 +-
- test/ken/sliceslice.go                   |   10 +-
- test/literal.go                          |   36 +-
- test/map.go                              |  167 +-
- test/named.go                            |    2 +-
- test/nil.go                              |    7 +-
- test/recover2.go                         |    2 +-
- test/test0.go                            |   40 +-
- test/typeswitch.go                       |   13 +-
- test/zerodivide.go                       |  204 +-
- 122 files changed, 3317 insertions(+), 3531 deletions(-)
+ src/cmd/5g/cgen.c      |  3 +--
+ src/cmd/5g/galign.c    |  2 --
+ src/cmd/5g/reg.c       |  1 -
+ src/cmd/6g/galign.c    |  2 --
+ src/cmd/6g/reg.c       |  2 --
+ src/cmd/8g/cgen.c      |  2 +-
+ src/cmd/8g/galign.c    |  2 --
+ src/cmd/8g/reg.c       |  1 -
+ src/cmd/gc/align.c     |  2 --
+ src/cmd/gc/const.c     | 12 ++++++------
+ src/cmd/gc/cplx.c      |  6 +++---
+ src/cmd/gc/go.h        |  4 +---
+ src/cmd/gc/lex.c       |  2 +-
+ src/cmd/gc/print.c     |  4 ++--
+ src/cmd/gc/reflect.c   |  7 -------
+ src/cmd/gc/sinit.c     |  2 --
+ src/cmd/gc/subr.c      |  8 +-------
+ src/cmd/gc/typecheck.c |  7 ++-----
+ src/cmd/gc/walk.c      |  2 +-
+ src/cmd/ld/dwarf.c     |  4 ----
+ 20 files changed, 19 insertions(+), 56 deletions(-)

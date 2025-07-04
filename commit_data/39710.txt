@@ -1,19 +1,29 @@
-commit 777304a5d33390cd905765cb61fa6a16ac349d4e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 28 20:21:31 2019 +0000
+commit eca5c83a3e8b926d663b6a824c76b4dadac7b66d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 13 15:07:56 2019 -0500
 
-    Revert "cmd/compile: make isfat handle 1-element array, 1-field struct"
+    cmd/go: change the default value of GO111MODULE to 'on'
     
-    This reverts commit 53227762153afb39c979810bd59ec139e3c8127d.
+    This reverts CL 166985, restoring CL 162698.
     
-    Reason for revert: broke js-wasm builder.
+    The bootstrap failure from CL 162698 was fixed in
+    CL 167077 and CL 167078.
     
-    Change-Id: If22762317c4a9e00f5060eb84377a4a52d601fca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192157
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #30228
+    
+    Change-Id: I5a4e3081018c51b74b67185e64f20a9c824a564e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167087
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/plive.go | 14 +-------------
- test/live.go                         |  2 +-
- test/live2.go                        |  4 ++--
- 3 files changed, 4 insertions(+), 16 deletions(-)
+ src/cmd/go/alldocs.go                             | 331 +++++++++++-----------
+ src/cmd/go/help_test.go                           |   5 +
+ src/cmd/go/internal/help/help.go                  |   7 +-
+ src/cmd/go/internal/modload/help.go               |  39 +--
+ src/cmd/go/internal/modload/init.go               |  35 +--
+ src/cmd/go/main.go                                |  15 +-
+ src/cmd/go/mkalldocs.sh                           |   2 +-
+ src/cmd/go/testdata/script/mod_find.txt           |   2 +-
+ src/cmd/go/testdata/script/mod_gobuild_import.txt |   6 +
+ 9 files changed, 210 insertions(+), 232 deletions(-)

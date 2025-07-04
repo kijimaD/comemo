@@ -1,19 +1,17 @@
-commit b6074a417dd707af3a9b39cc54769d7f8185961c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 17 16:59:32 2017 -0700
+commit 62e51c536b1ad117a8c8a3819bd8bb984e481f24
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 29 14:17:35 2016 -0800
 
-    cmd/compile: use testConfig consistently in SSA tests
+    doc: add notes about cgo to go1.8.html
     
-    Change-Id: Iae41e14ee55eb4068fcb2189a77b345a7c5468b4
-    Reviewed-on: https://go-review.googlesource.com/38333
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    TBR=See https://golang.org/cl/33244
+    
+    Updates #17929
+    
+    Change-Id: I0215a7873977be81f2f84374f0b628abaf0e57c1
+    Reviewed-on: https://go-review.googlesource.com/33667
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/dom_test.go      |  2 +-
- src/cmd/compile/internal/ssa/fuse_test.go     |  8 ++++----
- src/cmd/compile/internal/ssa/lca_test.go      |  2 +-
- src/cmd/compile/internal/ssa/nilcheck_test.go | 20 ++++++++++----------
- src/cmd/compile/internal/ssa/passbm_test.go   |  4 ++--
- 5 files changed, 18 insertions(+), 18 deletions(-)
+ doc/go1.8.html | 31 ++++++++++++++++++++++++++++++-
+ doc/go1.8.txt  |  7 -------
+ 2 files changed, 30 insertions(+), 8 deletions(-)

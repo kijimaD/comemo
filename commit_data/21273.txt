@@ -1,19 +1,13 @@
-commit 437ec6b313196e603c5935012091e53f4ba66726
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Jan 14 21:32:05 2015 +0300
+commit 895e48cac53a12f0793bacc872cdc1532170637f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 16 18:09:38 2014 +1100
 
-    encoding/xml: remove unnecessary memory allocation in Unmarshal
+    reflect: remove a double negative, use the rtype.pointers method for clarity
     
-    benchmark              old ns/op     new ns/op     delta
-    BenchmarkUnmarshal     75256         72626         -3.49%
-    
-    benchmark              old allocs     new allocs     delta
-    BenchmarkUnmarshal     259            219            -15.44%
-    
-    Change-Id: I7fd30739b045e35b95e6ef6a8ef2f15b0dd6839c
-    Reviewed-on: https://go-review.googlesource.com/2758
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia24e9f0da1622cededa17b2c54ff9e4bb80cf946
+    Reviewed-on: https://go-review.googlesource.com/1633
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/xml/marshal_test.go | 2 ++
- src/encoding/xml/xml.go          | 8 ++++----
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

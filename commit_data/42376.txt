@@ -1,39 +1,25 @@
-commit dfd613e0e4fd93ef945e9fbd6d42b79bcaf73905
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon May 18 16:06:11 2020 +0000
+commit bff4ebb7aa1a89266f0f05a60d8f2f2d385e7583
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri Nov 22 14:18:43 2019 -0500
 
-    runtime: don't use (addrRange).subtract in removeGreaterEqual
+    net/http: unflake TestTimeoutHandlerSuperfluousLogs
     
-    Currently in (*addrRanges).removeGreaterEqual we use
-    (addrRange).subtract with a range from specified address to "infinity"
-    which is supposed to be maxOffAddr. However, maxOffAddr is necessarily
-    an inclusive bound on the address space, because on many platforms an
-    exclusive bound would overflow back to 0.
+    Uses 2 channels to synchronize that test, because
+    relying on sleeps creates flaky behavior, thus:
     
-    On some platforms like mips and mipsle, the address space is smaller
-    than what's representable in a pointer, so if there's a range which hits
-    the top of the address space (such as in the pageAlloc tests), the limit
-    doesn't overflow, but maxOffAddr is inclusive, so any attempt to prune
-    this range with (*addrRange).removeGreaterEqual causes a failure, since
-    the range passed to subtract is contained within the address range which
-    touches the top of the address space.
+    a) 1 buffered channel to send back the last spurious line
+    without having to reason about "happens before" behavior
+    a) 1 buffered channel at the end of the handler; it'll
+    be controlled by whether we expect to timeout or not,
+    but will always be closed when the test ends
     
-    Another problem with using subtract here is that addr and
-    maxOffAddr.addr() may not be in the same segment which could cause
-    makeAddrRange to panic. While this unlikely to happen, on some platforms
-    such as Solaris it is possible.
+    Fixes #35051
     
-    Fix these issues by not using subtract at all. Create a specific
-    implementation of (addrRange).removeGreaterEqual which side-steps all of
-    this by not having to worry about the top of the address space at all.
-    
-    Fixes #39128.
-    
-    Change-Id: Icd5b587b1a3d32a5681fb76cec4c001401f5756f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234457
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iff735aa8d1ed9de8d92b792374ec161cc0a72798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208477
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mranges.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go | 46 +++++++++++++++++++++++++++++++---------------
+ 1 file changed, 31 insertions(+), 15 deletions(-)

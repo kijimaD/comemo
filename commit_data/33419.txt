@@ -1,18 +1,12 @@
-commit 89bcbf40b86ebad81d5cf34f6457f11a6f23b808
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Nov 2 11:19:23 2017 +0100
+commit babc5b1dd668cf4e8970d7ab8938b0687896ba36
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 14:21:35 2017 +1000
 
-    math/bits: add examples for right rotation
+    cmd/link: use peSection everywhere
     
-    Right rotation is achieved using negative k in RotateLeft*(x, k). Add
-    examples demonstrating that functionality.
-    
-    Change-Id: I15dab159accd2937cb18d3fa8ca32da8501567d3
-    Reviewed-on: https://go-review.googlesource.com/75371
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I4d4e8452b9b9e628f3ea8b2b727ad63ec2a1dd31
+    Reviewed-on: https://go-review.googlesource.com/55259
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/bits/example_test.go  | 8 ++++++++
- src/math/bits/make_examples.go | 6 ++++++
- 2 files changed, 14 insertions(+)
+ src/cmd/link/internal/ld/pe.go | 82 ++++++++++++------------------------------
+ 1 file changed, 22 insertions(+), 60 deletions(-)

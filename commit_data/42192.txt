@@ -1,17 +1,18 @@
-commit f512041ecae35b5be441456adc89148d6921318f
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Apr 28 08:03:47 2020 -0400
+commit 54cf7760203c2b138d9ecf653cd3b2402444cf9b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 12 18:38:33 2019 +0000
 
-    cmd/asm: update ppc64enc.s testcase
+    net/http: add some debugging to TestDontCacheBrokenHTTP2Conn
     
-    Adds a few instructions to ppc64enc.s that were missing from the
-    previous update.
+    Not a fix, but will give us more info when it flakes again.
     
-    Change-Id: Ieafce39e905cdf4da3bfb00fdd5a39ab28089cb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230437
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Updates #35113
+    
+    Change-Id: I2f90c24530c1bea81dd9d8c7a59f4b0640dfa4c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206819
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64enc.s | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/net/http/transport_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

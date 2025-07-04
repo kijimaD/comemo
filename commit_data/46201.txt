@@ -1,18 +1,18 @@
-commit 010817714e16b859211b50bde6ea7c804263146c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Aug 28 11:22:06 2021 +0700
+commit 663cd862edf8dfa9c78d9df0f372c9bea03139e4
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Nov 8 11:11:27 2020 +0100
 
-    cmd/compile: ignore SliceExpr.CheckPtrCall for mknode
+    cmd/link: do not mark resource section as writable
     
-    CL 343972 added SliceExpr.CheckPtrCall field but forgot to add ignore
-    tag for mknode. This CL adds the missing tag.
+    Resources are immutable, and all other linkers set this section to be
+    read-only and not read-write. Fix this oversight by removing the writable
+    flag.
     
-    Change-Id: Ib39bff3d456063bdc10fc17b4047b8392d373bf1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345431
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ib441bde6620be2000f1685df1ea7bfaebdbe7860
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268258
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/compile/internal/ir/expr.go | 2 +-
+ src/cmd/link/internal/ld/pe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

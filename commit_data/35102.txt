@@ -1,29 +1,20 @@
-commit cb44c8debb3c3b0157b569bc30367b21e7e3cded
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Thu Apr 12 20:54:36 2018 +0300
+commit e28a0d397b3118d518a0ef3c4cd68c0577d3d9a6
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Thu Dec 14 10:54:11 2017 +0800
 
-    cmd/compile/internal/ssa: add Op{SP,SB} type checks to check.go
+    os: don't wait for Close if the File was returned by NewFile
     
-    gc/ssa.go initilizes SP and SB values with TUINTPTR type.
-    Assign same type in SSA tests and modify check.go to catch
-    mismatching types for those ops.
+    os.NewFile doesn't put the fd into non-blocking mode.
+    In most cases, an *os.File returned by os.NewFile is in blocking mode.
     
-    This makes SSA tests more consistent.
+    Updates #7970
+    Updates #21856
+    Updates #23111
     
-    Change-Id: I798440d57d00fb949d1a0cd796759c9b82a934bd
-    Reviewed-on: https://go-review.googlesource.com/106658
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iab08432e41f7ac1b5e25aaa8855d478adb7f98ed
+    Reviewed-on: https://go-review.googlesource.com/83995
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/branchelim_test.go   |  6 +++---
- src/cmd/compile/internal/ssa/check.go             | 11 ++++++++++-
- src/cmd/compile/internal/ssa/cse_test.go          |  8 ++++----
- src/cmd/compile/internal/ssa/deadstore_test.go    |  8 ++++----
- src/cmd/compile/internal/ssa/fuse_test.go         |  8 ++++----
- src/cmd/compile/internal/ssa/loop_test.go         |  2 +-
- src/cmd/compile/internal/ssa/nilcheck_test.go     | 22 +++++++++++-----------
- src/cmd/compile/internal/ssa/passbm_test.go       |  2 +-
- src/cmd/compile/internal/ssa/shift_test.go        |  4 ++--
- src/cmd/compile/internal/ssa/writebarrier_test.go |  8 ++++----
- 10 files changed, 44 insertions(+), 35 deletions(-)
+ src/internal/poll/fd_unix.go |  1 +
+ src/os/pipe_test.go          | 29 +++++++++++++++++++++++------
+ 2 files changed, 24 insertions(+), 6 deletions(-)

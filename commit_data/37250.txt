@@ -1,23 +1,30 @@
-commit f2cd0fa7b773eabcce1b99874188aedcf9acb1ab
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Nov 3 09:33:31 2018 -0700
+commit 71d29086486e4f5333e4cf29e973bfd71cf8bdfe
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 12 19:12:38 2018 +0000
 
-    cmd/compile/internal/gc: don't print "internal error" twice
+    net/http: update bundled http2
     
-    The Fatalf mechanism already prints "compiler internal error:"
-    when reporting an error. There's no need to have "internal error"
-    in the error message passed to Fatalf calls. Removed them.
+    Updates bundled x/net/http2 to git rev d0887baf81f4 for:
     
-    Fixes #28575.
+        http2: ignore unknown 1xx responses like HTTP/1
+        https://golang.org/cl/123615
     
-    Change-Id: I12b1bea37bc839780f257c27ef9e2005bf334925
-    Reviewed-on: https://go-review.googlesource.com/c/147287
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+        http2: fix bug in earlier CL 123615
+        https://golang.org/cl/123675
+    
+    Also along for the ride, but without any effect:
+    
+        http2: export a field of an internal type for use by net/http
+        https://golang.org/cl/123656
+    
+    Fixes #26189
+    Updates #17739
+    
+    Change-Id: I1955d844d74113efbcbbdaa7d7a7faebb2225b45
+    Reviewed-on: https://go-review.googlesource.com/123676
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/fmt_test.go            | 60 ++++++++++++++++++----------------
- src/cmd/compile/internal/gc/dwinl.go   |  2 +-
- src/cmd/compile/internal/gc/iexport.go |  2 +-
- src/cmd/compile/internal/gc/plive.go   |  6 ++--
- 4 files changed, 36 insertions(+), 34 deletions(-)
+ src/net/http/h2_bundle.go | 66 +++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 49 insertions(+), 17 deletions(-)

@@ -1,33 +1,32 @@
-commit 66689c7d46fb32eca064c9a1e0b2c9de6d377524
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 17 09:21:43 2023 -0500
+commit 7c694fbad1ed6f2f825fd09cf7a86da3be549cea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 24 13:35:16 2022 -0800
 
-    doc/go1.20: remove mention of arena goexperiment
+    go/types, types2: delay receiver type validation
     
-    The arena goexperiment contains code used inside Google in very
-    limited use cases that we will maintain, but the discussion on #51317
-    identified serious problems with the very idea of adding arenas to the
-    standard library. In particular the concept tends to infect many other
-    APIs in the name of efficiency, a bit like sync.Pool except more
-    publicly visible.
+    Delay validation of receiver type as it may cause premature expansion
+    of types the receiver type is dependent on. This was actually a TODO.
     
-    It is unclear when, if ever, we will pick up the idea and try to push
-    it forward into a public API, but it's not going to happen any time
-    soon, and we don't want users to start depending on it: it's a true
-    experiment and may be changed or deleted without warning.
+    While the diff looks large-ish, the actual change is small: all the
+    receiver validation code has been moved inside the delayed function
+    body, and a couple of comments have been adjusted.
     
-    The arena text in the release notes makes them seem more official
-    and supported than they really are, and we've already seen a couple
-    blog posts based on that erroneous belief. Delete the text to try to
-    set expectations better.
+    Fixes #51232.
+    Fixes #51233.
     
-    Change-Id: I4f6e328ac470a9cd410f5f722d0769ef62d5e5ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462355
+    Change-Id: I44edf0ba615996266791724b832d81b9ccb8b435
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387918
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go1.20.html | 12 +-----------
- 1 file changed, 1 insertion(+), 11 deletions(-)
+ src/cmd/compile/internal/types2/signature.go       | 105 ++++++++++----------
+ .../types2/testdata/fixedbugs/issue51232.go2       |  29 ++++++
+ .../types2/testdata/fixedbugs/issue51233.go2       |  25 +++++
+ src/go/types/signature.go                          | 107 ++++++++++++---------
+ src/go/types/testdata/fixedbugs/issue51232.go2     |  29 ++++++
+ src/go/types/testdata/fixedbugs/issue51233.go2     |  25 +++++
+ test/typeparam/issue51232.go                       |  31 ++++++
+ test/typeparam/issue51233.go                       |  22 +++++
+ 8 files changed, 274 insertions(+), 99 deletions(-)

@@ -1,33 +1,26 @@
-commit 70668a4144c27a2100995dbbdbd97b4924cf5e35
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 20 17:42:40 2022 -0700
+commit 39634e7daee29a0c7d29ca74e32668d04c842758
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Thu Aug 12 12:10:47 2021 -0400
 
-    go/types, types2: don't panic with invalid recursive generic type
+    CONTRIBUTORS: update for the Go 1.17 release
     
-    Add cycle detection to hasVarType to avoid infinite recursions
-    caused by invalid cyclic types. This catches cases where the
-    validType check has not yet run or has checked differently
-    instantiated types.
+    This update was created using the updatecontrib command:
     
-    As an alternative, validType could mark invalid *Named types
-    by setting their underlying types to Typ[Invalid]. That does
-    work but discards information which leads to undesired effects
-    with other errors. A better mechanism might be to explicitly
-    track in *Named if a type is invalid and why it is invalid,
-    and connect that with a general validity attribute on types.
-    That's a more invasive change we might consider down the road.
+            go get golang.org/x/build/cmd/updatecontrib
+            cd gotip
+            GO111MODULE=off updatecontrib
     
-    Fixes #52915.
+    With manual changes based on publicly available information
+    to canonicalize letter case and formatting for a few names.
     
-    Change-Id: I9e798b348f4a88b1655e1ff422bd50aaefd9dc50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406849
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For #12042.
+    
+    Change-Id: I96718c0fe438cd97b62499a027252748a1fa0779
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341709
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go        | 32 +++++++++++++++++-----
- .../types2/testdata/fixedbugs/issue52915.go        | 23 ++++++++++++++++
- src/go/types/builtins.go                           | 32 +++++++++++++++++-----
- src/go/types/testdata/fixedbugs/issue52915.go      | 23 ++++++++++++++++
- 4 files changed, 96 insertions(+), 14 deletions(-)
+ CONTRIBUTORS | 136 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 135 insertions(+), 1 deletion(-)

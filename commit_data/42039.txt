@@ -1,27 +1,60 @@
-commit af55060b39d2f6f39711abc95a23bd8f47968e8e
-Author: Rohith Ravi <entombedvirus@gmail.com>
-Date:   Sun Apr 19 02:21:15 2020 +0000
+commit 543c6d2e0dcd24886fce6c00e84b7238c30c1c0b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 4 19:43:45 2019 -0500
 
-    cmd/trace: fix the broken link in region pages and improve UX
+    math, cmd/compile: rename Fma to FMA
     
-    The trace tool had a broken link due to a parameter encoding error,
-    which has been corrected.
+    This API was added for #25819, where it was discussed as math.FMA.
+    The commit adding it used math.Fma, presumably for consistency
+    with the rest of the unusual names in package math
+    (Sincos, Acosh, Erfcinv, Float32bits, etc).
     
-    In addition:
+    I believe that using an idiomatic Go name is more important here
+    than consistency with these other names, most of which are historical
+    baggage from C's standard library.
     
-    - the user regions page has been enhanced to include links to
-    pprof style profiles for region specific io, block, syscall and
-    schedwait profiles.
+    Early additions like Float32frombits happened before "uppercase for export"
+    (so they were originally like "float32frombits") and they were not properly
+    reconsidered when we uppercased the symbols to export them.
+    That's a mistake we live with.
     
-    - sortable table headers have a pointer cursor to indicate they're
-    clickable.
+    The names of functions we have added since then, and even a few
+    that were legacy, are more properly Go-cased, such as IsNaN, IsInf,
+    and RoundToEven, rather than Isnan, Isinf, and Roundtoeven.
+    And also constants like MaxFloat32.
     
-    Fixes #38518
+    For new API, we should keep using proper Go-cased symbols
+    instead of minimally-upper-cased-C symbols.
     
-    Change-Id: I26cd5157bd9753750f5f53ea03aac5d2d41b021c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228899
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    So math.FMA, not math.Fma.
+    
+    This API has not yet been released, so this change does not break
+    the compatibility promise.
+    
+    This CL also modifies cmd/compile, since the compiler knows
+    the name of the function. I could have stopped at changing the
+    string constants, but it seemed to make more sense to use a
+    consistent casing everywhere.
+    
+    Change-Id: I0f6f3407f41e99bfa8239467345c33945088896e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205317
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/trace/annotations.go | 55 ++++++++++++++++++++++++++++++++++++--------
- src/cmd/trace/goroutines.go  | 16 ++++++++++---
- 2 files changed, 59 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 12 ++++++------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  4 ++--
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  8 ++++----
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  8 ++++----
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  8 ++++----
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  8 ++++----
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  8 ++++----
+ src/math/all_test.go                           | 10 +++++-----
+ src/math/fma.go                                |  5 +++--
+ test/codegen/math.go                           |  2 +-
+ 16 files changed, 44 insertions(+), 43 deletions(-)

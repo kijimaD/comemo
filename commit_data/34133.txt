@@ -1,25 +1,19 @@
-commit 7ddd467ef335f9ea2347bb9c2628091568b3370f
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Dec 24 16:50:28 2017 +0000
+commit be272ec0712734fd7d03fcad8a9b8a546b08d6fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 19 00:13:25 2017 -0400
 
-    cmd/compile: print usage to stderr for consistency
+    cmd/go/internal/cache: add support definitions
     
-    All the other tools and commands print the usage text to standard error.
-    "go tool compile" was the odd one out, so fix it.
+    There is no cache here yet. This CL defines ActionID, Hash, and HashFile,
+    which the new content-based staleness code can use. Eventually we'll
+    put a real cache implementation here, but it's not necessary yet.
     
-    While at it, make objabi.Flagprint a bit more Go-like with an io.Writer
-    instead of a file descriptor, which is likely a leftover from the C
-    days.
-    
-    Fixes #23234.
-    
-    Change-Id: I9abf2e79461e61c8c8bfaee2c6bf8faf26e0e6c3
-    Reviewed-on: https://go-review.googlesource.com/85418
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ide433cb449f4dbe658694453f348c947642df79b
+    Reviewed-on: https://go-review.googlesource.com/67311
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 4 ++--
- src/cmd/internal/objabi/flag.go     | 7 +++----
- src/cmd/link/internal/ld/lib.go     | 2 +-
- 3 files changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/cache/cache.go     | 13 ++++++
+ src/cmd/go/internal/cache/hash.go      | 73 ++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/cache/hash_test.go | 46 +++++++++++++++++++++
+ 3 files changed, 132 insertions(+)

@@ -1,19 +1,16 @@
-commit 3357a02b74fea42c3348de83af81900c6623f584
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jul 5 10:33:50 2016 -0700
+commit 933d521a7aa5defc46d3336bcb71a2f3f2b8172d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 13 11:47:25 2016 -0700
 
-    math/big: use array instead of slice for deBruijn lookups
+    fmt: clarify that for %g precision determines number of significant digits
     
-    This allows the compiler to remove a bounds check.
+    Documentation change only.
     
-    math/big/nat.go:681: index bounds check elided
-    math/big/nat.go:683: index bounds check elided
+    Fixes #15178.
     
-    Change-Id: Ieecb89ec5e988761b06764bd671672015cd58e9d
-    Reviewed-on: https://go-review.googlesource.com/26663
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3c7d80ce9e668ac7515f7ebb9da80f3bd8e534d6
+    Reviewed-on: https://go-review.googlesource.com/22006
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/nat.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/fmt/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

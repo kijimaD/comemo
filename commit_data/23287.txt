@@ -1,12 +1,18 @@
-commit 21ec72c2ca5168f3f10b4594a553b3a038c8df29
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Jun 6 15:24:18 2015 -0400
+commit de6d5b080120074747baddd239869e2cb1fbe55d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 5 14:17:07 2015 +1200
 
-    test: fix build on GOARCH=ppc64/ppc64le
+    cmd/internal/ld: reserve space for package list note when -buildmode=shared
     
-    Change-Id: Ibf2879c0034250c5699e21ecea0eb76340597a2a
-    Reviewed-on: https://go-review.googlesource.com/10810
-    Reviewed-by: Austin Clements <austin@google.com>
+    This makes the intermediate object file a little bigger but it doesn't waste
+    any space in the final shared library.
+    
+    Fixes #10691
+    
+    Change-Id: Ic51a571d60291f1ac2dad1b50dba4679643168ae
+    Reviewed-on: https://go-review.googlesource.com/9710
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/nosplit.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/6l/obj.go          |  8 ++++++++
+ src/cmd/internal/ld/elf.go | 13 ++++++++++---
+ 2 files changed, 18 insertions(+), 3 deletions(-)

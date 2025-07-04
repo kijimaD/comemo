@@ -1,12 +1,13 @@
-commit 096f3a293e3dd3aee1980cbbd3f6fed91f7fefe1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 13 09:38:08 2011 -0700
+commit efea5d0fb9aa738029a2a40b901fffec41b32448
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Sep 13 12:51:48 2011 +0200
 
-    os: Fix comment in generated signal_unix.go file.
+    exp/norm: Added regression test tool for the standard Unicode test set.
     
-    R=golang-dev, bradfitz
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5013042
+    https://golang.org/cl/4973064
 
- src/pkg/os/mkunixsignals.sh | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/norm/Makefile       |   9 +-
+ src/pkg/exp/norm/normregtest.go | 296 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 304 insertions(+), 1 deletion(-)

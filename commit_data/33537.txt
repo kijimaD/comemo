@@ -1,16 +1,33 @@
-commit 50ec831749fc40b30fd43cf0594d388500ea2887
-Author: Ryoichi KATO <ryo1kato@gmail.com>
-Date:   Sat Jun 24 23:39:29 2017 -0700
+commit 33484a6ad23d3e4d4da6c80edbae4b2a0a75e84f
+Author: Thomas Wanielista <tomwans@gmail.com>
+Date:   Thu Aug 10 18:39:18 2017 -0400
 
-    bufio: Use maxConsecutiveEmptyReads instead of 100
+    go/doc: classify function returning slice of T as constructor
     
-    Use maxConsecutiveEmptyReads const instead of hardcoded
-    100 in scan.go too.
+    Previously, go/doc would only consider functions that return types of
+    T or any number of pointers to T: *T, **T, etc. This change expands
+    the definition of a constructor to also include functions that return
+    slices of a type (or pointer to that type) in its first return.
     
-    Change-Id: I993f353a3748f0d6bdefab38bf5cb224eea8a969
-    Reviewed-on: https://go-review.googlesource.com/46915
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    With this change, the following return types classify a function
+    as a constructor of type T:
+    
+    T
+    *T
+    **T (and so on)
+    []T
+    []*T
+    []**T (and so on)
+    
+    Fixes #18063.
+    
+    Change-Id: I9a1a689933e13c6b8eb80b74ceec85bd4cab236d
+    Reviewed-on: https://go-review.googlesource.com/54971
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/bufio/scan.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/go/doc/reader.go                    |  8 +++++-
+ src/go/doc/testdata/issue18063.0.golden | 45 +++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/issue18063.1.golden | 45 +++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/issue18063.2.golden | 45 +++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/issue18063.go       | 33 ++++++++++++++++++++++++
+ 5 files changed, 175 insertions(+), 1 deletion(-)

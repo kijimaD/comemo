@@ -1,16 +1,19 @@
-commit 845878a213e1db930e17a5c3108b215be5edbb20
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 30 13:50:19 2015 -0400
+commit 57d9e7e3c4553ae9b6e59cabe95659cc8014efa9
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Aug 18 19:51:44 2015 -0500
 
-    net/http: do not listen on public network during HTTP/2 test
+    [dev.ssa] cmd/compile/internal/ssa: implement OMOD
     
-    Avoids Mac firewall box.
-    
-    Change-Id: I000e421fa9639612d636b6fa4baf905459c5aeb2
-    Reviewed-on: https://go-review.googlesource.com/16514
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iec954c4daefef4ab3fa2c98bfb2c70b2dea8dffb
+    Reviewed-on: https://go-review.googlesource.com/13743
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 |  74 ++-
+ .../internal/gc/testdata/arithBoundary_ssa.go      | 626 ++++++++++++---------
+ .../internal/gc/testdata/gen/arithBoundaryGen.go   | 214 +++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   9 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   9 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |  10 +-
+ src/cmd/compile/internal/ssa/opGen.go              | 130 +++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 156 +++++
+ 8 files changed, 936 insertions(+), 292 deletions(-)

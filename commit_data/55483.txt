@@ -1,36 +1,25 @@
-commit c2dbbe4e942c3cb605a5dc6922410e90028a2e68
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 29 13:52:11 2024 -0500
+commit b02d5d325a4e93c88ecfc83a094c252148caa748
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Feb 9 14:24:46 2023 -0800
 
-    cmd: vendor golang.org/x/telemetry and call counter.Open in cmd/go
+    Revert "io: allocate copy buffers from a pool"
     
-    This change vendors golang.org/x/telemetry and calls counter.Open in
-    cmd/go right at the beginning.
+    This reverts CL 456555.
     
-    For #58894
+    Reason for revert: This seems too likely to exercise race conditions
+    in code where a Write call continues to access its buffer after
+    returning. The HTTP/2 ResponseWriter is one such example.
     
-    Change-Id: Iae56328440614b213c1429972e6f68f22c2112cd
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest,gotip-windows-amd64-longtest,gotip-linux-amd64-longtest-race
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559199
+    Reverting this change while we think about this some more.
+    
+    For #57202
+    
+    Change-Id: Ic86823f81d7da410ea6b3f17fb5b3f9a979e3340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467095
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go.mod                                     |   1 +
- src/cmd/go.sum                                     |   2 +
- src/cmd/go/main.go                                 |   7 +-
- src/cmd/vendor/golang.org/x/telemetry/LICENSE      |  27 +
- src/cmd/vendor/golang.org/x/telemetry/PATENTS      |  22 +
- .../golang.org/x/telemetry/counter/counter.go      |  94 +++
- .../x/telemetry/counter/counter_go118.go           |  34 +
- .../vendor/golang.org/x/telemetry/counter/doc.go   |  30 +
- .../x/telemetry/internal/counter/counter.go        | 328 ++++++++++
- .../x/telemetry/internal/counter/file.go           | 705 +++++++++++++++++++++
- .../x/telemetry/internal/counter/parse.go          | 130 ++++
- .../x/telemetry/internal/counter/stackcounter.go   | 164 +++++
- .../golang.org/x/telemetry/internal/mmap/mmap.go   |  37 ++
- .../x/telemetry/internal/mmap/mmap_other.go        |  25 +
- .../x/telemetry/internal/mmap/mmap_unix.go         |  47 ++
- .../x/telemetry/internal/mmap/mmap_windows.go      |  54 ++
- .../x/telemetry/internal/telemetry/mode.go         | 117 ++++
- src/cmd/vendor/modules.txt                         |   6 +
- 18 files changed, 1828 insertions(+), 2 deletions(-)
+ src/io/io.go           | 30 ++++++++++++++++++------------
+ src/net/http/server.go | 17 ++++++++++++++---
+ 2 files changed, 32 insertions(+), 15 deletions(-)

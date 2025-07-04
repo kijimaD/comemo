@@ -1,24 +1,20 @@
-commit 19457a58e565ff5b480c3806fe02fbc7ccdf32f0
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Sep 9 08:09:57 2021 -0700
+commit 1d78139128d6d839d7da0aeb10b3e51b6c7c0749
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Dec 25 11:14:11 2020 +0100
 
-    cmd/compile: stenciled conversions might be NOPs
+    runtime/cgo: fix Android build with NDK 22
     
-    A generic conversion might be required for when converting T->interface{}.
-    When stenciled with T=interface{}, then that conversion doesn't need
-    to do anything.
+    Fixes #42655
     
-    Fixes #48276
-    
-    Change-Id: Ife65d01c99fbd0895cb7eec79df9e93e752b1fa5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348736
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I7d2b70098a4ba4dcb325fb0be076043789b86135
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280312
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Elias Naur <mail@eliasnaur.com>
 
- src/cmd/compile/internal/noder/stencil.go |  6 ++++++
- test/typeparam/issue48276a.go             | 19 +++++++++++++++++++
- test/typeparam/issue48276a.out            |  1 +
- test/typeparam/issue48276b.go             | 15 +++++++++++++++
- 4 files changed, 41 insertions(+)
+ src/runtime/cgo/gcc_linux_386.c   | 2 +-
+ src/runtime/cgo/gcc_linux_amd64.c | 2 +-
+ src/runtime/cgo/gcc_linux_arm.c   | 2 +-
+ src/runtime/cgo/gcc_linux_arm64.c | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

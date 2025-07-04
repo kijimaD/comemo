@@ -1,0 +1,17 @@
+commit 99d60c24e23d4d97ce51b1ee5660b60a5651693a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jun 24 16:56:22 2024 -0400
+
+    all: enable GOEXPERIMENT=swissmap by default
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race,gotip-linux-arm64-longtest,gotip-linux-386-longtest,gotip-darwin-amd64-longtest,gotip-darwin-arm64_13,gotip-linux-ppc64_power10,gotip-linux-arm
+    Change-Id: I5db0edcc156ed2e4bedc036b0baba2669e10c87a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594597
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

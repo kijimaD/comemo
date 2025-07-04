@@ -1,15 +1,20 @@
-commit 3920d6f2085559ae262d651b00bf8b29f953580a
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu May 6 09:04:03 2021 +0800
+commit ceb77db24f06584628cb02702cf8aa5998de1a66
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Dec 15 18:31:41 2020 -0500
 
-    runtime: eliminate the redundant for loop in runqget()
+    [dev.typeparams] go/types: import some support functions from dev.go2go
     
-    Change-Id: If9b283bbef3ff12a64d34b07491aee3396852f05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317509
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Import dev.go2go changes for exprstring.go, sizes.go, and scope.go.
+    These files have been reviewed, but are unmodified.
+    
+    Change-Id: I9df9f8967bab73ce535a539b049346a872877572
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278593
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ src/go/types/exprstring.go | 74 +++++++++++++++++++++++++++++++++-------------
+ src/go/types/scope.go      | 34 +++++++++++++++++++++
+ src/go/types/sizes.go      |  8 +++--
+ 3 files changed, 93 insertions(+), 23 deletions(-)

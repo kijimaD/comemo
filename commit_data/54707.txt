@@ -1,23 +1,26 @@
-commit dc12cb179a3fb97bf9a12155c742f1737e858f7c
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Oct 13 11:28:53 2023 +0800
+commit a11cd6f69aec5c783656601fbc7b493e0d63f605
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 9 15:29:09 2022 -0800
 
-    compress: some minor corrections or adjustments for godoc link
+    go/doc: recognize methods on generic types as Funcs
     
-    Change-Id: Ic1fc777b9a4e8262851e27646d53a0ec4fe55b64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535076
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    When writing markdown for godoc, we can reference a method M of
+    a type T as [T.M]. This doesn't currently work for methods on generic
+    types because the declaration of the type parameter gets in the way.
+    (You'd have to write [T[P].M] and that doesn't parse, and even if it
+    did you'd have to spell "P" correctly.)
+    
+    Get rid of the type parameter when building the list of Funcs so
+    [T.M] works in godoc if T is generic.
+    
+    Change-Id: I8ef5264124a944967df3ce20ddd40a2447ff4187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449236
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/compress/bzip2/bit_reader.go | 2 +-
- src/compress/flate/inflate.go    | 2 +-
- src/compress/gzip/gunzip.go      | 2 +-
- src/compress/lzw/writer.go       | 2 +-
- src/compress/zlib/reader.go      | 6 +++---
- 5 files changed, 7 insertions(+), 7 deletions(-)
+ src/go/doc/comment_test.go        | 12 ++++++------
+ src/go/doc/doc.go                 |  8 ++++++--
+ src/go/doc/testdata/pkgdoc/doc.go |  5 +++++
+ 3 files changed, 17 insertions(+), 8 deletions(-)

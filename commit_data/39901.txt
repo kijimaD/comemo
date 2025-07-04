@@ -1,29 +1,20 @@
-commit 4e215554aa0e76e534327b9e6721971b9e82c113
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Sep 12 17:56:57 2019 +1000
+commit 95f18757a0fa283c4237ca03b48049980fe9b9c3
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Mar 29 12:13:02 2019 +0100
 
-    compress/lzw: clarify code invariants
+    runtime/cgo: use free TLS slot on Android Q
     
-    This follows on from https://go-review.googlesource.com/c/go/+/191358
-    which was submitted as a comment-only change.
+    Android assumes pthread tls keys correspond to some offset from the
+    TLS base. This is about to change in a future version of Android.
+    Fortunately, Android Q leaves a slot open for use to use, TLS_SLOT_APP.
     
-    Benchmarks don't show any significant change:
+    Fixes #29674
     
-    compress/lzw
-    name            old speed      new speed      delta
-    Decoder/1e4-56  92.8MB/s ± 1%  92.7MB/s ± 1%   ~     (p=1.000 n=5+5)
-    Decoder/1e5-56   100MB/s ± 1%   100MB/s ± 1%   ~     (p=0.746 n=5+5)
-    Decoder/1e6-56   101MB/s ± 1%   101MB/s ± 1%   ~     (p=0.381 n=5+5)
-    
-    image/gif
-    name                old speed      new speed      delta
-    Decode-56           63.2MB/s ± 1%  63.2MB/s ± 1%   ~     (p=0.690 n=5+5)
-    
-    Change-Id: Ic36b5410cb06ca258da32e40da1f1ff6c44cff86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194938
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id6ba19afacdfed9b262453714715435e2544185f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170117
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/compress/lzw/reader.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/cgo/gcc_android.c | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

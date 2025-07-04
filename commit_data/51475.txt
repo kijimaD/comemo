@@ -1,21 +1,14 @@
-commit f5026496cfbe4701b62c6a6942c8a0df48f1053e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Nov 28 14:23:07 2022 +0100
+commit 0003d9da093ce1cb19aebb074da4506fade35a66
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Nov 19 14:32:49 2021 -0800
 
-    internal/coverage: use io.Seek* constants
+    doc/go1.18: add crypto/x509 verifier notes
     
-    Use the io.Seek* constants instead of their deprecated os.SEEK_*
-    counterparts.
-    
-    Change-Id: Ie899f9cf286de7304a394d9a2a091a55937542ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453576
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: If3e835e868ae695ba232b57096c135ce2e73305b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365835
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/internal/coverage/decodecounter/decodecounterfile.go | 8 ++++----
- src/internal/coverage/test/counter_test.go               | 4 ++--
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ doc/go1.18.html | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

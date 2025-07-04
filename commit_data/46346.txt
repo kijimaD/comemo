@@ -1,17 +1,138 @@
-commit c50d811c7aa0de05e8c4b73c218ffb13f92b8573
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Aug 25 20:08:37 2021 +1000
+commit 0ced54062e9d58f8ff6b3beff0c8694e799d47a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:46:27 2020 -0500
 
-    cmd/interna/obj/riscv: use obj.REG_NONE rather than 0
+    [dev.regabi] cmd/compile: split out package objw [generated]
     
-    No functional change, but makes the code consistent and more readable.
+    Object file writing routines are used not just at the end
+    of the compilation but also during static data layout in walk.
+    Split them into their own package.
     
-    Change-Id: I33db681fe0ed501842755f27b6e7843cdc8877cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345049
-    Trust: Joel Sing <joel@sing.id.au>
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    [git-generate]
+    
+    cd src/cmd/compile/internal/gc
+    rf '
+            # Move bit vector to new package bitvec
+            mv bvec.n bvec.N
+            mv bvec.b bvec.B
+            mv bvec BitVec
+            mv bvalloc New
+            mv bvbulkalloc NewBulk
+            mv bulkBvec.next bulkBvec.Next
+            mv bulkBvec Bulk
+            mv H0 h0
+            mv Hp hp
+    
+            # Leave bvecSet and bitmap hashes behind - not needed as broadly.
+            mv bvecSet.extractUniqe bvecSet.extractUnique
+            mv h0 bvecSet bvecSet.grow bvecSet.add \
+                    bvecSet.extractUnique hashbitmap bvset.go
+    
+            mv bv.go cmd/compile/internal/bitvec
+    
+            ex . ../arm ../arm64 ../mips ../mips64 ../ppc64 ../s390x ../riscv64 {
+                    import "cmd/internal/obj"
+                    var a *obj.Addr
+                    var i int64
+                    Addrconst(a, i) -> a.SetConst(i)
+                    var p, to *obj.Prog
+                    Patch(p, to) -> p.To.SetTarget(to)
+            }
+            rm Addrconst Patch
+    
+            # Move object-writing API to new package objw
+            mv duint8 Objw_Uint8
+            mv duint16 Objw_Uint16
+            mv duint32 Objw_Uint32
+            mv duintptr Objw_Uintptr
+            mv duintxx Objw_UintN
+            mv dsymptr Objw_SymPtr
+            mv dsymptrOff Objw_SymPtrOff
+            mv dsymptrWeakOff Objw_SymPtrWeakOff
+            mv ggloblsym Objw_Global
+            mv dbvec Objw_BitVec
+            mv newProgs NewProgs
+            mv Progs.clearp Progs.Clear
+            mv Progs.settext Progs.SetText
+            mv Progs.next Progs.Next
+            mv Progs.pc Progs.PC
+            mv Progs.pos Progs.Pos
+            mv Progs.curfn Progs.CurFunc
+            mv Progs.progcache Progs.Cache
+            mv Progs.cacheidx Progs.CacheIndex
+            mv Progs.nextLive Progs.NextLive
+            mv Progs.prevLive Progs.PrevLive
+            mv Progs.Appendpp Progs.Append
+            mv LivenessIndex.stackMapIndex LivenessIndex.StackMapIndex
+            mv LivenessIndex.isUnsafePoint LivenessIndex.IsUnsafePoint
+    
+            mv Objw_Uint8 Objw_Uint16 Objw_Uint32 Objw_Uintptr Objw_UintN \
+                    Objw_SymPtr Objw_SymPtrOff Objw_SymPtrWeakOff Objw_Global \
+                    Objw_BitVec \
+                    objw.go
+            mv sharedProgArray NewProgs Progs \
+                    LivenessIndex StackMapDontCare \
+                    LivenessDontCare LivenessIndex.StackMapValid \
+                    Progs.NewProg Progs.Flush Progs.Free Progs.Prog Progs.Clear Progs.Append Progs.SetText \
+                    prog.go
+            mv prog.go objw.go cmd/compile/internal/objw
+    
+            # Move ggloblnod to obj with the rest of the non-objw higher-level writing.
+            mv ggloblnod obj.go
+    '
+    
+    cd ../objw
+    rf '
+            mv Objw_Uint8 Uint8
+            mv Objw_Uint16 Uint16
+            mv Objw_Uint32 Uint32
+            mv Objw_Uintptr Uintptr
+            mv Objw_UintN UintN
+            mv Objw_SymPtr SymPtr
+            mv Objw_SymPtrOff SymPtrOff
+            mv Objw_SymPtrWeakOff SymPtrWeakOff
+            mv Objw_Global Global
+            mv Objw_BitVec BitVec
+    '
+    
+    Change-Id: I2b87085aa788564fb322e9c55bddd73347b4d5fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279310
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go    |  38 ++--
+ src/cmd/compile/internal/arm/ggen.go      |  26 +--
+ src/cmd/compile/internal/arm/ssa.go       |   4 +-
+ src/cmd/compile/internal/arm64/ggen.go    |  34 ++--
+ src/cmd/compile/internal/arm64/ssa.go     |  14 +-
+ src/cmd/compile/internal/bitvec/bv.go     | 190 ++++++++++++++++++++
+ src/cmd/compile/internal/gc/alg.go        |  25 +--
+ src/cmd/compile/internal/gc/bv.go         | 280 ------------------------------
+ src/cmd/compile/internal/gc/bvset.go      |  97 +++++++++++
+ src/cmd/compile/internal/gc/embed.go      |  29 ++--
+ src/cmd/compile/internal/gc/go.go         |   7 +-
+ src/cmd/compile/internal/gc/gsubr.go      | 188 --------------------
+ src/cmd/compile/internal/gc/init.go       |  13 +-
+ src/cmd/compile/internal/gc/obj.go        |  93 ++++------
+ src/cmd/compile/internal/gc/pgen.go       |  16 +-
+ src/cmd/compile/internal/gc/plive.go      | 142 ++++++---------
+ src/cmd/compile/internal/gc/reflect.go    | 160 ++++++++---------
+ src/cmd/compile/internal/gc/ssa.go        |  73 ++++----
+ src/cmd/compile/internal/mips/ggen.go     |  20 +--
+ src/cmd/compile/internal/mips/ssa.go      |  16 +-
+ src/cmd/compile/internal/mips64/ggen.go   |  24 +--
+ src/cmd/compile/internal/mips64/ssa.go    |  16 +-
+ src/cmd/compile/internal/objw/objw.go     |  72 ++++++++
+ src/cmd/compile/internal/objw/prog.go     | 218 +++++++++++++++++++++++
+ src/cmd/compile/internal/ppc64/ggen.go    |  30 ++--
+ src/cmd/compile/internal/ppc64/ssa.go     |  32 ++--
+ src/cmd/compile/internal/riscv64/ggen.go  |  22 +--
+ src/cmd/compile/internal/riscv64/gsubr.go |   4 +-
+ src/cmd/compile/internal/riscv64/ssa.go   |   8 +-
+ src/cmd/compile/internal/s390x/ggen.go    |  22 +--
+ src/cmd/compile/internal/s390x/ssa.go     |   8 +-
+ src/cmd/compile/internal/wasm/ssa.go      |  11 +-
+ src/cmd/compile/internal/x86/ggen.go      |  22 +--
+ 33 files changed, 1008 insertions(+), 946 deletions(-)

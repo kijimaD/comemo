@@ -1,14 +1,14 @@
-commit d3d08e1e3a5dfd5b3a7a3112e503f7bcc76bf343
+commit b8c664297bdfb7e953aedfff1e160fcd3062421d
 Author: Rob Pike <r@golang.org>
-Date:   Fri Jul 8 18:25:46 2011 +1000
+Date:   Fri Jul 8 17:54:16 2011 +1000
 
-    exp/template: forgot to allow . as a function argument
+    exp/template: parse variables and declarations
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4671053
+    https://golang.org/cl/4631099
 
- src/pkg/exp/template/exec.go      | 15 ++++++++++++---
- src/pkg/exp/template/exec_test.go | 14 +++++++++-----
- src/pkg/exp/template/set_test.go  |  4 ++++
- 3 files changed, 25 insertions(+), 8 deletions(-)
+ src/pkg/exp/template/exec.go       |  16 ++--
+ src/pkg/exp/template/parse.go      | 158 +++++++++++++++++++++++++------------
+ src/pkg/exp/template/parse_test.go |   6 ++
+ 3 files changed, 120 insertions(+), 60 deletions(-)

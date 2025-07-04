@@ -1,27 +1,25 @@
-commit eaa198f3d16e76a58711eb0e8cc9d57d1fdcf7fd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 20 15:26:05 2017 -0700
+commit ee7fdc26477a0eaf5382542a7822b45966a9f844
+Author: haya14busa <hayabusa1419@gmail.com>
+Date:   Sat Feb 4 22:22:14 2017 +0900
 
-    cmd/compile: stop generating block successor vars in rewrite rules
+    cmd/gofmt: use actual filename in gofmt -d output
     
-    They are left over from the days before
-    we had BlockKindFirst and swapSuccessors.
+    By using actual filename, diff output of "gofmt -d" can be used with
+    other commands like "diffstat" and "patch".
     
-    Change-Id: I9259d53ac2821ca4d5de5dd520ca4b78f52ecad4
-    Reviewed-on: https://go-review.googlesource.com/41206
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Example:
+      $ gofmt -d path/to/file.go | diffstat
+      $ gofmt -d path/to/file.go > gofmt.patch
+      $ patch -u -p0 < gofmt.patch
+    
+    Fixes #18932
+    
+    Change-Id: I21ce15eb77870d72f2c14bfd5e7c21e2c77dc9ab
+    Reviewed-on: https://go-review.googlesource.com/36374
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go    |  12 +-
- src/cmd/compile/internal/ssa/rewrite386.go     | 412 -------------------------
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 412 -------------------------
- src/cmd/compile/internal/ssa/rewriteARM.go     | 324 -------------------
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 372 ----------------------
- src/cmd/compile/internal/ssa/rewriteMIPS.go    | 148 ---------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 132 --------
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 196 ------------
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 164 ----------
- src/cmd/compile/internal/ssa/rewritegeneric.go |  12 -
- 10 files changed, 1 insertion(+), 2183 deletions(-)
+ src/cmd/gofmt/gofmt.go      | 36 ++++++++++++++++++++++---
+ src/cmd/gofmt/gofmt_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 97 insertions(+), 4 deletions(-)

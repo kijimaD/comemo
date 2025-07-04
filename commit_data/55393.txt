@@ -1,16 +1,25 @@
-commit 846bb475203ac3fcef61569b2d1360947254dd38
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Mon Jan 22 11:30:51 2024 -0500
+commit bd749504b825677ecc0b8c0f4df785f074719051
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 30 11:09:48 2023 -0800
 
-    doc: remove last TODO item
+    go/types, types2: further simplify unification
     
-    For #61422
+    Allocate all handles up-front: in a correct program, all type parameters
+    must be resolved and thus eventually will get a handle.
+    Also, sharing of handles caused by unified type parameters is rare and
+    so it's ok to not optimize for that case (and delay handle allocation).
     
-    Change-Id: I50e427b78a533c3196aeb5291a34c05528ee0bed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557455
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This removes a (premature) optimization whis further simplifies
+    unification.
+    
+    Change-Id: Ie1259b86ea5e966538667ab9557676e9be9f6364
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463989
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.22.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/types2/unify.go | 34 ++++++++------------------------
+ src/go/types/unify.go                    | 34 ++++++++------------------------
+ 2 files changed, 16 insertions(+), 52 deletions(-)

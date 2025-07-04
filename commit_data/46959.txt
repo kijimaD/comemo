@@ -1,19 +1,26 @@
-commit 2be5b846650aa4674a4eca7c11f303673b69a35a
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Oct 18 10:59:29 2021 -0700
+commit 678568a5cfe1806c16bf478234d6dac283c3474d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 30 16:18:51 2021 -0500
 
-    cmd/compile: allow importing and exporting of ODYNAMICTYPE
+    runtime: delete windows setlasterror (unused)
     
-    Change-Id: I2fca7a801c85ed93c002c23bfcb0cf9593f1bdf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356571
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    This is dead code and need not be ported to each architecture.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: I2d0072b377f73e49d7158ea304670c26f5486c59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288794
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 13 ++++++++++
- src/cmd/compile/internal/typecheck/iimport.go |  8 +++++++
- test/typeparam/issue49027.dir/a.go            | 34 +++++++++++++++++++++++++++
- test/typeparam/issue49027.dir/main.go         |  8 +++++++
- 4 files changed, 63 insertions(+)
+ src/runtime/os_windows.go       | 1 -
+ src/runtime/sys_windows_386.s   | 5 -----
+ src/runtime/sys_windows_amd64.s | 6 ------
+ src/runtime/sys_windows_arm.s   | 5 -----
+ 4 files changed, 17 deletions(-)

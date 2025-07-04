@@ -1,17 +1,16 @@
-commit 7e7d55f888736d8dd8881852be8056cd43739291
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Apr 15 13:03:24 2015 +1000
+commit bef356b28281b8ff4a585d857a881783926cabb1
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 17 15:31:11 2015 -0400
 
-    image/png: reject multiple tRNS chunks.
+    runtime: improve comment in concurrent GC
     
-    http://www.w3.org/TR/PNG/#5ChunkOrdering disallows them.
+    "Sync" is not very informative. What's being synchronized and with
+    whom? Update this comment to explain what we're really doing: enabling
+    write barriers.
     
-    Fixes #10423
-    
-    Change-Id: I3399ce53dc8b41b1b5f0b906a5912e6efd80418f
-    Reviewed-on: https://go-review.googlesource.com/8905
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I4f0cbb8771988c7ba4606d566b77c26c64165f0f
+    Reviewed-on: https://go-review.googlesource.com/7700
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/image/png/reader.go      | 18 +++++++++-----
- src/image/png/reader_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+), 6 deletions(-)
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

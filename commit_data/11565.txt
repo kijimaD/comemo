@@ -1,20 +1,12 @@
-commit 4b6cd239c56f40a152ea4f7abbc72b8b3c9c9342
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Thu Feb 2 14:02:54 2012 -0800
+commit 7dca24ee7e5c0c5acba35a1a0b9a23f1761098e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 2 11:53:28 2012 -0800
 
-    gc: describe debugging flags
+    codereview: explain how to get hgpatch in error message
     
-    The change to -m is the only one necessary
-    to close the issue.  The others are useful
-    to know about when debugging but shouldn't
-    be in the usage message since they may go
-    away or change at any time.
-    
-    Fixes #2802.
-    
-    R=lvd, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5606046
+    https://golang.org/cl/5623045
 
- src/cmd/gc/lex.c | 23 +++++++++++++++++++----
- 1 file changed, 19 insertions(+), 4 deletions(-)
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

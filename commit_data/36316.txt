@@ -1,15 +1,15 @@
-commit def3280eb4e4bc7fb058f98fa2993cb077db3f95
-Author: Jordan Rhee <jordanrh@microsoft.com>
-Date:   Tue Jul 24 15:07:01 2018 -0700
+commit c6bbfbe708467a8d2f4f978a7ca2e417b21551c0
+Author: Zheng Dayu <davidzheng23@gmail.com>
+Date:   Wed Apr 18 17:28:34 2018 +0800
 
-    cmd/dist: support windows/arm
+    text/template: improve comment example in doc
     
-    Updates #26148
+    Make comment example consistent with its description.
+    Fixes #24767
     
-    Change-Id: I407481f9c0f8e3565dcfcbbc53e5aa7427d74680
-    Reviewed-on: https://go-review.googlesource.com/125646
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icff54b489040b1ce66c644a21343c6576304cf75
+    Reviewed-on: https://go-review.googlesource.com/107663
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/build.go       | 1 +
- src/cmd/dist/sys_windows.go | 3 +++
- 2 files changed, 4 insertions(+)
+ src/text/template/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,22 +1,15 @@
-commit 5e90bbcc6de54ecbad1d72bc8e71e167829069b5
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Mon Feb 27 18:26:33 2017 -0500
+commit d0cf0421717a93b705efcbce0770a24361582445
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Nov 5 10:05:27 2016 -0700
 
-    testing: fix Benchmark() to start at 1 iteration, not 100
+    net: fix vet nit
     
-    The run1 call removed in golang.org/cl/36990 was necessary to
-    initialize the duration of the benchmark. With it gone, the math in
-    launch() starts from 100. This doesn't work out well for second-long
-    benchmark methods. Put it back.
+    net/fd_windows.go:121: syscall.WSABuf composite literal uses unkeyed fields
     
-    Updates #18815
-    
-    Change-Id: I461f3466c805d0c61124a2974662f7ad45335794
-    Reviewed-on: https://go-review.googlesource.com/37530
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: I91cbe38199d5b6828379a854d08f6ceaf687dd82
+    Reviewed-on: https://go-review.googlesource.com/32760
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/benchmark.go |  5 ++++-
- src/testing/sub_test.go  | 12 ++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/net/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

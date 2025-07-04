@@ -1,19 +1,26 @@
-commit 28f650a2f7718b4fa7f55e06a0f75a85df90c517
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 19 23:42:27 2017 -0700
+commit 105cc2bd6396f47bc613721fb6c1db66050e15ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 31 12:34:25 2017 -0400
 
-    runtime: don't call libc sigaction function in forked child
+    time: test and fix Time.Round, Duration.Round for d > 2⁶²
     
-    If we are using vfork, and if something (such as TSAN) is intercepting
-    the sigaction function, then we must call the system call, not the
-    libc function. Otherwise the intercepted sigaction call in the child
-    may trash the data structures in the parent.
+    Round uses r+r < d to decide whether the remainder is
+    above or below half of d (to decide whether to round up or down).
+    This is wrong when r+r wraps negative, because it looks < d
+    but is really > d.
     
-    Change-Id: Id9588bfeaa934f32c920bf829c5839be5cacf243
-    Reviewed-on: https://go-review.googlesource.com/50251
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    No one will ever care about rounding to a multiple of
+    d > 2⁶² (about 146 years), but might as well get it right.
+    
+    Fixes #19807.
+    
+    Change-Id: I1b55a742dc36e02a7465bc778bf5dd74fe71f7c0
+    Reviewed-on: https://go-review.googlesource.com/39151
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgo_sigaction.go |  2 +-
- src/runtime/proc.go          | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/time/time.go      | 12 +++++++++---
+ src/time/time_test.go |  2 ++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

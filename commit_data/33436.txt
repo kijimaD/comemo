@@ -1,20 +1,23 @@
-commit 03ed6ac2dc62d160ea8be18927433380483c055c
-Author: Anmol Sethi <anmol@aubble.com>
-Date:   Thu Oct 19 18:29:43 2017 -0400
+commit e0545faf270fdbc0b3864db62f528eb36da3c63f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 7 19:30:03 2017 -0400
 
-    crypto/x509/pkix: consider now==NextUpdate to be expired.
+    runtime/cgo: defeat inlining in x_cgo_yield
     
-    If the current time is equal to the NextUpdate time, then the CRL
-    should be considered expired.
+    We use a call to strncpy to work around a TSAN bug (wherein TSAN only
+    delivers asynchronous signals when the thread receiving the signal
+    calls a libc function). Unfortunately, GCC 7 inlines the call,
+    avoiding the TSAN libc trap entirely.
     
-    Fixes #22568.
+    Per Ian's suggestion, use global variables as strncpy arguments: that
+    way, the compiler can't make any assumptions about the concrete values
+    and can't inline the call away.
     
-    Change-Id: I55bcc95c881097e826d43eb816a43b9b377b0265
-    Reviewed-on: https://go-review.googlesource.com/71972
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    fixes #21196
+    
+    Change-Id: Ie95f1feaf9af1a8056f924f49c29cfc8515385d7
+    Reviewed-on: https://go-review.googlesource.com/55872
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/pkix/pkix.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/cgo/gcc_util.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

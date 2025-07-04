@@ -1,17 +1,16 @@
-commit b8ba5b440b1f84920e80852ec984520046adaf3a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 20 13:51:53 2024 -0800
+commit eff7aef4eb290d8a35f1c3fa16471d8830b1a88b
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Mon Jul 3 23:13:44 2023 +0200
 
-    cmd/cgo: improve error message for unknown name
+    regexp: add godoc links
     
-    Fixes #70472
-    
-    Change-Id: Ib50d1dd5a648afc199ed62a507d54d0b0ccb1da2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630375
+    Change-Id: I087162f866e781258f9fbb96215c1ff6a5c315a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507776
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/cgo/gcc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/regexp/regexp.go | 94 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 46 insertions(+), 48 deletions(-)

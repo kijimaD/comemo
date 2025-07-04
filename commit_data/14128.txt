@@ -1,14 +1,18 @@
-commit a14f87ca81682ffd0134bf25e32b874dbd1d0757
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Oct 12 09:17:56 2012 +1100
+commit 6720997f9e2a4371a5f2fc79b356e1610160139d
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Oct 11 15:28:02 2012 -0400
 
-    net/http: fix data race on countReader.n
+    crypto/hmac: add Equal function.
     
-    Fixes #4220.
+    It was suggested that it's too easy to use crypto/hmac insecurely and
+    I think that has some merit. This change adds a Equal function to
+    make it obvious that MAC values should be compared in constant time.
     
-    R=dvyukov, bradfitz
+    R=rsc, max
     CC=golang-dev
-    https://golang.org/cl/6638053
+    https://golang.org/cl/6632044
 
- src/pkg/net/http/serve_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/crypto/hmac/hmac.go      | 32 +++++++++++++++++++++++++++-----
+ src/pkg/crypto/hmac/hmac_test.go | 19 +++++++++++++++++++
+ src/pkg/go/build/deps_test.go    | 10 +++++++---
+ 3 files changed, 53 insertions(+), 8 deletions(-)

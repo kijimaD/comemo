@@ -1,24 +1,14 @@
-commit 6851a55f28ae88f4c9809b241d737fe65a977dd3
-Author: Than McIntosh <thanm@google.com>
-Date:   Sun May 17 14:36:55 2020 -0400
+commit 001fe7f33f1d7aed9e3a047bd8e784bdc103c28c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 19 16:14:50 2019 -0800
 
-    cmd/compile: add test case for issue 38068
+    time: further clarifications to the (*Timer).Stop docs
     
-    New test case for issue 38068, which deals with build reproducibility:
-    do a pair of compilations, the first with the concurrent back end
-    turned on, and the second with -c=1, then check to make sure we get
-    the same output (using a test case that triggers late inlining into
-    wrapper methods).
+    Fixes #35627
     
-    Updates #38068.
-    
-    Change-Id: I4afaf78898706a66985f09d18f6f6f29876c9017
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234417
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0c5fed46a69a9663e46a9414468ec610063ea05a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207849
+    Reviewed-by: Rob Pike <r@golang.org>
 
- .../compile/internal/gc/reproduciblebuilds_test.go | 50 ++++++++++++++++
- .../gc/testdata/reproducible/issue38068.go         | 70 ++++++++++++++++++++++
- 2 files changed, 120 insertions(+)
+ src/time/sleep.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

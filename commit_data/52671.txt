@@ -1,21 +1,31 @@
-commit 7c2550b7bb284e189d9d977800baa33ebf137fea
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Apr 6 06:11:01 2023 +1000
+commit 668041ef66ddafffccf1863e6180b83ea1ad30c9
+Author: Rob Pike <r@golang.org>
+Date:   Sun May 15 10:11:56 2022 +1000
 
-    cmd/compile: add math benchmarks
+    fmt: add Append, Appendln, Appendf
     
-    This adds benchmarks for division and modulus of 64 bit signed and unsigned
-    integers.
+    These are straightforward variants of the existing Sprintf etc.,
+    but append the resulting bytes to a provided buffer rather than
+    returning a string.
     
-    Updates #59089
+    Internally, there is potentially some allocation because the package
+    uses a pool of buffers to build its output. We make no attempt to
+    override that, so the result is first printed into the pool and
+    then copied to the output. Since it is a managed pool, asymptotically
+    there should be no extra allocation.
     
-    Change-Id: Ie757c6d74a1f355873e79619eae26ece21a8f23e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482656
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Fixes #47579
+    
+    RELNOTE=yes
+    
+    Change-Id: Icef797f9b6f0c84d03e7035d95c06cdb819e2649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406177
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/test/math_test.go | 167 +++++++++++++++++++++++++++++
- 1 file changed, 167 insertions(+)
+ api/next/47579.txt  |  3 +++
+ src/fmt/fmt_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/fmt/print.go    | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 78 insertions(+)

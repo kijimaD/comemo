@@ -1,26 +1,11 @@
-commit c017a4e118c9574c0b1eefa661b46bf81ab6e7c2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 30 14:30:40 2014 -0400
+commit 1392276bfb7b6100b2def909ef9d19e477970f6b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 22 12:00:37 2014 -0700
 
-    cmd/go: sometimes name tmp test binary test.test.exe on Windows
+    doc/go1.4.txt: text/template comparison functions allow int==uint
     
-    Right now it is always pkgname.test.exe, but if pkgname is
-    patch or install or setup or update, Windows thinks that
-    running it will install new software, so it pops up a dialog
-    box asking for more permission.
-    Renaming the binary avoids the Windows security check.
-    
-    This only applies to the binary that the Go command writes
-    to its temporary work directory. If the user runs 'go test -c'
-    or any of the other ways to generate a test binary, it will
-    continue to use pkgname.test.exe.
-    
-    Fixes #8711.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, r
-    CC=alex.brainman, bradfitz, golang-codereviews, iant
-    https://golang.org/cl/146580043
+    CC=golang-codereviews
+    https://golang.org/cl/142450043
 
- src/cmd/go/test.go | 37 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 37 insertions(+)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

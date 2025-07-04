@@ -1,19 +1,21 @@
-commit 8af6c3348ef299d17aeb2ae5711af9c6205c5940
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 1 16:02:49 2022 -0700
+commit fbdf83072c413943ccbd3b556654276126117463
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 13 21:36:03 2021 -0700
 
-    cmd/compile/internal/noder: refactor exprConvert code
+    go/types: avoid infinite expansion for invalid recursive generic types
     
-    This CL deduplicates the explicit and implicit exprConvert code paths
-    to have a single common function, so they're easier to keep in sync.
+    This is a clean port of CL 355732 from types2 to go/types.
     
-    Change-Id: I2b145d2ce6de6018ffc2db5cdb9d891f4e223381
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427677
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #48951.
+    
+    Change-Id: I9f8cc0655166835d9450608f6e50b726659a73f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355733
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/writer.go | 41 +++++++++++++++++---------------
- 1 file changed, 22 insertions(+), 19 deletions(-)
+ src/go/types/decl.go                           | 14 ++++++++++++--
+ src/go/types/testdata/check/issues.go2         |  4 ++--
+ src/go/types/testdata/fixedbugs/issue39634.go2 |  4 ++--
+ src/go/types/testdata/fixedbugs/issue39938.go2 | 12 +++++++-----
+ src/go/types/testdata/fixedbugs/issue48951.go2 | 21 +++++++++++++++++++++
+ 5 files changed, 44 insertions(+), 11 deletions(-)

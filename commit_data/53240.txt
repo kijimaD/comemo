@@ -1,22 +1,24 @@
-commit 3c3a883667390c2f03dffb3fdcb4fa4172cb23e6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon May 22 20:37:05 2023 +0200
+commit 15d395a196f4aba5b8c6bb990380a85fce3282a7
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Jul 14 10:47:28 2022 -0500
 
-    os: avoid second fcntl syscall in NewFile on unix
+    cmd/link: use correct path for dynamic loader on ppc64le
     
-    CL 494915 introduced an additional fcntl(F_GETFL) syscall to determine
-    whether the file is in append-only mode. The existing unix.IsNonblock
-    call also issues an fcntl(F_GETFL) syscall. The two can be combined and
-    both the append-only mode and the non-blocking flags can be determined
-    from that syscall's result.
+    The setting of the path for the dynamic loader when building for
+    linux/ppc64le ELF v2 was incorrectly set to the path for
+    PPC64 ELF v1. This has not caused issues in the common cases
+    because this string can be set based on the default GO_LDSO setting.
+    It does result in an incorrect value when cross compiling binaries
+    with -buildmode=pie.
     
-    Change-Id: I915589ed94e079f6abaa2fd0032ef01f78698f7f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497075
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Updates #53813
+    
+    Change-Id: I84de1c97b42e0434760b76a57c5a05e055fbb730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417614
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/os/file_unix.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ppc64/obj.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

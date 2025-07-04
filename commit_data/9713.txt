@@ -1,18 +1,19 @@
-commit 1913fdab98b0eb5ca965146d986ddb0fc2100f74
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Sep 16 11:27:05 2011 +0200
+commit a39904022675aea61f3206d6b69a8df2e43e9876
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Sep 16 00:34:26 2011 -0700
 
-    exp/norm: changed trie to produce smaller tables.
-    Trie now uses sparse block when this makes sense.
+    exp/template/html: type fixed point computation in template
     
-    R=r, r
+    I found a simple test case that does require doing the fixed point TODO
+    in computeOutCtx.
+    
+    I found a way though to do this and simplify away the escapeRange
+    hackiness that was added in https://golang.org/cl/5012044/
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5010043
+    https://golang.org/cl/5015052
 
- src/pkg/exp/norm/maketesttables.go |    1 +
- src/pkg/exp/norm/tables.go         | 6030 +++++++++++++++++++-----------------
- src/pkg/exp/norm/trie.go           |   83 +-
- src/pkg/exp/norm/trie_test.go      |   39 +-
- src/pkg/exp/norm/triedata_test.go  |   76 +-
- src/pkg/exp/norm/triegen.go        |  159 +-
- 6 files changed, 3377 insertions(+), 3011 deletions(-)
+ src/pkg/exp/template/html/escape.go      | 147 +++++++++++++++++++++----------
+ src/pkg/exp/template/html/escape_test.go |  25 +++++-
+ 2 files changed, 126 insertions(+), 46 deletions(-)

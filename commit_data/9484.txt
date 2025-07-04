@@ -1,12 +1,20 @@
-commit 1f0d277cc1bfac5a92432f645c6a504a17dabce0
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Aug 25 13:48:21 2011 +1000
+commit 42a56d3e810d15895eb1e072bd0ffe5928daa3b3
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Thu Aug 25 11:24:43 2011 +1000
 
-    exp/template/html: add some tests for ">" attributes.
+    exp/template/html: Reworked escapeText to recognize attr boundaries.
     
-    R=mikesamuel
+    The following testcases now pass:
+    
+    `<a href=x` tests that we do not error on partial unquoted attrs.
+    `<a href=x ` tests that spaces do end unquoted attrs on spaces.
+    `<a href=''` tests that we recognize the end of single quoted attrs.
+    `<a href=""` tests that we recognize the end of double quoted attrs.
+    
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/4956042
+    https://golang.org/cl/4932051
 
- src/pkg/exp/template/html/escape_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/exp/template/html/escape.go      | 122 ++++++++++++++++++++++---------
+ src/pkg/exp/template/html/escape_test.go |  73 +++++++++++++-----
+ 2 files changed, 144 insertions(+), 51 deletions(-)

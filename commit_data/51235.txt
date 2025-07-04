@@ -1,20 +1,26 @@
-commit 7e4191e686c192b9c85065fd3b8775190d3e9c5f
-Author: scott <scottwangsxll@gmail.com>
-Date:   Fri Nov 11 03:55:08 2022 +0000
+commit c5fee935bbb8f02406eb653cfed550593755a1a4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Dec 16 14:33:13 2021 -0500
 
-    os/exec: fix TestWaitInterrupt/WaitDelay error message
+    cmd/link: force eager binding when using plugins on darwin
     
-    As the comments say. Here we expect err to be nil instead of ctx.Err()
+    When building/using plugins on darwin, we need to use flat
+    namespace so the same symbol from the main executable and the
+    plugin can be resolved to the same address. Apparently, when using
+    flat namespace the dynamic linker can hang at forkExec when
+    resolving a lazy binding. Work around it by forcing early bindings.
     
-    Change-Id: I4cd02d62ac0a13c9577a567de36742f13d140d36
-    GitHub-Last-Rev: 6bedfbc9d2511140d088dc9ee5f40015725f68db
-    GitHub-Pull-Request: golang/go#56698
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449737
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #38824.
+    
+    Change-Id: I983aa0a0960b15bf3f7871382e8231ee244655f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372798
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/os/exec/exec_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testplugin/plugin_test.go            | 28 +++++++++++++++++++++++++
+ misc/cgo/testplugin/testdata/forkexec/main.go | 30 +++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go               |  5 ++++-
+ 3 files changed, 62 insertions(+), 1 deletion(-)

@@ -1,31 +1,29 @@
-commit b631b8e674195f6cdeca363ccb01279f14b10f13
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 20 13:57:23 2024 -0800
+commit 15a274b621b3654e9b4962a27c9d14ea51645b6c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 29 14:00:04 2023 -0400
 
-    go/types, types: better error message position for invalid receiver errors
+    runtime: don't print "unexpected SPWRITE" when printing traceback
     
-    Errors related to invalid receivers are based on the receiver base type.
-    Position the error message at the receiver base type, not the receiver
-    variable.
+    The system stack often starts with a stack transition function
+    like "systemstack" or "mcall", which is marked as SPWRITE. When
+    unwinding a system stack for printing, we want the traceback stop
+    at the stack switching frame, but not print the "unexpected
+    SPWRITE" message.
     
-    Add an additional example with an (invalid) generic receiver type.
+    Previously before CL 525835, we don't print the "unexpected
+    SPWRITE" message if unwindPrintErrors is set, i.e. printing a
+    stack trace. This CL restores this behavior.
     
-    Also, fix a panic when the code is run w/o Alias types enabled.
+    Another possibility is not printing the message only on the system
+    stack. We don't expect a stack transition function to appear in a
+    user G.
     
-    Change-Id: I610df171e4c447bbe03b904937c12e4170508b3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630376
-    Reviewed-by: Tim King <taking@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I173e89ead2cd4fbf1f0f8cca225f28718b5baebe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531815
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/issues_test.go     |  2 +-
- src/cmd/compile/internal/types2/signature.go       | 22 ++++++++++++----------
- src/cmd/compile/internal/types2/typexpr.go         |  4 ++++
- src/go/types/issues_test.go                        |  2 +-
- src/go/types/signature.go                          | 22 ++++++++++++----------
- src/go/types/typexpr.go                            |  4 ++++
- .../types/testdata/check/decls2/decls2a.go         |  8 ++++----
- src/internal/types/testdata/spec/receivers.go      | 14 ++++++++++++++
- 8 files changed, 52 insertions(+), 26 deletions(-)
+ src/runtime/crash_unix_test.go | 6 ++++++
+ src/runtime/traceback.go       | 9 +++------
+ 2 files changed, 9 insertions(+), 6 deletions(-)

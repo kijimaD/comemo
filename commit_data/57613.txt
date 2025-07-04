@@ -1,18 +1,24 @@
-commit 065c1359e1bc3d6744a925339484592b13d713dd
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Sep 13 18:50:03 2024 +0800
+commit 8789b5d72fe5a3f6c341d6f1b1f0097b5514657f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 18 00:54:28 2023 -0700
 
-    internal/cpu: add CPU feature LAMCAS and LAM_BH detection on loong64
+    cmd/compile: construct more IR nodes as typed
     
-    Change-Id: Ic5580c4ee006d87b3152ae5de7b25fb532c6a33f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612976
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    As of this CL, all OLITERAL, OLINKSYMOFFSET, ONIL, and OTYPE nodes are
+    constructed as typed and typechecked.
+    
+    Change-Id: I39b2ad772a9b0419c701890a505a0949f9ea456e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520795
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/internal/cpu/cpu.go               |  9 ++++++---
- src/internal/cpu/cpu_loong64.go       | 34 ++++++++++++++++++++++++++++++++++
- src/internal/cpu/cpu_loong64.s        | 12 ++++++++++++
- src/internal/cpu/cpu_loong64_hwcap.go | 18 ++----------------
- 4 files changed, 54 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/ir/expr.go             | 17 +++++++++++-----
+ src/cmd/compile/internal/noder/helpers.go       |  2 +-
+ src/cmd/compile/internal/typecheck/func.go      | 15 ++++++--------
+ src/cmd/compile/internal/typecheck/subr.go      |  4 +---
+ src/cmd/compile/internal/typecheck/typecheck.go | 26 +------------------------
+ src/cmd/compile/internal/typecheck/universe.go  |  1 +
+ 6 files changed, 22 insertions(+), 43 deletions(-)

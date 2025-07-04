@@ -1,13 +1,13 @@
-commit 1163127def254969c92c20ce0e535690f3b1de4c
+commit b5705ed9ab26d69cb32d484289efc5f1cbc50144
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 24 20:32:28 2014 +0400
+Date:   Mon Feb 24 20:23:35 2014 +0400
 
-    testing: diagnose a potential misuse of RunParallel
+    net/rpc: use RunParallel in benchmarks
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/68030043
+    https://golang.org/cl/68040044
 
- src/pkg/testing/benchmark.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/net/rpc/server_test.go | 38 ++++++++++++++------------------------
+ 1 file changed, 14 insertions(+), 24 deletions(-)

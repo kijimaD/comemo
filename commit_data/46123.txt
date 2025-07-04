@@ -1,28 +1,18 @@
-commit 2438660602677b1edf5e83a1ba4fdc5dfe9e9dcc
-Author: Robert Findley <rfindley@google.com>
-Date:   Thu Aug 19 13:31:36 2021 -0400
+commit b6e678573d33d59309dcbc012ea8db45fde7b9b1
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Dec 8 11:53:26 2020 -0500
 
-    go/types: use []*TypeParam rather than []*TypeName type param lists
+    [dev.typeparams] go/types: import universe changes from dev.go2go
     
-    Making this change improves type safety slightly, and avoids many
-    internal type assertions.
+    This is unmodified from the dev.go2go branch, except to remove the aType
+    embedding.
     
-    Change-Id: I26519b0e57068e944e8243983ae90553d79e59c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343932
+    Change-Id: Id14d97a56d27ea609c43b453e8f9f1cf1a451406
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276252
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/decl.go        | 12 ++++++------
- src/go/types/infer.go       | 32 ++++++++++++++++----------------
- src/go/types/instantiate.go | 10 +++++-----
- src/go/types/named.go       |  4 ++--
- src/go/types/object.go      |  2 +-
- src/go/types/predicates.go  |  4 ++--
- src/go/types/signature.go   | 16 ++++++++--------
- src/go/types/subst.go       |  4 ++--
- src/go/types/typeparam.go   | 11 +++++------
- src/go/types/typestring.go  |  7 +++----
- src/go/types/unify.go       | 14 +++++++-------
- 11 files changed, 57 insertions(+), 59 deletions(-)
+ src/go/types/universe.go | 58 ++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 51 insertions(+), 7 deletions(-)

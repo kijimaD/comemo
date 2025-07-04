@@ -1,12 +1,15 @@
-commit 518c0adb17a74a3076d39df44c44fb7779b2b92b
+commit f61b7e5dc5f6e45f38cbcc32d5dfc3dfb5f74d72
 Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 29 13:18:52 2011 -0700
+Date:   Tue Mar 29 13:00:24 2011 -0700
 
-    govet: fix bug introduced at 4313054
+    gotry: move into its own directory, separate from gotest.
     
-    R=rsc, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4336042
+    https://golang.org/cl/4327045
 
- src/cmd/govet/govet.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/Makefile                |  1 +
+ src/cmd/gotest/Makefile         |  2 +-
+ src/cmd/gotry/Makefile          | 18 ++++++++++++++++++
+ src/cmd/{gotest => gotry}/gotry |  0
+ 4 files changed, 20 insertions(+), 1 deletion(-)

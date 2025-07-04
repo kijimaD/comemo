@@ -1,15 +1,14 @@
-commit ebcaf081a7a58bbe0f7599aeb3e075202205f082
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Dec 21 14:19:33 2012 +0900
+commit c850d0f34a7db9f6df54c1ca99e14e19859baaa0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Dec 21 15:14:38 2012 +1100
 
-    net: make unix connection tests more robust
+    net/http: simplify serve() connection close
     
-    Avoids unlink the underlying file before the socket close.
+    Followup to 6971049.
     
-    R=golang-dev, dave
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/7004044
+    https://golang.org/cl/6970049
 
- src/pkg/net/conn_test.go       | 16 +++++++++-------
- src/pkg/net/packetconn_test.go | 21 ++++++++++++---------
- 2 files changed, 21 insertions(+), 16 deletions(-)
+ src/pkg/net/http/server.go | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)

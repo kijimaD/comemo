@@ -1,15 +1,16 @@
-commit 815a1b84c7724fa4ccb4ece1e92ff41c9dc533ab
+commit 7879d3118cdeaca1ef22c1592eddab102117f476
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Apr 23 10:54:19 2011 -0400
+Date:   Sat Apr 23 10:54:05 2011 -0400
 
-    gc: fix return variable named _
+    gc: fix line number at EOF
     
-    Fixes #1712.
+    Fixes #1474.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4445055
+    https://golang.org/cl/4432061
 
- src/cmd/gc/dcl.c         |  7 +++++++
- test/fixedbugs/bug331.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+)
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/lex.c         |  9 ++++++---
+ test/fixedbugs/bug332.go | 17 +++++++++++++++++
+ 3 files changed, 24 insertions(+), 3 deletions(-)

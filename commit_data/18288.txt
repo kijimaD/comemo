@@ -1,14 +1,12 @@
-commit 6c9f198c9a7ea0597c1181b46f794380a7be5cfe
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jan 17 18:47:40 2014 -0800
+commit 3baa98f26d94c2c8a890a1f1f1595c249932e609
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jan 18 08:34:31 2014 +0900
 
-    runtime: print stack trace when "panic during panic"
-    
-    Fixes bug 7145
+    syscall: make getrlimit, setrlimit tests work on unix variants
     
     R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/53970043
+    https://golang.org/cl/53690043
 
- src/pkg/runtime/panic.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/syscall/{rlimit_linux_test.go => rlimit_unix_test.go} | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,21 +1,19 @@
-commit d91ec5bb40bac5ce2c8136110c52723b35476985
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 7 15:22:39 2016 -0800
+commit e50a4c698752928cf7c0638e947c43e36d69b671
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 3 11:00:37 2015 -0800
 
-    cmd/cgo, runtime: recognize unsafe.Pointer(&s[0]) in cgo pointer checks
+    net/http: register HTTP/2 before listening in ListenAndServe
     
-    It's fairly common to call cgo functions with conversions to
-    unsafe.Pointer or other C types.  Apply the simpler checking of address
-    expressions when possible when the address expression occurs within a
-    type conversion.
-    
-    Change-Id: I5187d4eb4d27a6542621c396cad9ee4b8647d1cd
-    Reviewed-on: https://go-review.googlesource.com/18391
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icf9b6802945051aa484fb9ebcce71704f5655474
+    Reviewed-on: https://go-review.googlesource.com/16630
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/errors/ptr.go | 10 +++++++++
- src/cmd/cgo/gcc.go     | 56 ++++++++++++++++++++++++++++++++++++++++++++++----
- src/runtime/cgocall.go |  6 +++++-
- 3 files changed, 67 insertions(+), 5 deletions(-)
+ src/go/build/deps_test.go         |  2 +-
+ src/net/http/export_test.go       |  2 ++
+ src/net/http/httptest/server.go   | 39 ++----------------------
+ src/net/http/internal/testcert.go | 41 ++++++++++++++++++++++++++
+ src/net/http/serve_test.go        | 62 ++++++++++++++++++++++++++++++++++++++-
+ src/net/http/server.go            | 43 +++++++++++++++++++++------
+ 6 files changed, 141 insertions(+), 48 deletions(-)

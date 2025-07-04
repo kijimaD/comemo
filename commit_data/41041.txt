@@ -1,28 +1,19 @@
-commit 4ffd1a0f1ca5f92d4185d02c3f1be00683d755e2
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Dec 30 18:18:07 2019 -0500
+commit 75198b9a9ccdacc3e9ed87a2406b0b87acb1fbac
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 17 11:48:37 2019 -0700
 
-    cmd/go: remove TestGoTestDetectsTestOnlyImportCycles
+    cmd/compile: simplify postorder
     
-    The error that's tested in this test is also tested in list_test_err.txt
-    which uses go list -test -deps. Because both commands are just loading
-    packages, the difference is not meaningful.
+    Use a bool instead of markKind;
+    it doesn't save space, but the semantics are more obvious.
+    Move type markKind closer to its only remaining use.
     
-    Updates #36320
-    Updates #17751
-    
-    Change-Id: Ie712a77d64e8985dd908a1afb515ed3ecc0a9985
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212937
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I9945a7baaeb764295a2709f83120ce3a82fa3beb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177880
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/go_test.go                           | 11 -----------
- src/cmd/go/testdata/src/testcycle/p1/p1.go      |  7 -------
- src/cmd/go/testdata/src/testcycle/p1/p1_test.go |  6 ------
- src/cmd/go/testdata/src/testcycle/p2/p2.go      |  7 -------
- src/cmd/go/testdata/src/testcycle/p3/p3.go      |  5 -----
- src/cmd/go/testdata/src/testcycle/p3/p3_test.go | 10 ----------
- src/cmd/go/testdata/src/testcycle/q1/q1.go      |  1 -
- src/cmd/go/testdata/src/testcycle/q1/q1_test.go |  6 ------
- 8 files changed, 53 deletions(-)
+ src/cmd/compile/internal/ssa/dom.go               | 33 ++++++++---------------
+ src/cmd/compile/internal/ssa/loopreschedchecks.go | 10 +++++++
+ 2 files changed, 21 insertions(+), 22 deletions(-)

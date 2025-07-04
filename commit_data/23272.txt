@@ -1,17 +1,16 @@
-commit 4b6284a7d918aa5813891bde2874411f29d5b418
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Fri Jun 5 10:12:34 2015 +1000
+commit 62ea2c9093eb54ca4f84f9d6e0fd014ad9fe547c
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 4 16:47:10 2015 +1000
 
-    flag: Describe the ErrorHandling enum values.
+    image/gif: be consistent wrt "color map" or "color table" names.
     
-    ContinueOnError is particularly confusing, because it causes
-    FlagSet.Parse to return as soon as it sees an error. I gather that the
-    intent is "continue the program" rather than "continue parsing",
-    compared to exiting or panicking.
+    The spec at http://www.w3.org/Graphics/GIF/spec-gif89a.txt always says
+    "color table" and not "color map".
     
-    Change-Id: I27370ce1f321ea4debcee5b03faff3532495c71a
-    Reviewed-on: https://go-review.googlesource.com/10740
+    Change-Id: I4c172e3ade15618cbd616629822ce7d109a200af
+    Reviewed-on: https://go-review.googlesource.com/9668
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/flag/flag.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/image/gif/reader.go      | 51 ++++++++++++++++++++++----------------------
+ src/image/gif/reader_test.go |  6 +++---
+ 2 files changed, 28 insertions(+), 29 deletions(-)

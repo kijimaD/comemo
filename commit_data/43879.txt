@@ -1,19 +1,24 @@
-commit 926994fd7cf65b2703552686965fb05569699897
-Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
-Date:   Thu Nov 26 17:01:35 2020 +0100
+commit f639a81cd5e85ca9538c76e612867aa4c2ae241b
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Mon Apr 27 16:20:45 2020 -0700
 
-    log: make Default doc comment consistent with package doc
+    cmd/compile: adopt strong aux typing for some s390x rules
     
-    None of the other, older, doc comments use the '*Logger' form, and while
-    'Logger' and 'logger' are both used in the package doc comment, the
-    common term used with the intended meaning is 'standard logger', which
-    appears another eleven times in doc comments.
+    Convert some optimizations rules to strongly-typed versions. So far, I
+    have only converted the rules that need no additional changes (i.e: only
+    need to change '->' to "=>").
     
-    Change-Id: I089103198fc82390517615eb27bbe7ef77107d34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273486
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    This CL covers the rules from line 478 - line 800 in S390X.rules file.
+    Some compare and branch rules also fall in this range, but they were
+    already done previously in another CL.
+    
+    Passes toolstash-check.
+    Change-Id: I9167c5f1a32f4fd6c29bacc13fff95e83b0533e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230338
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/log/log.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 224 ++++++++---------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 358 +++++++++++++--------------
+ 2 files changed, 291 insertions(+), 291 deletions(-)

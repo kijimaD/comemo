@@ -1,21 +1,17 @@
-commit 2e918c3aab6cc944380da672b93fb92c67b35de1
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 16 02:38:43 2020 +1100
+commit 584ef455ac0cd08833c3d4c7f6cb284bdba627a0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Oct 13 23:06:29 2019 +0700
 
-    cmd/compile: provide Load8/Store8 atomic intrinsics on riscv64
+    cmd/compile: skip empty init function in fninit
     
-    Updates #36765
+    Fixes #34869
     
-    Change-Id: Ieeb6bbc54e4841a1348ad50e80342ec4bc675e07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223557
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I21bc60b9a5d1204dade1cceed6cddccf5b537b0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200958
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/ssa.go             |  4 ++--
- src/cmd/compile/internal/riscv64/ssa.go        | 19 ++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  5 +++++
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  9 +++++++++
- src/cmd/compile/internal/ssa/opGen.go          | 27 ++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go |  6 ++++++
- 6 files changed, 68 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/init.go      |  8 ++++++++
+ src/cmd/compile/internal/gc/typecheck.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

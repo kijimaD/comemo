@@ -1,18 +1,26 @@
-commit e956dcbdb5f17de2be22741216e7607e6c102029
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 18 17:45:22 2017 -0700
+commit 2ca5d105b00353d3f3aa4da023e405b0550117d0
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon Feb 6 13:21:57 2017 -0500
 
-    cmd/compile: better variable names in internal/syntax/branches.go
+    os/user: cache the result of user.Current
     
-    Follow-up on https://go-review.googlesource.com/#/c/39998/.
+    This has a notable impact on systems with very large passwd files.
     
-    Change-Id: I97f8e31ca923685198984ad64f952d6dc8208edf
-    Reviewed-on: https://go-review.googlesource.com/40982
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Before:
+    BenchmarkCurrent-12        30000             42546 ns/op
+    
+    After:
+    BenchmarkCurrent-12     20000000                77.5 ns/op
+    
+    Saved in perf dashboard:
+    https://perf.golang.org/search?q=upload:20170206.1
+    
+    Fixes #11625
+    
+    Change-Id: Iebc9bf122cc64a4cab24ac06843c7b2bc450ded9
+    Reviewed-on: https://go-review.googlesource.com/36391
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/syntax/branches.go | 38 ++++++++++++++---------------
- 1 file changed, 19 insertions(+), 19 deletions(-)
+ src/os/user/lookup.go    | 22 +++++++++++++++++++++-
+ src/os/user/user_test.go |  6 ++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

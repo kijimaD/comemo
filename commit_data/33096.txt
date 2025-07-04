@@ -1,41 +1,30 @@
-commit 31cd20a70e22eeaba287067265fadb57df134b82
-Author: Jed Denlea <jed@fastly.com>
-Date:   Wed Oct 4 15:36:07 2017 -0700
+commit 7a8f39fa14d519f6efc34b2a783098bd107d17e0
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 7 12:03:22 2017 -0400
 
-    image/gif: try harder to use global color table
+    runtime: delay before osRelaxing
     
-    The GIF format allows for an image to contain a global color table which
-    might be used for some or every frame in an animated GIF.  This palette
-    contains 24-bit opaque RGB values.  An individual frame may use the
-    global palette and enable transparency by picking one number to be
-    transparent, instead of the color value in the palette.
+    Currently, sysmon relaxes the Windows timer resolution as soon as the
+    Go process becomes idle. However, if it's going idle because of a
+    short sleep (< 15.6 ms), this can turn that short sleep into a long
+    sleep (15.6 ms).
     
-    image/gif decodes a GIF, which contains an []*image.Paletted that holds
-    each frame.  When decoded, if a frame has a transparent color and uses
-    the global palette, a copy of the global []color.Color is made, and the
-    transparency color index is replaced with color.RGBA{}.
+    To address this, wait for 60 ms of idleness before relaxing the timer
+    resolution. It would be better to check the time until the next wakeup
+    and relax immediately if it makes sense, but there's currently no
+    interaction between sysmon and the timer subsystem, so adding this
+    simple delay is a much simpler and safer change for late in the
+    release cycle.
     
-    When encoding a GIF, each frame's palette is encoded to the form it
-    might exist in a GIF, up to 768 bytes "RGBRGBRGBRGB...". If a frame's
-    encoded palette is equal to the encoded global color table, the frame
-    will be encoded with the flag set to use the global color table,
-    otherwise the frame's palette will be included.
+    Fixes #20937.
     
-    So, if the color in the global color table that matches the transparent
-    index of one frame wasn't black (and it frequently is not), reencoding a
-    GIF will likely result in a larger file because each frame's palette
-    will have to be encoded inline.
-    
-    This commit takes a frame's transparent color index into account when
-    comparing an individual image.Paletted's encoded color table to the
-    global color table.
-    
-    Fixes #22137
-    
-    Change-Id: I5460021da6e4d7ce19198d5f94a8ce714815bc08
-    Reviewed-on: https://go-review.googlesource.com/68313
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: I817db24c3bdfa06dba04b7bc197cfd554363c379
+    Reviewed-on: https://go-review.googlesource.com/47832
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/image/gif/writer.go      | 81 ++++++++++++++++++++++++++++++--------------
- src/image/gif/writer_test.go | 29 ++++++++++++++++
- 2 files changed, 84 insertions(+), 26 deletions(-)
+ src/runtime/os_windows.go |  6 ++++++
+ src/runtime/proc.go       | 21 ++++++++++++++++++---
+ src/runtime/relax_stub.go |  6 ++++++
+ 3 files changed, 30 insertions(+), 3 deletions(-)

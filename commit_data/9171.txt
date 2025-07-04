@@ -1,12 +1,15 @@
-commit 99e5d48e59022f83a027e137421faaaf043b6309
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Jul 22 13:52:21 2011 +1000
+commit 3e79c958c4586d2bd70b0e5fd752c74565db6b30
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 22 10:51:40 2011 +1000
 
-    http: clarify use of w.conn.body in Write when sniffing.
+    exp/template: plain actions with declarations should produce no output.
+    This is already the behavior for pipelines producing values for if, with, and range.
     
-    R=gri, r, r, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4794047
+    https://golang.org/cl/4808050
 
- src/pkg/http/server.go | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ src/pkg/exp/template/doc.go       | 3 ++-
+ src/pkg/exp/template/exec.go      | 6 +++++-
+ src/pkg/exp/template/exec_test.go | 6 +++---
+ 3 files changed, 10 insertions(+), 5 deletions(-)

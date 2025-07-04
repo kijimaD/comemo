@@ -1,18 +1,13 @@
-commit 7f689864d833d8cd0c59d9800f428d3d60d67ab4
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Jun 20 16:18:56 2012 -0400
+commit 5d2cfc2faa193a81f4a03aee03c60ef26ba8ed19
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jun 20 01:22:03 2012 +0800
 
-    crypto/x509: add extended key usage support.
+    doc/articles/slices_usage_and_internals: fix typo
+            Fixes #3753.
     
-    Flame motivated me to get around to adding extended key usage support
-    so that code signing certificates can't be used for TLS server
-    authentication and vice versa.
-    
-    R=golang-dev, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6304065
+    https://golang.org/cl/6304097
 
- src/pkg/crypto/x509/verify.go      | 93 +++++++++++++++++++++++++++++++++++-
- src/pkg/crypto/x509/verify_test.go | 97 ++++++++++++++++++++++++++++++++++++++
- src/pkg/crypto/x509/x509.go        | 12 +++++
- 3 files changed, 201 insertions(+), 1 deletion(-)
+ doc/articles/slices_usage_and_internals.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

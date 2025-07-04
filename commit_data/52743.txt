@@ -1,29 +1,22 @@
-commit 9027e5d2b486906f1fce862be295defe44cea213
+commit 715ba65563f9d2a6ecd349944b726a64f9aabeca
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Apr 20 13:56:20 2023 -0400
+Date:   Mon May 23 16:27:13 2022 -0400
 
-    os/user: skip tests that invoke Current if it returns an expected error
+    misc/cgo/testsanitizers: terminate commands with SIGQUIT if hung
     
-    Today Current may fail if the binary is not built with cgo
-    and USER and/or HOME is not set in the environment.
-    That should not cause the test to fail.
+    If the test hangs due to a deadlock in a subprocess, we want a
+    goroutine dump of that process to figure out the nature of the
+    deadlock. SIGQUIT causes the Go runtime to produce exactly
+    such a dump (unless the runtime itself is badly deadlocked).
     
-    After this change,
+    For #52998.
     
-            GOCACHE=$(go env GOCACHE) CGO_ENABLED=0 USER= HOME= go test os/user
-    
-    now passes on linux/amd64.
-    
-    For #59583.
-    
-    Change-Id: Id290cd1088051e930d73f0dd554177124796e8f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487015
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Id9b3ba89d8f705e14f6cd789353fc2b7f4774ad3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407954
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/user/cgo_user_test.go | 11 +++++++++++
- src/os/user/user_test.go     | 42 +++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 48 insertions(+), 5 deletions(-)
+ misc/cgo/testsanitizers/cc_test.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

@@ -1,14 +1,35 @@
-commit fc26cbacff12a2f81ab3cb4c55c00dfd0e8bb8ff
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jun 26 15:21:38 2019 -0400
+commit 2edd559223f3b3fd54e354c9a9703248a935c91a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 28 20:21:32 2019 +1100
 
-    doc/go1.13: describe new 'go version' behavior
+    os: make Readlink work with symlinks with target like \??\Volume{ABCD}\
     
-    Change-Id: I18e2546f89e68e77d6e829acc997851751a44f0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183983
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    windows-arm TMP directory live inside such link (see
+    https://github.com/golang/go/issues/29746#issuecomment-456526811 for
+    details), so symlinks like that will be common at least on windows-arm.
+    
+    This CL builds on current syscall.Readlink implementation. Main
+    difference between the two is how new code handles symlink targets,
+    like \??\Volume{ABCD}\.
+    
+    New implementation uses Windows CreateFile API with
+    FILE_FLAG_OPEN_REPARSE_POINT flag to get \??\Volume{ABCD}\ file handle.
+    And then it uses Windows GetFinalPathNameByHandle with VOLUME_NAME_DOS
+    flag to convert that handle into standard Windows path.
+    FILE_FLAG_OPEN_REPARSE_POINT flag ensures that symlink is not followed
+    when CreateFile opens the file.
+    
+    Fixes #30463
+    
+    Change-Id: I33b18227ce36144caed694169ef2e429fd995fb4
+    Reviewed-on: https://go-review.googlesource.com/c/164201
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.13.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/internal/syscall/windows/reparse_windows.go |  24 +++++
+ src/os/file_posix.go                            |  20 ----
+ src/os/file_unix.go                             |  19 ++++
+ src/os/file_windows.go                          | 120 ++++++++++++++++++++++++
+ src/os/os_windows_test.go                       | 115 +++++++++++++++++++++++
+ 5 files changed, 278 insertions(+), 20 deletions(-)

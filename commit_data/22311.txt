@@ -1,17 +1,49 @@
-commit da5ebecc6e1290d505825eabaf00400848943984
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 3 14:33:18 2015 -0700
+commit 5a16d6fc34c89a46b04545f21bee3e93f3146902
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 3 22:20:44 2015 -0500
 
-    cmd/internal/gc/big: update vendored version of math/big
+    cmd/5g etc: tweak import blocks
     
-    This fixes the formerly extremely slow conversion of floating-point
-    constants with large exponents (e.g., "const c = 1e1000000000" could
-    stall the machine).
+    Remove blank lines and merge lone imports into blocks.
     
-    Change-Id: I36e02158e3334d32b18743ec0c259fec77baa74f
-    Reviewed-on: https://go-review.googlesource.com/8466
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ib46dad584456909969f1ba3a2c7f5667abf336ae
+    Reviewed-on: https://go-review.googlesource.com/6792
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/big/floatconv.go      | 50 ++++++++++++++++++++++++-------
- src/cmd/internal/gc/big/floatconv_test.go |  6 ++++
- 2 files changed, 46 insertions(+), 10 deletions(-)
+ src/cmd/5g/cgen.go   | 2 +-
+ src/cmd/5g/cgen64.go | 2 +-
+ src/cmd/5g/galign.go | 2 +-
+ src/cmd/5g/ggen.go   | 2 +-
+ src/cmd/5g/gsubr.go  | 2 +-
+ src/cmd/5g/peep.go   | 2 +-
+ src/cmd/5g/prog.go   | 2 +-
+ src/cmd/5l/asm.go    | 2 +-
+ src/cmd/5l/obj.go    | 2 +-
+ src/cmd/6g/cgen.go   | 3 +--
+ src/cmd/6g/galign.go | 2 +-
+ src/cmd/6g/ggen.go   | 2 +-
+ src/cmd/6g/gsubr.go  | 2 +-
+ src/cmd/6g/peep.go   | 2 +-
+ src/cmd/6g/prog.go   | 2 +-
+ src/cmd/6g/reg.go    | 2 +-
+ src/cmd/6l/asm.go    | 2 +-
+ src/cmd/6l/obj.go    | 2 +-
+ src/cmd/8g/cgen.go   | 2 +-
+ src/cmd/8g/cgen64.go | 2 +-
+ src/cmd/8g/galign.go | 2 +-
+ src/cmd/8g/ggen.go   | 2 +-
+ src/cmd/8g/gsubr.go  | 2 +-
+ src/cmd/8g/peep.go   | 2 +-
+ src/cmd/8g/prog.go   | 2 +-
+ src/cmd/8l/asm.go    | 2 +-
+ src/cmd/8l/obj.go    | 2 +-
+ src/cmd/9g/cgen.go   | 2 +-
+ src/cmd/9g/galign.go | 2 +-
+ src/cmd/9g/ggen.go   | 2 +-
+ src/cmd/9g/gsubr.go  | 2 +-
+ src/cmd/9g/peep.go   | 2 +-
+ src/cmd/9g/prog.go   | 2 +-
+ src/cmd/9l/asm.go    | 2 +-
+ src/cmd/9l/obj.go    | 2 +-
+ 35 files changed, 35 insertions(+), 36 deletions(-)

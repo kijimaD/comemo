@@ -1,0 +1,24 @@
+commit 4e77872d16340595d76b905fe24369b76cfd1b5f
+Author: Tim King <taking@google.com>
+Date:   Tue Jul 9 14:01:56 2024 -0700
+
+    go/types: fix assertion failure when range over int is not permitted
+    
+    Fixes an assertion failure in Checker.rangeStmt that range over int
+    only has a key type and no value type. When allowVersion failed,
+    rangeKeyVal returns Typ[Invalid] for the value instead of nil. When
+    Config.Error != nil, rangeStmt proceeded. The check for rhs[1]==nil
+    was not enough to catch this case. It must also check rhs[1]==
+    
+    Updates #68334
+    
+    Change-Id: Iffa1b2f7b6a94570ec50b8c6603e727a45ba3357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597356
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 29 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/stmt.go        |  9 ++++----
+ src/go/types/issues_test.go                    | 29 ++++++++++++++++++++++++++
+ src/go/types/stmt.go                           |  9 ++++----
+ 4 files changed, 68 insertions(+), 8 deletions(-)

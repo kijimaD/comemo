@@ -1,31 +1,20 @@
-commit 735fe51a4b3b2b333b209f803f80ffc61cd7948e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 6 11:47:33 2017 -0700
+commit e395e3246a2d643587dc53c61402d5413728c0c7
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Jan 14 14:27:40 2017 +0100
 
-    cmd/internal/obj: add LookupInit
+    net/http: skip TestServerHijackGetsBackgroundByte_big on Plan 9
     
-    There are some LSyms that are lazily initialized,
-    and which cannot be made eagerly initialized,
-    such as elements of a constant pool.
+    CL 35234 added TestServerHijackGetsBackgroundByte_big, which is failing
+    on Plan 9, because CloseWrite is not implemented on Plan 9 yet.
     
-    To avoid needing a mutex to protect the internals of
-    those LSyms, this CL introduces LookupInit,
-    which allows an LSym to be initialized only once.
+    Updates #17906.
+    Updates #18658.
     
-    By itself this is not fully concurrency-safe,
-    but Ctxt.Hash will need mutex protection anyway,
-    and that will be enough to support one-time LSym initialization.
-    
-    Passes toolstash-check -all.
-    
-    Updates #15756
-    
-    Change-Id: Id7248dfdc4dfbdfe425fa31d0c0045018eeea1fa
-    Reviewed-on: https://go-review.googlesource.com/39990
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Icaf3fe3600d586515ecd92aca874104ea81ce6b9
+    Reviewed-on: https://go-review.googlesource.com/35179
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/sym.go      | 42 +++++++++++++++++++++++-----------------
- src/cmd/internal/obj/x86/obj6.go |  4 ++--
- 2 files changed, 26 insertions(+), 20 deletions(-)
+ src/net/http/serve_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

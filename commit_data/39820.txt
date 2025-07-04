@@ -1,17 +1,20 @@
-commit 8a8cf5bf6d233c97180a6ef7e64d9c67a402470f
-Author: Mihai Borobocea <mihaibopublic@gmail.com>
-Date:   Fri Sep 6 20:30:51 2019 +0300
+commit 2396101e0590cb7d77556924249c26af0ccd9eff
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 17 13:45:46 2019 +0100
 
-    text/template: refer to sorted map keys as "ordered" not "comparable" in docs
+    src/cmd/internal/obj/wasm: optimize blocks in wasm binary
     
-    Consistent with the spec's definition of "ordered" and "comparable".
+    This change optimizes the blocks in the wasm binary by generating the
+    entryPointLoop only if it is used and adding an unwindExit block to
+    be able to use the short BrIf instruction for unwinding the stack.
+    These changes were suggested by the wasm-opt tool and reduce the
+    wasm binary size of "hello world" by 1.5%.
     
-    Fixes #34147
-    
-    Change-Id: Id13186df5343588d80eaebfeb23092596a846d51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193840
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ie52db2fa2d9b8482f9a78b7c189231750811fe97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167937
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/text/template/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/wasm/wasmobj.go | 114 ++++++++++++++++++++++-------------
+ 1 file changed, 71 insertions(+), 43 deletions(-)

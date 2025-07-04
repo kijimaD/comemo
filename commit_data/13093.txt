@@ -1,12 +1,13 @@
-commit 57557c0d49c7153c520f0fb947378b9a573af26c
-Author: Benjamin Black <b@b3k.us>
-Date:   Fri May 18 11:06:58 2012 -0400
+commit 6f682de3c041ff0f94c881a9f8e503753a1afdd9
+Author: Adam Langley <agl@golang.org>
+Date:   Fri May 18 11:04:32 2012 -0400
 
-    tls: add AES256 ciphers
+    A+C: b@b3k.us
     
-    R=golang-dev, rsc, agl
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6188061
+    https://golang.org/cl/6220050
 
- src/pkg/crypto/tls/cipher_suites.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

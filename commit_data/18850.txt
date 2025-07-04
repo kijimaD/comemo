@@ -1,16 +1,22 @@
-commit 6a6224c88dfbe450179230ed2b1819a41391963b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Mar 13 14:45:50 2014 +0900
+commit 64e041652aa2c431ff2aec6745dfecf32abac66a
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Mar 12 19:42:58 2014 -0700
 
-    net: fix TCP keepalive on dragonfly
+    runtime: call symtabinit earlier
     
-    Fixes #7528.
+    Otherwise, we won't get a stack trace in some of the early init.
     
-    LGTM=jsing
-    R=jsing
+    Here's one example:
+    
+            http://build.golang.org/log/a96d10f6aee1fa3e3ae51f41da46d414a7ab02de
+    
+    After walking the stack by hand in acid, I was able to determine
+    that the stackalloc inside mpreinit was causing the throw.
+    
+    LGTM=rsc
+    R=rsc, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/75140045
+    https://golang.org/cl/72450044
 
- src/pkg/net/tcpsockopt_dragonfly.go | 29 +++++++++++++++++++++++++++++
- src/pkg/net/tcpsockopt_unix.go      |  2 +-
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/pkg/runtime/proc.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

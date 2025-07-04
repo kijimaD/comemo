@@ -1,23 +1,19 @@
-commit 693748e9fa385f1e2c3b91ca9acbb6c0ad2d133d
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Jan 6 01:52:19 2020 +1100
+commit 8d5197d818b21290cfbf0ded381309ac1456cf60
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Aug 30 06:24:58 2019 +0000
 
-    syscall: resync various riscv64 structs with x/sys/unix
+    cmd/compile: optimize 386's math.bits.TrailingZeros16
     
-    For some reason the existing versions have additional padding - manually resync these
-    structs with those in x/sys/unix, also bringing in pollFd which does not currently
-    exist for linux/riscv64.
+    This CL reverts CL 192097 and fixes the issue in CL 189277.
     
-    Cross checked with the output from 'go tool cgo -godefs' on a linux/riscv64 machine.
-    
-    Updates #27532
-    
-    Change-Id: I9fd2d3ad7222208a138773f4a9153c3c9cad7381
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212763
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Icd271262e1f5019a8e01c91f91c12c1261eeb02b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192519
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/types_linux.go          |  1 +
- src/syscall/ztypes_linux_riscv64.go | 78 ++++++++++++++++++-------------------
- 2 files changed, 38 insertions(+), 41 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go         |  2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewrite386.go | 31 ++++++++++++++++++++++++++++++
+ test/codegen/mathbits.go                   |  1 +
+ 4 files changed, 36 insertions(+), 1 deletion(-)

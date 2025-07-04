@@ -1,24 +1,25 @@
-commit eaf21256545ae04a35fa070763faa6eb2098591d
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Jul 6 07:45:19 2022 -0400
+commit f27d6a23b0b9d2cb41441a5dd2bd6d65dd94acf0
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 31 09:31:56 2021 -0700
 
-    cmd/go: default to "exe" build mode for windows -race
+    cmd/compile: builtins may be in the unsafe package
     
-    This patch changes the default build mode from "pie" to "exe" when
-    building programs on windows with "-race" in effect. The Go command
-    already issues an error if users explicitly ask for -buildmode=pie in
-    combination with -race on windows, but wasn't revising the default
-    "pie" build mode if a specific buildmode was not requested.
+    Now that unsafe.Sizeof and friends can operate on generic parameters,
+    and evaluate to non-constants, we need to export/import them correctly.
     
-    Updates #53539.
-    Updates #35006.
+    Fixes #48094
     
-    Change-Id: I2f81a41a1d15a0b4f5ae943146175c5a1202cbe0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416174
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: If3ebf77255385cd5462e13fb7ced8b157ba3cf5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346469
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/internal/work/init.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/iexport.go |  1 +
+ src/cmd/compile/internal/typecheck/iimport.go |  6 +++++-
+ test/typeparam/issue48094.dir/a.go            | 26 ++++++++++++++++++++++++++
+ test/typeparam/issue48094.dir/main.go         | 20 ++++++++++++++++++++
+ test/typeparam/issue48094.go                  |  7 +++++++
+ 5 files changed, 59 insertions(+), 1 deletion(-)

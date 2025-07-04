@@ -1,16 +1,57 @@
-commit 15f276bc53e39e87f69c925773221c6bc45791b2
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 2 09:35:30 2013 -0700
+commit 4de66875545233a2fadca8768d100efbcd110f67
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Apr 2 21:14:34 2013 +1100
 
-    sort: new example: programmatic sort by multiple keys
-    Demonstrates one way to sort a slice of structs according
-    to different sort criteria, done in sequence.
+    cmd/gc: recognize (a.b[0]<<1 | a.b[0]>>31) as a rotate, not just
+    (x<<1 | x>>31).
     
-    One possible answer to a question that comes up often.
+    Fixes #5084.
     
-    R=golang-dev, gri, bradfitz, adg, adg, rogpeppe
-    CC=golang-dev
-    https://golang.org/cl/8182044
+    On the SHA3 benchmark proposals at
+    https://golang.org/cl/7760044/
+    
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkPermutationFunction         1288         1191   -7.53%
+    BenchmarkSingleByteWrite             5795         5811   +0.28%
+    BenchmarkBlockWrite512                178          179   +0.56%
+    BenchmarkBlockWrite384                230          233   +1.30%
+    BenchmarkBlockWrite256                282          286   +1.42%
+    BenchmarkBlockWrite224                301          306   +1.66%
+    BenchmarkBulkHashSHA3_512          326885       304548   -6.83%
+    BenchmarkBulkHashSHA3_384          234839       220074   -6.29%
+    BenchmarkBulkHashSHA3_256          186969       175790   -5.98%
+    BenchmarkBulkHashSHA3_224          178133       167489   -5.98%
+    
+    For a function like
+    
+    func g() {
+            x = a[3]<<20 | a[3]>>12
+    }
+    
+    the asm goes from
+    
+    0006 (main.go:10) TEXT    g+0(SB),$0-0
+    0007 (main.go:10) MOVL    a+12(SB),BP
+    0008 (main.go:10) LOCALS  ,$0
+    0009 (main.go:11) MOVL    BP,BX
+    0010 (main.go:11) SHLL    $20,BX
+    0011 (main.go:11) SHRL    $12,BP
+    0012 (main.go:11) ORL     BP,BX
+    0013 (main.go:11) MOVL    BX,x+0(SB)
+    0014 (main.go:12) RET     ,
+    
+    to
+    
+    0006 (main.go:10) TEXT    g+0(SB),$0-0
+    0007 (main.go:10) LOCALS  ,$0
+    0008 (main.go:11) MOVL    a+12(SB),BX
+    0009 (main.go:11) ROLL    $20,BX
+    0010 (main.go:11) MOVL    BX,x+0(SB)
+    0011 (main.go:12) RET     ,
+    
+    R=rsc, iant, remyoudompheng
+    CC=golang-dev, jcb
+    https://golang.org/cl/7944043
 
- src/pkg/sort/example_multi_test.go | 132 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 132 insertions(+)
+ src/cmd/gc/walk.c | 31 +++++++++++++++++++++++--------
+ 1 file changed, 23 insertions(+), 8 deletions(-)

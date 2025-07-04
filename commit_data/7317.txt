@@ -1,14 +1,23 @@
-commit 7fc4e3785350b0d53112904c58b4384d65bce957
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 1 12:51:10 2011 -0800
+commit 9040da9e406a263f0ad3290490516f22ecb7d7c5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 1 12:49:56 2011 -0800
 
-    go spec: s/log.Crash/log.Panic/
+    ld: Add -I option to set ELF interpreter.
     
-    There is no log.Crash.
-    
-    R=r, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4058048
+    https://golang.org/cl/4080049
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/5l/asm.c  |  4 +++-
+ src/cmd/5l/doc.go |  2 ++
+ src/cmd/5l/l.h    |  1 +
+ src/cmd/5l/obj.c  |  5 ++++-
+ src/cmd/6l/asm.c  | 17 ++++++++++-------
+ src/cmd/6l/doc.go |  2 ++
+ src/cmd/6l/l.h    |  1 +
+ src/cmd/6l/obj.c  |  5 ++++-
+ src/cmd/8l/asm.c  | 17 ++++++++++-------
+ src/cmd/8l/doc.go |  2 ++
+ src/cmd/8l/l.h    |  1 +
+ src/cmd/8l/obj.c  |  5 ++++-
+ 12 files changed, 44 insertions(+), 18 deletions(-)

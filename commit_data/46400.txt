@@ -1,17 +1,37 @@
-commit b32209d22d0418594bd60af152b0f2c90c677941
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 9 15:55:05 2021 -0700
+commit a59d26603f0dffbe6e914bc9ab29a2f9f70e5408
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 22:23:45 2020 -0800
 
-    cmd/compile: fix test case for unified IR (fix build)
+    [dev.regabi] cmd/compile: use []*CaseStmt in {Select,Switch}Stmt
     
-    For #48301.
+    Select and switch statements only ever contain case statements, so
+    change their Cases fields from Nodes to []*CaseStmt. This allows
+    removing a bunch of type assertions throughout the compiler.
     
-    Change-Id: Ie5f57dcce86773c06c5140abf13a6cfff79eb323
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348743
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    CaseStmt should be renamed to CaseClause, and SelectStmt should
+    probably have its own CommClause type instead (like in go/ast and
+    cmd/compile/internal/syntax), but this is a good start.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I2d41d616d44512c2be421e1e2ff13d0ee8b238ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280442
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- test/fixedbugs/issue48301.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/escape/escape.go       |  2 --
+ src/cmd/compile/internal/ir/mknode.go           |  7 ++++
+ src/cmd/compile/internal/ir/node_gen.go         | 12 +++----
+ src/cmd/compile/internal/ir/stmt.go             | 43 +++++++++++++++++++++----
+ src/cmd/compile/internal/ir/visit.go            |  3 +-
+ src/cmd/compile/internal/noder/noder.go         | 10 +++---
+ src/cmd/compile/internal/typecheck/iexport.go   |  3 +-
+ src/cmd/compile/internal/typecheck/iimport.go   |  4 +--
+ src/cmd/compile/internal/typecheck/stmt.go      |  4 ---
+ src/cmd/compile/internal/typecheck/typecheck.go | 13 ++++----
+ src/cmd/compile/internal/walk/order.go          |  6 +---
+ src/cmd/compile/internal/walk/select.go         | 12 +++----
+ src/cmd/compile/internal/walk/switch.go         |  7 ++--
+ 13 files changed, 73 insertions(+), 53 deletions(-)

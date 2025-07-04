@@ -1,29 +1,56 @@
-commit 0613418c9865bb3fb04e26822f3d4f4a317a2540
-Author: eric fang <eric.fang@arm.com>
-Date:   Tue Aug 9 06:10:16 2022 +0000
+commit 46f138f288cf5c8a34cf5688cb6bea9deafb4f84
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 18 10:49:57 2022 -0500
 
-    cmd/internal/obj/arm64: mark branch instructions in optab
+    cmd/compile, go/types: fix checking of bad type switch
     
-    Currently, we judge whether we need to fix up the branch instruction
-    based on Optab.type_ field, but the type_ field in optab may change.
-    This CL marks the branch instruction in optab, and checks whether to
-    do fixing up according to the mark. Depending on the constant parameter
-    range of the branch instruction, there are two labels, BRANCH14BITS,
-    BRANCH19BITS. For the 26-bit branch, linker will handle it.
+    Consider the following program:
     
-    Besides this CL removes the unnecessary alignment of the DWORD
-    instruction. Because the ISA doesn't require it and no 64-bit load
-    assume it. The only effect is that there is some performance penalty
-    for loading from DWORDs if the 8-byte DWORD instruction crosses the
-    cache line, but this is very rare.
+            package p
     
-    Change-Id: I993902b3fb5ad8e081dd6c441e86bcf581031835
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424135
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+            func f() {
+                    x := 1
+                    v := 2
+                    switch v.(type) {
+                    case int:
+                            println(x)
+                            println(x / 0)
+                    case 1:
+                    }
+            }
+    
+    Before this CL, the compiler prints:
+    
+            x.go:4:2: x declared but not used
+            x.go:6:9: v (variable of type int) is not an interface
+    
+    x is in fact used, and other errors in the switch go undiagnosed.
+    
+    This commit fixes that problem by processing the switch statement
+    even when the 'not an interface' error is reported.
+    
+    Now the compiler drops the spurious 'declared but not used'
+    and adds two previously undiagnosed problems:
+    
+            x.go:6:9: v (variable of type int) is not an interface
+            x.go:9:15: invalid operation: division by zero
+            x.go:10:7: 1 is not a type
+    
+    go/types was printing roughly the same thing the compiler did before,
+    and now still prints roughly the same thing the compiler does after.
+    (The only differences are in the exact reported columns.)
+    
+    Fixes #50493.
+    
+    Change-Id: I317883f29077b1b4bbd0e8793617fd3bb31aa0f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379117
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 44 +++++++++++---------------------------
- 1 file changed, 13 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/types2/stmt.go                  | 15 ++++++++-------
+ src/cmd/compile/internal/types2/testdata/check/stmt0.src | 14 +++++++++++++-
+ src/go/types/stmt.go                                     | 14 +++++++-------
+ src/go/types/testdata/check/stmt0.src                    | 14 +++++++++++++-
+ 4 files changed, 41 insertions(+), 16 deletions(-)

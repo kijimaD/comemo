@@ -1,16 +1,14 @@
-commit 158c56ef8a7149d863fda4726094978d0562eea2
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 8 16:16:24 2013 -0700
+commit cf694aac346fefc0383ebf2ecb83b365c0357920
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 9 07:05:43 2013 +1100
 
-    lib/time: update time zone files to version 2013g
-    This dataset is current as of Sep 30, 2013.
+    doc: fix a few broken links
     
-    Fixes #6524
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14570044
+    https://golang.org/cl/14494044
 
- lib/time/update.bash  |   6 ++++--
- lib/time/zoneinfo.zip | Bin 374530 -> 374754 bytes
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ doc/code.html  |  2 +-
+ doc/go1.1.html |  4 ++--
+ doc/go1.2.html | 14 +++++++-------
+ 3 files changed, 10 insertions(+), 10 deletions(-)

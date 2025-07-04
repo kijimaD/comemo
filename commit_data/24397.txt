@@ -1,28 +1,31 @@
-commit 5d5889c4d98e77997270ee6fa73fd02e1372573f
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Aug 30 09:21:35 2015 -0700
+commit c1f7a56fc05584b931c979779dd086c417b50dcb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 27 14:35:38 2015 -0400
 
-    math/big: correct documentation for ProbablyPrime.
+    runtime: close window that hides GC work from concurrent mark
     
-    As akalin points out in the bug, the comment previously claimed that the
-    probability that the input is prime given that the function returned
-    true is 1 - ¼ⁿ. But that's wrong: the correct statement is that the
-    probability of the function returning false given a composite input is
-    1 - ¼ⁿ.
+    Currently we enter mark 2 by first flushing all existing gcWork caches
+    and then setting gcBlackenPromptly, which disables further gcWork
+    caching. However, if a worker or assist pulls a work buffer in to its
+    gcWork cache after that cache has been flushed but before caching is
+    disabled, that work may remain in that cache until mark termination.
+    If that work represents a heap bottleneck (e.g., a single pointer that
+    is the only way to reach a large amount of the heap), this can force
+    mark termination to do a large amount of work, resulting in a long
+    STW.
     
-    This is not nearly as helpful, but at least it's truthful. A number of
-    other (correct) expressions are suggested on the bug, but I think that
-    the simplier one is preferable.
+    Fix this by reversing the order of these steps: first disable caching,
+    then flush all existing caches.
     
-    This change also notes that the function is not suitable for
-    adversarial inputs since it's deterministic.
+    Rick Hudson <rlh> did the hard work of tracking this down. This CL
+    combined with CL 12672 and CL 12646 distills the critical parts of his
+    fix from CL 12539.
     
-    Fixes #12274.
+    Fixes #11694.
     
-    Change-Id: I6a0871d103b126ee5a5a922a8c6993055cb7b1ed
-    Reviewed-on: https://go-review.googlesource.com/14052
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib10d0a21e3f6170a80727d0286f9990df049fed2
+    Reviewed-on: https://go-review.googlesource.com/12688
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/math/big/int.go | 7 +++++--
- src/math/big/nat.go | 9 ++++++---
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ src/runtime/mgc.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

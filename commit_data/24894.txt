@@ -1,16 +1,34 @@
-commit 59dc25730bad088e44d67bfc1166171182b61c74
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 13 16:00:46 2015 -0800
+commit 9ac0fff70ab50acdb5a83a4682b76e4db16de6e5
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Tue Sep 8 03:51:30 2015 +0200
 
-    cmd/compile: cleanup in parser (3)
+    cmd/compile/internal/gc: convert fields of Type to bool
     
-    Factored out functionality of dotname (was inlined in 3 places).
+    Convert some fields of struct Type in go.go from uint8 to bool.
     
-    Change-Id: Ica782737c8decbb757465830b25ba87faa9115a4
-    Reviewed-on: https://go-review.googlesource.com/16897
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I0a6c53f8ee686839b5234010ee2de7ae3940d499
+    Reviewed-on: https://go-review.googlesource.com/14370
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 54 ++++++++++++++++-------------------
- 1 file changed, 25 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/gc/align.go     | 10 +++++-----
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/dcl.go       |  8 ++++----
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/export.go    |  6 +++---
+ src/cmd/compile/internal/gc/fmt.go       |  4 ++--
+ src/cmd/compile/internal/gc/go.go        | 14 +++++++-------
+ src/cmd/compile/internal/gc/gsubr.go     |  2 +-
+ src/cmd/compile/internal/gc/lex.go       |  8 ++++----
+ src/cmd/compile/internal/gc/order.go     |  2 +-
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   |  6 +++---
+ src/cmd/compile/internal/gc/reg.go       |  8 ++++----
+ src/cmd/compile/internal/gc/select.go    |  6 +++---
+ src/cmd/compile/internal/gc/subr.go      |  6 +++---
+ src/cmd/compile/internal/gc/typecheck.go | 14 +++++++-------
+ src/cmd/compile/internal/gc/walk.go      |  4 ++--
+ 17 files changed, 52 insertions(+), 52 deletions(-)

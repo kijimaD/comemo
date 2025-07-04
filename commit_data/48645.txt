@@ -1,29 +1,75 @@
-commit 995a6045919e6cf5a46ee09f8695ed5e05062ce7
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Mar 31 19:01:17 2022 -0400
+commit 8e6dfe1b315ca0ef6497b28e16523c2dc4019503
+Author: Dan Scales <danscales@google.com>
+Date:   Mon May 17 15:00:39 2021 -0700
 
-    runtime/race: update syso files to new TSAN runtime (v3)
+    [dev.typeparams] cmd/compile: export/import of recursive generic types.
     
-    Following CL 333529, update syso files for other architectures.
+    Deal with export/import of recursive generic types. This includes
+    typeparams which have bounds that reference the typeparam.
     
-    Windows/AMD64 is not updated, waiting for Than for C toolchain
-    updates.
+    There are three main changes:
     
-    OpenBSD/AMD64 is not updated as upstream LLVM TSAN removed OpenBSD
-    support (#52090).
+      - Change export/import of typeparams to have an implicit "declaration"
+        (doDecl). We need to do a declaration of typeparams (via the
+        typeparam's package and unique name), because it may be referenced
+        within its bound during its own definition.
     
-    Linux/PPC64LE is not updated due to a test failure. Will look into
-    it.
+      - We delay most of the processing of the Instantiate call until we
+        finish the creation of the top-most type (similar to the way we
+        delay CheckSize). This is because we can't do the full instantiation
+        properly until the base type is fully defined (with methods). The
+        functions delayDoInst() and resumeDoInst() delay and resume the
+        processing of the instantiations.
     
-    Change-Id: I46441fd3bb0f2c9e372d3e7fd43744ffafaf87a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397494
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+      - To do the full needed type substitutions for type instantiations
+        during import, I had to separate out the type subster in stencil.go
+        and move it to subr.go in the typecheck package. The subster in
+        stencil.go now does node substitution and makes use of the type
+        subster to do type substitutions.
+    
+    Notable other changes:
+     - In types/builtins.go, put the newly defined typeparam for a union type
+       (related to use of real/imag, etc.) in the current package, rather
+       than the builtin package, so exports/imports work properly.
+    
+     - In types2, allowed NewTypeParam() to be called with a nil bound, and
+       allow setting the bound later. (Needed to import a typeparam whose
+       bound refers to the typeparam itself.)
+    
+     - During import of typeparams in types2 (importer/import.go), we need
+       to keep an index of the typeparams by their package and unique name
+       (with id). Use a new map typParamIndex[] for that. Again, this is
+       needed to deal with typeparams whose bounds refer to the typeparam
+       itself.
+    
+     - Added several new tests absdiffimp.go and orderedmapsimp.go. Some of
+       the orderemapsimp tests are commented out for now, because there are
+       some issues with closures inside instantiations (relating to unexported
+       names of closure structs).
+    
+     - Renamed some typeparams in test value.go to make them all T (to make
+       typeparam uniqueness is working fine).
+    
+    Change-Id: Ib47ed9471c19ee8e9fbb34e8506907dad3021e5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323029
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/race/README                  |  10 +++++-----
- src/runtime/race/race_darwin_amd64.syso  | Bin 455944 -> 538536 bytes
- src/runtime/race/race_darwin_arm64.syso  | Bin 438560 -> 484988 bytes
- src/runtime/race/race_freebsd_amd64.syso | Bin 583264 -> 710664 bytes
- src/runtime/race/race_linux_arm64.syso   | Bin 505224 -> 530736 bytes
- src/runtime/race/race_netbsd_amd64.syso  | Bin 609424 -> 714520 bytes
- 6 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go  |  92 ++++---
+ src/cmd/compile/internal/noder/stencil.go     | 335 ++-----------------------
+ src/cmd/compile/internal/noder/types.go       |  13 +-
+ src/cmd/compile/internal/typecheck/iexport.go |  74 +++---
+ src/cmd/compile/internal/typecheck/iimport.go | 172 ++++++++++---
+ src/cmd/compile/internal/typecheck/subr.go    | 336 +++++++++++++++++++++++++-
+ src/cmd/compile/internal/types2/builtins.go   |   6 +-
+ src/cmd/compile/internal/types2/type.go       |  22 +-
+ test/typeparam/absdiff.go                     |   3 +-
+ test/typeparam/absdiffimp.dir/a.go            |  75 ++++++
+ test/typeparam/absdiffimp.dir/main.go         |  29 +++
+ test/typeparam/absdiffimp.go                  |   7 +
+ test/typeparam/orderedmapsimp.dir/a.go        | 226 +++++++++++++++++
+ test/typeparam/orderedmapsimp.dir/main.go     |  67 +++++
+ test/typeparam/orderedmapsimp.go              |   7 +
+ test/typeparam/value.go                       |   6 +-
+ 16 files changed, 1035 insertions(+), 435 deletions(-)

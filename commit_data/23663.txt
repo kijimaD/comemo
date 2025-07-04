@@ -1,14 +1,26 @@
-commit f4b4c881cb4b02c00fa6704a2d85ee0160f49f8d
-Author: Jonathan Rudenberg <jonathan@titanous.com>
-Date:   Tue Jul 14 19:22:24 2015 -0400
+commit 1e48683708876a3ef1961f382943cbd2f88238af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 3 15:11:05 2015 -0700
 
-    doc/go1.5.html: fix typo
+    src/cmd/compile/internal/gc: re-vendor math/big, manually adjust mparith3.go
     
-    This is the first mention of the fmt package in the changes list.
+    The only unreviewed change is in mparith3.go.
     
-    Change-Id: I5d378d8707e6735e0e590527db4196b517fefd72
-    Reviewed-on: https://go-review.googlesource.com/12198
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Iec0885e7688981cbaed04c152dc9b1c7032677e6
+    Reviewed-on: https://go-review.googlesource.com/10665
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- doc/go1.5.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/big/arith.go             |  21 +-
+ src/cmd/compile/internal/big/bits_test.go         |  22 +-
+ src/cmd/compile/internal/big/decimal.go           |  14 +-
+ src/cmd/compile/internal/big/float.go             |  89 ++++---
+ src/cmd/compile/internal/big/float_test.go        | 101 ++++----
+ src/cmd/compile/internal/big/floatconv.go         | 248 +++++--------------
+ src/cmd/compile/internal/big/floatconv_test.go    | 212 +++++++++++++++--
+ src/cmd/compile/internal/big/floatexample_test.go |  14 +-
+ src/cmd/compile/internal/big/ftoa.go              | 277 +++++++++++++++++++---
+ src/cmd/compile/internal/big/nat.go               |   4 +-
+ src/cmd/compile/internal/big/nat_test.go          |   6 +-
+ src/cmd/compile/internal/gc/mparith3.go           |   2 +-
+ 12 files changed, 631 insertions(+), 379 deletions(-)

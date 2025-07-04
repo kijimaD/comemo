@@ -1,26 +1,18 @@
-commit 5ca0cd3f1824f189b6c5edf59b669f22a393e2e1
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Oct 4 13:53:46 2022 +0200
+commit c622d1d3f68369ec5f8ce9694fa27e7acb025004
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 10 20:28:45 2021 -0800
 
-    internal/poll, internal/syscall/unix, syscall: move writev definition for solaris
+    go/build: skip rune literals when looking for go:embed
     
-    Move the writev definition for solaris from package
-    internal/syscall/unix to package syscall. This corresponds to where
-    writev is defined on aix, darwin and openbsd as well and is
-    go:linkname'ed from internal/poll. This also allows updating the
-    generated wrappers more easily if needed.
+    Fixes #49514
     
-    Change-Id: I671ed8232d25319f8e63f549f786d77a17602148
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436597
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Id687eead731ba49974f11d2e5b489f11eff7d07b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363275
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/poll/fd_writev_libc.go         |  2 +-
- src/internal/poll/fd_writev_solaris.go      | 14 --------------
- src/internal/syscall/unix/writev_solaris.go | 28 ----------------------------
- src/syscall/syscall_solaris.go              |  1 +
- src/syscall/zsyscall_solaris_amd64.go       | 18 ++++++++++++++++++
- 5 files changed, 20 insertions(+), 43 deletions(-)
+ src/embed/internal/embedtest/embed_test.go |  5 +++++
+ src/go/build/read.go                       | 21 +++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

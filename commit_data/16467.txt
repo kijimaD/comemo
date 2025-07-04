@@ -1,15 +1,12 @@
-commit 0d0d57ccfe95e679005542c2dd572fc549256079
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Jun 2 23:54:34 2013 +0200
+commit 1a145cd52db21b07406568106f75d89c07af0ce8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Jun 3 03:09:47 2013 +0800
 
-    cmd/gc: do not corrupt init() with initializers of _ in closures.
+    doc/go1.2.txt: update for CL 8248043.
     
-    Fixes #5607.
-    
-    R=golang-dev, daniel.morsing, r, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9952043
+    https://golang.org/cl/9949044
 
- src/cmd/gc/sinit.c          | 10 +++++++---
- test/fixedbugs/issue5607.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 3 deletions(-)
+ doc/go1.2.txt | 2 ++
+ 1 file changed, 2 insertions(+)

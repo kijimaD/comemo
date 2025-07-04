@@ -1,14 +1,15 @@
-commit a51b8cf870f5911a9785973a3362e4411d83b17d
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Thu Oct 3 10:55:17 2013 -0700
+commit c4579635cf6aafdb5db231058dd0aedee14fe0ee
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 3 10:40:42 2013 -0700
 
-    gofmt: explain why lower bounds aren't automatically simplified
+    sync/atomic: explain how to subtract an unsigned constant
+    Explain for those unfamiliar with twos-complement arithmetic how to
+    implement negation of signed positive constant.
+    Fixes #6408.
     
-    Full credit goes to gri and rsc for their explanations.
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/14229043
+    https://golang.org/cl/14267044
 
- src/cmd/gofmt/simplify.go | 4 ++++
+ src/pkg/sync/atomic/doc.go | 4 ++++
  1 file changed, 4 insertions(+)

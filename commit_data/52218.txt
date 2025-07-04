@@ -1,24 +1,26 @@
-commit 2a3b16e184331501eaa2e3ed626642f1edf9a410
-Author: Leo Antunes <leo@costela.net>
-Date:   Sun Oct 30 10:15:27 2022 +0000
+commit e948c3394ee137bae45e85cfa7c8ec0bb0e16dc8
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Apr 15 18:09:48 2022 -0700
 
-    net/http: use Copy in ServeContent if CopyN not needed
+    reflect: make Value.Type inlineable
     
-    This small PR allows optimizations made in io.Copy (like the use of
-    io.WriterTo) to be used in one possible path of http.ServeContent
-    (in case of a non-Range request).
-    This, in turn, allows us to skip the buffer allocation in io.Copy.
+    This allows the result of Type to be computed much faster.
     
-    Change-Id: Ifa2ece206ecd4556aaaed15d663b65e95e00bb0a
-    GitHub-Last-Rev: 94fc0318145ba1bd48502564f6488aade871c301
-    GitHub-Pull-Request: golang/go#56480
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446276
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Performance:
+    
+            old     new     delta
+            1.76ns  0.66ns  -62.27%
+    
+    Change-Id: Ie007fd175aaa41b2f67c71fa2a34ab8d292dd0e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400335
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/http/fs.go      |  9 +++++++--
- src/net/http/fs_test.go | 43 +++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 48 insertions(+), 4 deletions(-)
+ src/reflect/value.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

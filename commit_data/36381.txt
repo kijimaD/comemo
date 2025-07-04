@@ -1,20 +1,14 @@
-commit e8daca4c482320cecff9c31bbd60f25351d49756
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 21 08:28:16 2018 +0200
+commit ae26d57f96f38159bba8fed535879d5eb6188655
+Author: Keith Randall <khr@google.com>
+Date:   Tue Apr 24 13:05:53 2018 -0700
 
-    syscall: add S_IRWXG and S_IRWXO on DragonflyBSD
+    cmd/compile: update SSA TODO file
     
-    As discussed in CL 126621, these constants are already defined on Linux,
-    Darwin, FreeBSD and NetBSD. In order to ensure portability of existing
-    code using the syscall package, provide them for DragonflyBSD (and
-    OpenBSD, in a separate CL) as well.
+    Get rid of a bunch of stuff we've already done.
     
-    Change-Id: I708c60f75f787a410bdfa4ceebd2825874e92511
-    Reviewed-on: https://go-review.googlesource.com/130335
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibae4be7535ddb58590a072a2390c5f3e948c2fd7
+    Reviewed-on: https://go-review.googlesource.com/109136
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/types_dragonfly.go        | 2 ++
- src/syscall/ztypes_dragonfly_amd64.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/compile/internal/ssa/TODO | 30 ++++--------------------------
+ 1 file changed, 4 insertions(+), 26 deletions(-)

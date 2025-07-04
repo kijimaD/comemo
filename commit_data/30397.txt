@@ -1,25 +1,15 @@
-commit 4b3e6fe123d95f461d8f9febfe782a138ba2387c
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Nov 14 08:05:45 2016 +0100
+commit 9efcdd4e694789646e7de79dfbd8c7636803785a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 23:01:20 2016 -0400
 
-    strings: speed up Map
+    cmd/go: use new HTTP-only server insecure.go-get-issue-15410.appspot.com instead of wh3rd.net
     
-    name                  old time/op  new time/op  delta
-    ByteByteMap-4         2.03µs ± 2%  1.03µs ± 2%  -49.24%  (p=0.000 n=10+10)
-    Map/identity/ASCII-4   246ns ± 0%   158ns ± 0%  -35.90%    (p=0.000 n=9+9)
-    Map/identity/Greek-4   367ns ± 1%   273ns ± 1%  -25.63%  (p=0.000 n=10+10)
-    Map/change/ASCII-4     582ns ± 1%   324ns ± 1%  -44.34%  (p=0.000 n=10+10)
-    Map/change/Greek-4     709ns ± 2%   623ns ± 2%  -12.16%  (p=0.000 n=10+10)
-    MapNoChanges-4         171ns ± 1%   111ns ± 1%  -35.36%   (p=0.000 n=8+10)
+    Fixes #15410.
     
-    Updates #17859
-    
-    Change-Id: I55d7d261fdc1ce2dcd0ebe23b0fa20b9889bf54c
-    Reviewed-on: https://go-review.googlesource.com/33201
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9964d0162a3cae690afeb889b1822cf79c80b89a
+    Reviewed-on: https://go-review.googlesource.com/32639
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/strings/replace_test.go | 41 ++++++++++++++++++++++++++++++
- src/strings/strings.go      | 61 ++++++++++++++++++++++++++++++---------------
- 2 files changed, 82 insertions(+), 20 deletions(-)
+ src/cmd/go/go_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

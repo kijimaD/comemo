@@ -1,12 +1,13 @@
-commit fee1d1cda04e6a936d62be6d06c838150a03d2de
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun May 19 19:35:09 2013 +0400
+commit 2dc751ac21ce8f7c9bf33a8ffd5c5f1b86dc0c17
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat May 18 15:49:23 2013 -0700
 
-    runtime: properly set G status after syscall
+    runtime, cmd/gc: clean up function protoypes
     
-    R=golang-dev, r, dave
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9307045
+    https://golang.org/cl/8652043
 
- src/pkg/runtime/proc.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/gc/reflect.c   |  3 ++-
+ src/pkg/runtime/race.c | 12 ++++++++----
+ 2 files changed, 10 insertions(+), 5 deletions(-)

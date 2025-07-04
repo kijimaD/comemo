@@ -1,16 +1,15 @@
-commit 06a8f6840750132ba4836e579d4763b2e482ef66
-Author: Brandon Ryan <bjryan19@gmail.com>
-Date:   Thu Apr 25 20:31:44 2019 +0000
+commit 9555769aa5f706075dc5930f3dba2e3a31c110c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 7 12:18:22 2018 -0800
 
-    doc: clarify to use MinGW-W64 for amd64 systems
+    cmd/link: use filepath.Join rather than d + "/" + f
     
-    Fixes #19686
+    Fixes #26917
     
-    Change-Id: I5c2dd60636b521425647afd0725fdd7c18e7bbbe
-    GitHub-Last-Rev: a1c5f569409d8759d5d81da811eaf873073bfe39
-    GitHub-Pull-Request: golang/go#31682
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173997
+    Change-Id: I676f016ed43aaa523b6d3a87b28a1d1d2ebe72c4
+    Reviewed-on: https://go-review.googlesource.com/c/153237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/ld.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

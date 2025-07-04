@@ -1,21 +1,27 @@
-commit 7e068895c37167f07cf0d70bc90e31854925784d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 5 08:01:33 2017 -0700
+commit d9a05791566aa8d54113ac88ae77b982872f9be7
+Author: David Chase <drchase@google.com>
+Date:   Tue Jan 10 08:29:34 2017 -0500
 
-    cmd/compile: add mutex profiling support
+    cmd/compile: disable flaky test
     
-    Updates #15756
-    Updates #19822
+    The test is inherently racy and vulnerable to starvation,
+    and within all.bash on some platforms that means it flakes.
+    Test is kept because it can be useful standalone to verify
+    behavior of GOEXPERIMENT=preeemptibleloops, and there is
+    likely to be further development of this feature in the
+    future.
     
-    Change-Id: I98b17dcbbfd80e7e164b0523185382175fe2d89b
-    Reviewed-on: https://go-review.googlesource.com/39554
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    There's also some question as to why it is flaking, because
+    though technically this is permitted, it's very odd in this
+    simple case.
+    
+    Fixes #18589.
+    
+    Change-Id: Ia0dd9037285c4a03122da4012c96981c9cc43b60
+    Reviewed-on: https://go-review.googlesource.com/35051
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/doc.go                   |  2 ++
- src/cmd/compile/internal/gc/bootstrap.go | 13 +++++++++++++
- src/cmd/compile/internal/gc/main.go      |  1 +
- src/cmd/compile/internal/gc/pprof.go     | 13 +++++++++++++
- src/cmd/compile/internal/gc/util.go      | 12 ++++++++++++
- 5 files changed, 41 insertions(+)
+ test/fixedbugs/issue10958.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

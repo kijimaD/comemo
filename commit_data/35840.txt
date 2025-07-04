@@ -1,22 +1,47 @@
-commit d21bdf125c76cc4f5b5efad59f39c435ca8aaa14
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Jun 28 20:34:05 2018 -0400
+commit 7395083136539331537d46875ab9d196797a2173
+Author: Vladimir Kuzmin <vkuzmin@uber.com>
+Date:   Thu Feb 1 21:33:56 2018 -0800
 
-    cmd/compile: check SSAability in handling of INDEX of 1-element array
+    cmd/compile: avoid extra mapaccess in "m[k] op= r"
     
-    SSA can handle 1-element array, but only when the element type
-    is SSAable. When building SSA for INDEX of 1-element array, we
-    did not check the element type is SSAable. And when it's not,
-    it resulted in an unhandled SSA op.
+    Currently, order desugars map assignment operations like
     
-    Fixes #26120.
+        m[k] op= r
     
-    Change-Id: Id709996b5d9d90212f6c56d3f27eed320a4d8360
-    Reviewed-on: https://go-review.googlesource.com/121496
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    into
+    
+        m[k] = m[k] op r
+    
+    which in turn is transformed during walk into:
+    
+        tmp := *mapaccess(m, k)
+        tmp = tmp op r
+        *mapassign(m, k) = tmp
+    
+    However, this is suboptimal, as we could instead produce just:
+    
+        *mapassign(m, k) op= r
+    
+    One complication though is if "r == 0", then "m[k] /= r" and "m[k] %=
+    r" will panic, and they need to do so *before* calling mapassign,
+    otherwise we may insert a new zero-value element into the map.
+    
+    It would be spec compliant to just emit the "r != 0" check before
+    calling mapassign (see #23735), but currently these checks aren't
+    generated until SSA construction. For now, it's simpler to continue
+    desugaring /= and %= into two map indexing operations.
+    
+    Fixes #23661.
+    
+    Change-Id: I46e3739d9adef10e92b46fdd78b88d5aabe68952
+    Reviewed-on: https://go-review.googlesource.com/91557
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/ssa.go |  3 ++-
- test/fixedbugs/issue26120.go       | 23 +++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/order.go |  39 +++++++------
+ src/cmd/compile/internal/gc/walk.go  |  11 +++-
+ src/runtime/map_test.go              | 105 ++++++++++++++++++++++++++++++-----
+ test/fixedbugs/issue19359.go         |  28 ++++++++++
+ test/fixedbugs/issue22881.go         |   7 ++-
+ 5 files changed, 158 insertions(+), 32 deletions(-)

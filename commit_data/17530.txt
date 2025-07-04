@@ -1,16 +1,15 @@
-commit 7d249ef28f5566f77706ccf1b0b5f181e0d873ae
+commit c971f95c10b9ee79ab4c5aab2cff4e2cb642fb72
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 10 12:55:07 2013 -0400
+Date:   Tue Sep 10 12:47:43 2013 -0400
 
-    cmd/go: fix build -n output when using swig
+    go/build: allow $ in cgo LDFLAGS
     
-    $INTBITS will not be defined, of course, but that's the best we can do.
+    Fixes #6038.
     
-    Fixes #5978.
-    
-    R=golang-dev, iant
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/13253048
+    https://golang.org/cl/13649043
 
- src/cmd/go/build.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/test.bash      | 19 +++++++++++++++++++
+ src/pkg/go/build/build.go |  9 ++++++---
+ 2 files changed, 25 insertions(+), 3 deletions(-)

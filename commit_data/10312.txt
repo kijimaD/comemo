@@ -1,14 +1,16 @@
-commit 7a6a9755a94c449b52ce4ff3961f5c59037ae2da
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 9 13:46:54 2011 -0500
+commit 74f61fc656fdcd7ded63660c542b0820202120db
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Wed Nov 9 13:24:36 2011 -0500
 
-    regexp: fix doc comment
+    gopack: fixes for Plan 9 build
     
-    Fixes #2432.
+    . removed an unnexessary initialisation.
+    . replaced 0 with 0L to match print format that in turn matched
+      the type of the original function return value.
     
-    R=r, r
-    CC=golang-dev
-    https://golang.org/cl/5376041
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/5306072
 
- src/pkg/regexp/regexp.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gopack/ar.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

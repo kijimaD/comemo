@@ -1,18 +1,14 @@
-commit a88994c1378c5762a9eee75e683d19e65689bfd1
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 28 12:35:06 2015 -0700
+commit d6b40698528c94f3d0d3e263d5713994cebfb3a6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 8 01:24:17 2015 +1000
 
-    cmd/asm: add comments back for aliases on jumps for x86
+    cmd/internal/gc: fix race build
     
-    These were lost in the transition from 8a/6a to asm.
-    Also, in the process, discover more aliases. I'm betting the missing
-    ones were a casualty of the recent merge of 386 and amd64.
+    Add special case for OGETG which should never be instrumented.
     
-    Update #10385.
-    
-    Change-Id: I1681034b25af3ffc103f75e5fc57baca5feb3fcd
-    Reviewed-on: https://go-review.googlesource.com/9431
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I7d082abb8608537f82b03362b687baf2a1d809dc
+    Reviewed-on: https://go-review.googlesource.com/8551
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/asm/internal/arch/arch.go | 74 ++++++++++++++++++++++++---------------
- 1 file changed, 45 insertions(+), 29 deletions(-)
+ src/cmd/internal/gc/racewalk.go | 3 +++
+ 1 file changed, 3 insertions(+)

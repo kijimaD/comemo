@@ -1,16 +1,15 @@
-commit 372cf8fe87de7a49818de2157429ccbc76c35c2d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 29 11:19:55 2012 -0800
+commit 305d7ada2b94f4d61ed41727c82660795ac85698
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 28 16:03:34 2012 -0800
 
-    codereview: always use HTTPS
+    go/parser: permit [...]T where array types are permitted
     
-    The new version of rietveld pushed 1.5 hours ago
-    requires HTTPS now, otherwise it issues a 301
-    to HTTPS which we barfed on.
+    More lenient parsing with better error recovery.
+    It's easier for the type check to pick up the slack.
     
-    R=golang-dev
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/6782135
+    https://golang.org/cl/6856108
 
- lib/codereview/codereview.py | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/pkg/go/parser/parser.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

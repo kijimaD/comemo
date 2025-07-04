@@ -1,20 +1,38 @@
-commit a5166a9512215483dae4e2963435cb3803a9f330
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 4 11:55:35 2014 -0800
+commit c2dd33a46f66b2b56987ff9849f64513a4323385
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 4 13:53:08 2014 -0500
 
-    net/http: fix test failure on some Windows machines
+    cmd/ld: clear unused ctxt before morestack
     
-    The network connection dies differently from the server's
-    perspective on (some) Windows when the client goes away. Match
-    on the common prefix (common to Unix and Windows) instead of
-    the network error part.
+    For non-closure functions, the context register is uninitialized
+    on entry and will not be used, but morestack saves it and then the
+    garbage collector treats it as live. This can be a source of memory
+    leaks if the context register points at otherwise dead memory.
+    Avoid this by introducing a parallel set of morestack functions
+    that clear the context register, and use those for the non-closure functions.
     
-    Fixes #7456
+    I hope this will help with some of the finalizer flakiness, but it probably won't.
     
-    LGTM=josharian
-    R=golang-codereviews, josharian
-    CC=alex.brainman, golang-codereviews, iant
-    https://golang.org/cl/70010050
+    Fixes #7244.
+    
+    LGTM=dvyukov
+    R=khr, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/71030044
 
- src/pkg/net/http/client_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ include/link.h                 |  2 +-
+ src/cmd/5g/gsubr.c             |  2 ++
+ src/cmd/6g/gsubr.c             |  2 ++
+ src/cmd/8g/gsubr.c             |  2 ++
+ src/cmd/gc/closure.c           |  2 ++
+ src/cmd/gc/go.h                |  1 +
+ src/cmd/gc/pgen.c              |  2 ++
+ src/cmd/ld/textflag.h          |  2 ++
+ src/liblink/obj5.c             | 14 ++++++++------
+ src/liblink/obj6.c             | 26 ++++++++++++++++++--------
+ src/liblink/obj8.c             | 12 +++++++-----
+ src/pkg/runtime/asm_386.s      |  4 ++++
+ src/pkg/runtime/asm_amd64.s    | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/asm_amd64p32.s | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/asm_arm.s      |  4 ++++
+ 15 files changed, 135 insertions(+), 20 deletions(-)

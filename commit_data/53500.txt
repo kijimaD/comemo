@@ -1,19 +1,34 @@
-commit 8bfe839c5f514ae7a466889d74262c9e7d89742f
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Jun 7 14:13:55 2023 -0700
+commit 908499adec185a672b337c84ca4cea0755f0d5cf
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 22 14:58:40 2022 -0700
 
-    net/http: close response body in TestRequestBodyLimit
+    cmd/compile: stop using VARKILL
     
-    Failing to close the response body before returning leaks
-    the in-progress request past the test lifetime.
+    With the introduction of stack objects, VARKILL information is
+    no longer needed.
     
-    Fixes #60264
+    With stack objects, an object is dead when there are no more static
+    references to it, and the stack scanner can't find any live pointers
+    to it. VARKILL information isn't used to establish live ranges for
+    address-taken variables any more. In effect, the last static reference
+    *is* the VARKILL, and there's an additional dynamic liveness check
+    during stack scanning.
     
-    Change-Id: Ic327d9f8e02e87ed656324aaa042f833d9ea18ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501309
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Next CL will actually rip out the VARKILL opcodes.
+    
+    Change-Id: I030a2ab867445cf4e0e69397911f8a2e2f0ed07b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419234
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/writebarrier.go |  6 --
+ src/cmd/compile/internal/ssagen/ssa.go       | 10 ----
+ src/cmd/compile/internal/walk/complit.go     |  4 +-
+ src/cmd/compile/internal/walk/order.go       | 87 +++++++---------------------
+ src/cmd/compile/internal/walk/select.go      |  7 +--
+ test/codegen/mapaccess.go                    | 50 ++++++++--------
+ test/live.go                                 |  4 +-
+ test/live_regabi.go                          |  4 +-
+ 8 files changed, 50 insertions(+), 122 deletions(-)

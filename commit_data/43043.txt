@@ -1,25 +1,13 @@
-commit 8925290cf701fc8f7ec95e4df3d6a8d423b26780
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 18 14:19:22 2020 -0700
+commit c9ece81cc8c1a81ebdebcf6dfc13ebf5c4cbdb61
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 2 04:25:54 2020 +1100
 
-    reflect: use zero buffer to back the Value returned by Zero
+    cmd/compile: absorb SNEZ into branch on riscv64
     
-    In the common case (<1KB types), no allocation is required
-    by reflect.Zero.
-    
-    Also use memclr instead of memmove in Set when the source
-    is known to be zero.
-    
-    Fixes #33136
-    
-    Change-Id: Ic66871930fbb53328032e587153ebd12995ccf55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192331
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I55fd93843a7fb574a7dd66ebb87fdd96e944d555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221682
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/reflect/all_test.go | 29 +++++++++++++++++++++++++++++
- src/reflect/value.go    | 20 ++++++++++++++++++--
- src/runtime/map.go      |  2 +-
- 3 files changed, 48 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 3 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

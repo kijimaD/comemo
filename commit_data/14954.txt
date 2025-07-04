@@ -1,38 +1,18 @@
-commit e6e60cda12701ad3f1f4419606ddead52e57f2f1
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Jan 22 17:05:13 2013 -0500
+commit 657168fb17d8f3472f7f5c606bdc103640d8d7a6
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Jan 22 14:44:49 2013 -0500
 
-    cmd/go: suppress extraneous newlines in list
+    time: standard time doc fix and format example
     
-    Before:
-    $ go list -f '{{range .Deps}}{{println $.Name .}}{{end}}' math time
-    math runtime
-    math unsafe
+    This fixes the incorrect unix timestamp of the standard time and adds
+    an example for (Time) Format to clarify how timezones work in format strings.
     
-    time errors
-    time runtime
-    time sync
-    time sync/atomic
-    time syscall
-    time unsafe
+    Fixes #4364.
     
-    $
-    
-    After:
-    $ go list -f '{{range .Deps}}{{println $.Name .}}{{end}}' math time
-    math runtime
-    math unsafe
-    time errors
-    time runtime
-    time sync
-    time sync/atomic
-    time syscall
-    time unsafe
-    $
-    
-    R=minux.ma, rsc
+    R=golang-dev, remyoudompheng, kevlar, rsc
     CC=golang-dev
-    https://golang.org/cl/7130052
+    https://golang.org/cl/7069046
 
- src/cmd/go/list.go | 46 +++++++++++++++++++++++-----------------------
- 1 file changed, 23 insertions(+), 23 deletions(-)
+ src/pkg/time/example_test.go | 10 ++++++++++
+ src/pkg/time/format.go       |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

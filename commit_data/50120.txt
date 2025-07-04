@@ -1,23 +1,21 @@
-commit 95a786da1265d84290c1a0d1186352f71475ff9f
-Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
-Date:   Sat Nov 13 02:18:30 2021 +0200
+commit 78c2529d73fbd2e2213c9f03862bcf2aaa86d78b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 4 14:49:42 2021 -0700
 
-    path/filepath, io/fs: add SkipAll
+    debug/gosym: add funcTab abstraction
     
-    Fixes #47209
+    This clarifies the existing code and makes modifications easier.
     
-    Change-Id: If75b0dd38f2c30a23517205d80c7a6683a5c921c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363814
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    name            old time/op    new time/op    delta
+    115/LineToPC-8    58.6µs ± 3%    56.4µs ± 3%  -3.80%  (p=0.000 n=15+15)
+    115/PCToLine-8     194ns ± 2%     188ns ± 2%  -3.31%  (p=0.000 n=15+15)
+    
+    Change-Id: Iafdf57af93d5e3c145965c32e0227e37c69ab017
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353880
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/next/47209.txt                    |  2 ++
- src/cmd/go/internal/fsys/fsys_test.go | 36 ++++++++++++++++++++++
- src/io/fs/walk.go                     | 20 ++++++++----
- src/path/filepath/path.go             | 16 +++++++---
- src/path/filepath/path_test.go        | 58 +++++++++++++++++++++++++++++++++++
- 5 files changed, 121 insertions(+), 11 deletions(-)
+ src/debug/gosym/pclntab.go | 64 ++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 51 insertions(+), 13 deletions(-)

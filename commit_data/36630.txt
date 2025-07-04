@@ -1,20 +1,18 @@
-commit 0f72e79856d246af85c449f9e5a357ba751cd234
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Sep 7 09:54:38 2018 -0400
+commit b9c8e870d14775a02c6e87ca0344f623f7cab5f0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 10 11:20:35 2018 -0700
 
-    go/token: add (*File).LineStart, which returns Pos for a given line
+    cmd/compile: use 'not defined' rather than 'unnamed' in error message
     
-    LineStart returns the position of the start of a given line.
-    Like MergeLine, it panics if the 1-based line number is invalid.
+    A receiver type may have an (alias type) name and thus be 'named'
+    even though the name doesn't refer to a defined type. Adjust the
+    error message to make this clearer.
     
-    This function is especially useful in programs that occasionally
-    handle non-Go files such as assembly but wish to use the token.Pos
-    mechanism to identify file positions.
-    
-    Change-Id: I5f774c0690074059553cdb38c0f681f5aafc8da1
-    Reviewed-on: https://go-review.googlesource.com/134075
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I969bf8d1ba3db8820f67f6ecd6d5cfe564c5b80d
+    Reviewed-on: https://go-review.googlesource.com/112638
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/token/position.go      | 17 ++++++++++++++++-
- src/go/token/position_test.go | 15 +++++++++++++++
- 2 files changed, 31 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

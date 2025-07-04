@@ -1,24 +1,17 @@
-commit 90e2e2b89633770d42f2ff558588dfc53c3288c8
-Author: Marko Tiikkaja <marko@joh.to>
-Date:   Tue Sep 2 09:08:41 2014 -0700
+commit 433d64373241634af93ca35f229c1cb26caf9180
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Aug 28 12:41:32 2014 +1000
 
-    database/sql: Avoid re-preparing statements when all connections are busy
+    runtime: fix arm5 softfloat build
     
-    Previously, if all connections were busy, we would always
-    re-prepare the statement on the connection we were assigned from
-    the pool.  That meant that if all connections were busy most of the
-    time, the number of prepared statements for each connection would
-    keep increasing over time.
+    runtime._sfloat2 now returns the lr value on the stack, not R0.
     
-    Instead, after getting a free connection, check to see if the
-    statement has already been prepared on it, and reuse the statement
-    handle if so.
+    Credit to Russ Cox for the fix.
     
-    LGTM=bradfitz
-    R=golang-codereviews, gobot, bradfitz
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/116930043
+    https://golang.org/cl/133120045
 
- src/pkg/database/sql/sql.go      | 58 +++++++++++++++++++++++-----------------
- src/pkg/database/sql/sql_test.go | 13 ++++-----
- 2 files changed, 41 insertions(+), 30 deletions(-)
+ src/pkg/runtime/vlop_arm.s | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

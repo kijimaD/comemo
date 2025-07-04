@@ -1,21 +1,23 @@
-commit 6b555dc29e98ca756eb3f10edc4b8a17a72b1258
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 29 16:10:03 2022 -0700
+commit 6e0adde1e9467f5a0b9bdbe3d64f9093981ba5df
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Oct 12 12:38:42 2021 -0400
 
-    go/types: use singular in version error messages
+    cmd/compile: do not reuse dead value in expand_calls pass
     
-    This matches the majority use case as well as types2.
+    We reuse a value for the same selector on the same arg. But if the
+    value is already marked dead, don't reuse it. A use of an
+    OpInvalid will confuse the compiler.
     
-    For #54511.
+    Fixes #48916.
     
-    Change-Id: If800afc35db8d32cca8329ed9d6a80b4a15c4878
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426477
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I15b9e15b49f6e1991fe91df246cd12a193385e85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355409
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/types/resolver.go                      |  4 ++--
- src/go/types/testdata/fixedbugs/issue47818.go | 10 ++++++----
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 10 ++++++--
+ test/fixedbugs/issue48916.go                 | 37 ++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 2 deletions(-)

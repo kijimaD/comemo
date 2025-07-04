@@ -1,24 +1,26 @@
-commit a250f37cbc93a0d625741b0d380154ed3a94ca09
+commit be0ffbfd0246646344c2d86a5660564d1a08a5b3
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 8 22:08:03 2011 -0500
+Date:   Thu Dec 8 22:07:43 2011 -0500
 
-    update tree for new default type rule
+    gc: implement character constant type rules
     
-    R=golang-dev, bradfitz
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5448091
+    https://golang.org/cl/5444054
 
- src/cmd/cgo/gcc.go              |  2 +-
- src/cmd/godoc/dirtrees.go       |  2 +-
- src/pkg/bytes/bytes.go          |  2 +-
- src/pkg/exp/types/gcimporter.go | 22 +++++++++++++++++-----
- src/pkg/fmt/scan_test.go        | 12 +++++++-----
- src/pkg/go/build/dir.go         |  6 +++---
- src/pkg/html/escape.go          |  2 +-
- src/pkg/html/template/css.go    |  2 +-
- src/pkg/math/big/nat.go         |  2 +-
- src/pkg/regexp/syntax/parse.go  |  8 ++++----
- src/pkg/strings/strings.go      |  2 +-
- src/pkg/strings/strings_test.go |  2 +-
- src/pkg/unicode/letter.go       |  8 ++++----
- 13 files changed, 43 insertions(+), 29 deletions(-)
+ src/cmd/5g/cgen.c      |  2 +-
+ src/cmd/5g/gsubr.c     |  3 ++-
+ src/cmd/6g/gsubr.c     |  3 ++-
+ src/cmd/8g/gsubr.c     |  1 +
+ src/cmd/gc/const.c     | 70 +++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/gc/fmt.c       | 10 ++++++++
+ src/cmd/gc/go.h        |  3 ++-
+ src/cmd/gc/go.y        |  6 +++++
+ src/cmd/gc/lex.c       |  2 +-
+ src/cmd/gc/sinit.c     |  1 +
+ src/cmd/gc/subr.c      |  1 +
+ src/cmd/gc/swt.c       |  2 ++
+ src/cmd/gc/typecheck.c |  2 ++
+ src/cmd/gc/walk.c      |  3 +++
+ test/rune.go           | 43 +++++++++++++++++++++++++++++++
+ 15 files changed, 143 insertions(+), 9 deletions(-)

@@ -1,24 +1,45 @@
-commit fcb985085925e1d89511ef7523215a2f71cfb891
-Author: Julien Cretel <jub0bsinthecloud@gmail.com>
-Date:   Mon Jun 23 16:19:19 2025 +0000
+commit 4370cfbdf929deaeeb744288d73eac93e39321cf
+Author: go101 <tapir.liu@gmail.com>
+Date:   Thu Nov 23 07:56:04 2023 +0000
 
-    net/http: reduce allocs in CrossOriginProtection.Check
+    slices: optimize Compact and CompactFunc
     
-    Rather than repeatedly creating error values on
-    CrossOriginProtection.Check's unhappy paths, return non-exported and
-    effectively constant error variables.
+    Try to save a comparison in the loop bodies of Compact and CompactFunc.
     
-    For #73626.
+    Note: due to #64272, some bound checks still fail to be removed.
     
-    Change-Id: Ibaa036c29417071b3601b8d200ab0902359d1bb9
-    GitHub-Last-Rev: e704d63cd63665845d544796e802134ea608e217
-    GitHub-Pull-Request: golang/go#74251
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/681178
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+                                │ old.txt  │             new.txt              │
+                                │   sec/op    │   sec/op     vs base                │
+    Compact/nil-4                 4.191n ± 9%   3.402n ± 1%  -18.84% (p=0.000 n=10)
+    Compact/one-4                 5.289n ± 2%   4.553n ± 2%  -13.93% (p=0.000 n=10)
+    Compact/sorted-4              9.865n ± 0%   6.882n ± 1%  -30.24% (p=0.000 n=10)
+    Compact/2_items-4             11.10n ± 2%   12.11n ± 2%   +9.00% (p=0.000 n=10)
+    Compact/unsorted-4            9.831n ± 3%   6.918n ± 2%  -29.62% (p=0.000 n=10)
+    Compact/many-4                16.40n ± 4%   14.90n ± 1%   -9.20% (p=0.000 n=10)
+    Compact/dup_start-4           29.87n ± 0%   28.06n ± 3%   -6.04% (p=0.001 n=10)
+    Compact_Large/all_dup-4       13.11µ ± 0%   13.12µ ± 0%        ~ (p=0.971 n=10)
+    Compact_Large/no_dup-4        6.972µ ± 0%   5.806µ ± 0%  -16.73% (p=0.000 n=10)
+    CompactFunc/nil-4             5.300n ± 0%   5.309n ± 1%        ~ (p=0.289 n=10)
+    CompactFunc/one-4             6.051n ± 1%   6.442n ± 3%   +6.46% (p=0.000 n=10)
+    CompactFunc/sorted-4          16.24n ± 1%   12.79n ± 2%  -21.24% (p=0.000 n=10)
+    CompactFunc/2_items-4         17.89n ± 1%   17.75n ± 0%   -0.75% (p=0.000 n=10)
+    CompactFunc/unsorted-4        16.26n ± 0%   12.83n ± 1%  -21.07% (p=0.000 n=10)
+    CompactFunc/many-4            30.71n ± 1%   29.07n ± 0%   -5.32% (p=0.000 n=10)
+    CompactFunc/dup_start-4       78.94n ± 1%   67.19n ± 1%  -14.89% (p=0.000 n=10)
+    CompactFunc_Large/all_dup-4   3.277m ± 0%   3.692m ± 2%  +12.67% (p=0.000 n=10)
+    CompactFunc_Large/no_dup-4    4.019m ± 0%   2.826m ± 1%  -29.68% (p=0.000 n=10)
+    geomean                       109.6n        96.99n       -11.47%
+    
+    Change-Id: Ia4c78fa62e7e9f4ff6a39d0e0a0a84cecf79b9cb
+    GitHub-Last-Rev: cea3d93155f9761d5e7b93f9880fa4e1ec7b4b72
+    GitHub-Pull-Request: golang/go#64273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543661
+    Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/net/http/csrf.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/slices/slices.go      | 50 +++++++++++++++++++----------------
+ src/slices/slices_test.go | 67 ++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 82 insertions(+), 35 deletions(-)

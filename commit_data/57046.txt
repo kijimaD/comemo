@@ -1,38 +1,21 @@
-commit 385e963e70aaf54a9d96a2c8c28e0a2df3527028
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jul 30 19:35:27 2024 -0700
+commit c643b2938143ff59d5e854489880e12b39cbfb86
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 12 11:26:28 2023 -0700
 
-    go/types, types2: record type parameters in receiver expressions as uses
+    cmd/compile: use callsite as line number for argument marshaling
     
-    CL 594740 rewrote type checking of method receiver types. Because that
-    CL takes apart receivers "manually" rather than using the regular code
-    for type checking type expressions, type parameters in receiver type
-    expressions were only recorded as definitions (in Info.Defs).
+    Don't use the line number of the argument itself, as that may be from
+    arbitrarily earlier in the function.
     
-    Before that CL, such type parameters were simultaneously considered
-    definitions (they are declared by the receiver type expression) and
-    uses (they are used to instantiate the receiver type expression).
+    Fixes #60673
     
-    Adjust the receiver type checking code accordingly and record its
-    type parameters also in Info.Uses and Info.Types.
-    
-    While at it, in go/types, replace declareTypeParams (plural) with
-    declareTypeParam (singular) to more closely match types2 code.
-    No functionality or semantic change.
-    
-    Fixes #68670.
-    For #51343.
-    
-    Change-Id: Ibbca1a9b92e31b0dc972052a2827deeab49da98b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601935
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ifc0a2aaae221a256be3a4b0b2e04849bae4b79d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502656
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/types2/api_test.go  | 18 ++++++++++++++++++
- src/cmd/compile/internal/types2/signature.go |  8 +++++++-
- src/go/types/api_test.go                     | 18 ++++++++++++++++++
- src/go/types/decl.go                         | 22 ++++++++--------------
- src/go/types/signature.go                    | 11 ++++++++++-
- 5 files changed, 61 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go |  4 ++--
+ test/codegen/issue60673.go                   | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)

@@ -1,17 +1,65 @@
-commit b45c7d546669c37bbfdb1dedffa1b3e12acfc18c
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Feb 3 22:50:29 2025 -0500
+commit 748952f494f359acf945b7984929024c248bedab
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 14 17:03:24 2023 +0000
 
-    internal/trace: skip TestTraceCgoCallback on freebsd-amd64-race builders
+    cmd/trace: add almost full support for v2 traces in the trace viewer
     
-    For #71556.
+    This change refactors the cmd/trace package and adds most of the support
+    for v2 traces.
     
-    Change-Id: I754f113bfdad244d0e978cf559bf45f2f4d7bf06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646396
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    The following features of note are missing in this CL and will be
+    implemented in follow-up CLs:
+    - The focustask filter for the trace viewer
+    - The taskid filter for the trace viewer
+    - The goid filter for the trace viewer
+    - Pprof profiles
+    - The MMU graph
+    - The goroutine analysis pages
+    - The task analysis pages
+    - The region analysis pages
+    
+    This CL makes one notable change to the trace CLI: it makes the -d flag
+    accept an integer to set the debug mode. For old traces -d != 0 works
+    just like -d. For new traces -d=1 means the high-level events and -d=2
+    means the low-level events.
+    
+    Thanks to Felix Geisendörfer (felix.geisendoerfer@datadoghq.com) for
+    doing a lot of work on this CL; I picked this up from him and got a
+    massive headstart as a result.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: I3626e22473227c5980134a85f1bb6a845f567b1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542218
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
 
- src/internal/trace/trace_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/internal/trace/trace.go                 |   12 +-
+ src/cmd/trace/main.go                              |  238 +-
+ src/cmd/trace/mmu.go                               |    3 +-
+ src/cmd/trace/trace.go                             |  776 +---
+ src/cmd/trace/trace_test.go                        |   21 +-
+ src/cmd/trace/trace_unix_test.go                   |    9 +-
+ src/cmd/trace/v2/gen.go                            |  249 ++
+ src/cmd/trace/v2/gstate.go                         |  362 ++
+ src/cmd/trace/v2/jsontrace.go                      |   67 +
+ src/cmd/trace/v2/jsontrace_test.go                 |  291 ++
+ src/cmd/trace/v2/main.go                           |  136 +
+ src/cmd/trace/v2/procgen.go                        |  209 +
+ src/cmd/trace/v2/testdata/generate.go              |    6 +
+ src/cmd/trace/v2/testdata/go122.test               | 4366 ++++++++++++++++++++
+ src/cmd/trace/v2/testdata/mktests.go               |   60 +
+ src/cmd/trace/v2/testdata/testprog/main.go         |  129 +
+ src/cmd/trace/v2/viewer.go                         |   56 +
+ src/go/build/deps_test.go                          |   11 +
+ src/internal/trace/parser.go                       |   15 +-
+ src/internal/trace/traceviewer/emitter.go          |  666 +++
+ .../trace/traceviewer/format}/format.go            |   43 +-
+ src/internal/trace/traceviewer/http.go             |  375 ++
+ .../trace/traceviewer}/static/README.md            |    0
+ .../traceviewer}/static/trace_viewer_full.html     |    0
+ .../trace/traceviewer}/static/webcomponents.min.js |    0
+ src/internal/trace/v2/version/version.go           |    3 +-
+ 26 files changed, 7196 insertions(+), 907 deletions(-)

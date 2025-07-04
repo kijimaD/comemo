@@ -1,27 +1,22 @@
-commit 8997ec1c4e01b01f9950f0869085ef5be6d45ef0
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Jun 24 17:23:38 2018 +0200
+commit 5d22cebb1272b3761860c5fa9ee82ceb3d94c628
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 8 17:48:22 2018 -0500
 
-    syscall/js: use stable references to JavaScript values
+    runtime: explain and enforce that _panic values live on the stack
     
-    This commit changes how JavaScript values are referenced by Go code.
-    After this change, a JavaScript value is always represented by the same
-    ref, even if passed multiple times from JavaScript to Go. This allows
-    Go's == operator to work as expected on js.Value (strict equality).
-    Additionally, the performance of some operations of the syscall/js
-    package got improved by saving additional roundtrips to JavaScript code.
+    It's a bit mysterious that _defer.sp is a uintptr that gets
+    stack-adjusted explicitly while _panic.argp is an unsafe.Pointer that
+    doesn't, but turns out to be critically important when a deferred
+    function grows the stack before doing a recover.
     
-    Fixes #25802.
+    Add a comment explaining that this works because _panic values live on
+    the stack. Enforce this by marking _panic go:notinheap.
     
-    Change-Id: Ide6ffe66c6aa1caf5327a2d3ddbe48fe7c180461
-    Reviewed-on: https://go-review.googlesource.com/120561
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9ca49e84ee1f86d881552c55dccd0662b530836b
+    Reviewed-on: https://go-review.googlesource.com/99735
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/wasm/wasm_exec.js             | 118 ++++++++++++++++++++++---------------
- src/cmd/vet/all/whitelist/wasm.txt |  22 +++----
- src/syscall/js/js.go               | 106 ++++++++++++++++++++-------------
- src/syscall/js/js_js.s             |  24 --------
- src/syscall/js/js_test.go          |  28 +++++++++
- 5 files changed, 174 insertions(+), 124 deletions(-)
+ src/runtime/runtime2.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

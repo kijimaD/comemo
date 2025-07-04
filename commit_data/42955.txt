@@ -1,25 +1,16 @@
-commit ffd95aadcddc34ec2c83971346f04cf7234e0fca
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 3 12:59:09 2020 -0400
+commit 7bb33179cadf072403b2f1d8f8210c5ae414d135
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Thu Feb 27 05:21:22 2020 +0000
 
-    cmd/link: put read-only data in __DATA_CONST segment
+    net: fix typo in unexported variable name
     
-    On darwin, we put read-only data in __TEXT segment on AMD64 in
-    exe (non-PIE) buildmode, and in __DATA on everywhere else. This
-    is not ideal: things in __DATA segment are not read-only, and
-    being mapped R/W may use more run-time resources.
-    
-    In fact, newer darwin systems support a __DATA_CONST segment,
-    which the dynamic linker will map it read-only after applying
-    relocations. Use that.
-    
-    Fixes #38830.
-    
-    Change-Id: Ic281e6c6ca8ef5fec4bb7c5b71c50dd5393e78ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253919
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Idf64716ef8cc3ceee2fc94462cba33ba60049f7b
+    GitHub-Last-Rev: ba550c5d136688e5aeaf3c9d4713b7f29bd17492
+    GitHub-Pull-Request: golang/go#36237
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212300
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/link/internal/ld/data.go   | 20 ++++++++++++-------
- src/cmd/link/internal/ld/macho.go  | 41 +++++++++++++++++++++++---------------
- src/cmd/link/internal/ld/target.go |  6 +++++-
- 3 files changed, 43 insertions(+), 24 deletions(-)
+ src/net/dnsclient_unix.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

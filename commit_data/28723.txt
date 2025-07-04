@@ -1,18 +1,24 @@
-commit b108009d00e55c34486541202dc11ab5cb06b63f
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Oct 8 07:22:47 2016 +0900
+commit 003a68bc7fcb917b5a4d92a5c2244bb1adf8f690
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 1 13:52:26 2016 -0700
 
-    vendor: update vendored route
+    cmd/vet: remove copylock warning about result types and calls
     
-    Updates golang_org/x/net/route to rev f09c466 for:
-    - route: fix typo
-    - route: test helper code cleanup
+    Don't issue a copylock warning about a result type; the function may
+    return a composite literal with a zero value, which is OK.
     
-    Change-Id: If39f0e947dc56f3b0f38190035d2f47c8d847c74
-    Reviewed-on: https://go-review.googlesource.com/30730
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Don't issue a copylock warning about a function call on the RHS, or an
+    indirection of a function call; the function may return a composite
+    literal with a zero value, which is OK.
+    
+    Updates #16227.
+    
+    Change-Id: I94f0e066bbfbca5d4f8ba96106210083e36694a2
+    Reviewed-on: https://go-review.googlesource.com/24711
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/vendor/golang_org/x/net/route/route_test.go | 35 +++++++++++++------------
- 1 file changed, 18 insertions(+), 17 deletions(-)
+ src/cmd/vet/copylock.go               | 22 ++++++++++++++--------
+ src/cmd/vet/testdata/copylock_func.go | 12 ++++++++++--
+ 2 files changed, 24 insertions(+), 10 deletions(-)

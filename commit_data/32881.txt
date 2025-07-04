@@ -1,17 +1,14 @@
-commit d0006e78681351aae94f9d757232203f43d8b7ee
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 26 17:47:51 2017 -0700
+commit 0e9d293db773b443e1e37b7cfcb75a114989c041
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 9 17:24:00 2017 +1000
 
-    net: use newLocalListener in TestClosingListener.
+    doc: explain Windows DWARF linker changes in go1.9.html
     
-    Updates #21856
+    Updates #20587
     
-    Change-Id: I9baa51fe23e6dd2fcf9dd14f7acfaf7457571e1d
-    Reviewed-on: https://go-review.googlesource.com/66334
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: If1f17a110ef3cc367849bd01e2733c60d85f124b
+    Reviewed-on: https://go-review.googlesource.com/45118
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/listen_test.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ doc/go1.9.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

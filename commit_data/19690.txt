@@ -1,13 +1,24 @@
-commit 38e75f9d0e8a58ad30871dda7faa92dc9541d68f
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Wed Jul 9 12:32:18 2014 +0200
+commit 8aea9a00a838736189d4a9e381f916b0c3ceaf1d
+Author: Cristian Staretu <unclejacksons@gmail.com>
+Date:   Wed Jul 9 18:50:38 2014 +1000
 
-    syscall: remove more NxM assumptions on Plan 9
+    syscall: NetlinkRIB, avoid allocation in loop
     
-    LGTM=0intro, r
-    R=0intro, r
-    CC=ality, dave, golang-codereviews, jas, mischief, rsc
-    https://golang.org/cl/111910043
+    NetlinkRIB is currently allocating a page sized slice of bytes in a
+    for loop and it's also calling Getpagesize() in the same for loop.
+    
+    This CL changes NetlinkRIB to preallocate the page sized slice of
+    bytes before reaching the for loop. This reduces memory allocations
+    and lowers the number of calls to Getpagesize() to 1 per NetlinkRIB
+    call.
+    
+    This CL reduces the allocated memory from 141.5 MB down to 52 MB in
+    a test.
+    
+    LGTM=crawshaw, dave
+    R=dave, dsymonds, crawshaw
+    CC=bradfitz, dsymonds, golang-codereviews
+    https://golang.org/cl/110920043
 
- src/pkg/syscall/asm_plan9_amd64.s | 8 --------
- 1 file changed, 8 deletions(-)
+ src/pkg/syscall/netlink_linux.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,17 +1,15 @@
-commit 8c20584a8206844be705c50efe8aabb6ab9c503e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 8 13:57:50 2021 -0800
+commit 1767d2cc2fed70e4f195474677f72712eaf28c9e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Mar 13 18:00:17 2021 +0100
 
-    bufio: document that NewWriter can return its argument
+    io/fs: use testing.T.TempDir in TestWalkDir
     
-    Fixes #49446
-    
-    Change-Id: Ib0b53a7dd5d567a2dd0bdf29f53d276587b60afb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361921
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I805ad51332e4efe27d47f6c6e3b0af945e0d4aa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301489
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/bufio/bufio.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/io/fs/walk_test.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

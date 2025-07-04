@@ -1,17 +1,18 @@
-commit 894803c11e4eab128869be759463510580a68602
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 8 21:15:26 2016 -0700
+commit 31cf1c17792d4da9dae2504c703633a0db8072c7
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Apr 7 11:47:32 2016 +1200
 
-    time: document that RFC822/1123 don't parse all RFC formats
+    runtime: clamp OS-reported number of processors to _MaxGomaxprocs
     
-    Fixes #14505.
+    So that all Go processes do not die on startup on a system with >256 CPUs.
     
-    Change-Id: I46196b26c9339609e6e3ef9159de38c5b50c2a1b
-    Reviewed-on: https://go-review.googlesource.com/23922
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    I tested this by hacking osinit to set ncpu to 1000.
+    
+    Updates #15131
+    
+    Change-Id: I52e061a0de97be41d684dd8b748fa9087d6f1aef
+    Reviewed-on: https://go-review.googlesource.com/21599
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/format.go | 3 +++
+ src/runtime/proc.go | 3 +++
  1 file changed, 3 insertions(+)

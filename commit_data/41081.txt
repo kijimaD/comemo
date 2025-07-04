@@ -1,30 +1,18 @@
-commit 52a9210a2c91098b667c2c8890c24dec89b5dfff
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 6 14:26:28 2020 -0500
+commit 4a457e3edc048be4a8bb7ab7e618f161d14b8893
+Author: spacewander <spacewanderlzx@gmail.com>
+Date:   Mon Sep 2 10:34:38 2019 +0000
 
-    cmd/go: convert import comment tests to script framework
+    net/http: merge IsDir checks in fs.go's serveFile function
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Fixes #33385
     
-    Updates #36320
-    Updates #17751
-    
-    Change-Id: I30230ca3b4d8b037ea861db952b89e706ed8706d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213425
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I497ccd868d408a9c5648c72aa5ce41221368daf4
+    GitHub-Last-Rev: 3bf483808e10a13c522df02c2fc55fe278044680
+    GitHub-Pull-Request: golang/go#33423
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188677
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                              | 31 --------------
- src/cmd/go/testdata/importcom/bad.go               |  3 --
- src/cmd/go/testdata/importcom/conflict.go          |  3 --
- src/cmd/go/testdata/importcom/src/bad/bad.go       |  1 -
- src/cmd/go/testdata/importcom/src/conflict/a.go    |  1 -
- src/cmd/go/testdata/importcom/src/conflict/b.go    |  1 -
- src/cmd/go/testdata/importcom/src/works/x/x.go     |  1 -
- src/cmd/go/testdata/importcom/src/works/x/x1.go    |  1 -
- src/cmd/go/testdata/importcom/src/wrongplace/x.go  |  1 -
- src/cmd/go/testdata/importcom/works.go             |  3 --
- src/cmd/go/testdata/importcom/wrongplace.go        |  3 --
- .../go/testdata/script/build_import_comment.txt    | 47 ++++++++++++++++++++++
- 12 files changed, 47 insertions(+), 49 deletions(-)
+ src/net/http/fs.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

@@ -1,13 +1,14 @@
-commit 7963b04a181b9cab7bf9a0d7414a206402a98a96
-Author: Ken Thompson <ken@golang.org>
-Date:   Wed Jan 19 16:30:13 2011 -0800
+commit 1e0efcd5790be98f72c53bfd6c4061bafaafdafc
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Wed Jan 19 19:02:47 2011 -0500
 
-    arm bug with stack adjust
+    codereview: fix hg change on Windows
     
-    R=r
+    hg change fails on Windows with 'No valid patches found in output from hg diff'.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3980043
+    https://golang.org/cl/4006043
 
- src/cmd/5g/opt.h |  1 -
- src/cmd/5g/reg.c | 68 ++++++++++++++++++++++++++++++++++++++------------------
- 2 files changed, 46 insertions(+), 23 deletions(-)
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

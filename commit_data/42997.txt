@@ -1,34 +1,12 @@
-commit 2ae2a94857cb17a98a86a8332d6f76863982bf59
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 16 16:22:28 2020 +0000
+commit 13355c78ff03607b69ebc8b6da21c09c6b5ffc22
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 26 17:15:03 2020 -0500
 
-    runtime: fix leak and locking in BenchmarkMSpanCountAlloc
+    [dev.boringcrypto] misc/boring: add go1.14b4 to RELEASES file
     
-    CL 249917 made the mspan in MSpanCountAlloc no longer stack-allocated
-    (for good reason), but then allocated an mspan on each call and did not
-    free it, resulting in a leak. That allocation was also not protected by
-    the heap lock, which could lead to data corruption of mheap fields and
-    the spanalloc.
-    
-    To fix this, export some functions to allocate/free dummy mspans from
-    spanalloc (with proper locking) and allocate just one up-front for the
-    benchmark, freeing it at the end. Then, update MSpanCountAlloc to accept
-    a dummy mspan.
-    
-    Note that we need to allocate the dummy mspan up-front otherwise we
-    measure things like heap locking and fixalloc performance instead of
-    what we actually want to measure: how fast we can do a popcount on the
-    mark bits.
-    
-    Fixes #41391.
-    
-    Change-Id: If6629a6ec1ece639c7fb78532045837a8c872c04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255297
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I678b260a3f3c442b976b6fc0cfd9f575f87deba8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221279
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/export_test.go | 28 +++++++++++++++++++++++++---
- src/runtime/gc_test.go     |  6 +++++-
- 2 files changed, 30 insertions(+), 4 deletions(-)
+ misc/boring/RELEASES | 2 ++
+ 1 file changed, 2 insertions(+)

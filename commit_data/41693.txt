@@ -1,12 +1,32 @@
-commit 65367df4776a9fcc44c5aebbac994f76a1f4a897
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 19 18:17:21 2020 -0700
+commit 58b031949b26efa92a80f39cf68a189b9c0ff07f
+Author: smasher164 <aindurti@gmail.com>
+Date:   Mon Oct 15 03:14:57 2018 -0400
 
-    internal/poll: update Windows Server Performance URL in comment
+    cmd/compile: add fma intrinsic for arm
     
-    Change-Id: Ida8048720611ecf50d7e7626a42715921bbc753b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224237
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    This change introduces an arm intrinsic that generates the FMULAD
+    instruction for the fused-multiply-add operation on systems that
+    support it. System support is detected via cpu.ARM.HasVFPv4. A rewrite
+    rule translates the generic intrinsic to FMULAD.
+    
+    Updates #25819.
+    
+    Change-Id: I8459e5dd1cdbdca35f88a78dbeb7d387f1e20efa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/142117
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/poll/fd_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/arm/ssa.go            |  2 +-
+ src/cmd/compile/internal/gc/builtin.go         |  1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
+ src/cmd/compile/internal/gc/go.go              |  1 +
+ src/cmd/compile/internal/gc/ssa.go             | 31 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  3 +++
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |  4 ++++
+ src/cmd/compile/internal/ssa/opGen.go          | 17 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 17 ++++++++++++++
+ src/runtime/cpuflags.go                        |  2 ++
+ src/runtime/proc.go                            |  2 ++
+ test/codegen/math.go                           |  1 +
+ 12 files changed, 81 insertions(+), 1 deletion(-)

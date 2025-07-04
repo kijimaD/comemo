@@ -1,14 +1,15 @@
-commit 8b8cd0e4c4005a709ac6d2203e1efbd397da5125
+commit e8f2692ca20eb3bb390be5830e64ab622f8ed763
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 20 12:50:27 2011 -0500
+Date:   Thu Jan 20 12:50:10 2011 -0500
 
-    http: follow relative redirect in Get
+    5l: document -F, force it on old ARMs
     
-    Fixes #1431.
+    Fixes #1341.
     
-    R=bradfitz, dangabrad
+    R=ken2, r
     CC=golang-dev
-    https://golang.org/cl/4077042
+    https://golang.org/cl/4006045
 
- src/pkg/http/client.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/5l/doc.go | 3 +++
+ src/cmd/5l/obj.c  | 5 +++++
+ 2 files changed, 8 insertions(+)

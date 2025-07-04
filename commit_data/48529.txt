@@ -1,18 +1,27 @@
-commit 0652274c10f8f2a520c30bf43bb968dac91bf9f5
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Wed Nov 3 16:17:45 2021 +0800
+commit 06df0ee7fa8b6d7d095de77274f53fb81a43d622
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 25 18:05:02 2021 -0400
 
-    internal/abi: define riscv64 register ABI constants
+    [dev.typeparams] cmd/compile: add arg/result register load/spill code on ARM64
     
-    Add the riscv64 register ABI constants and allow regabi
-    value to be set for riscv64
+    Add code that loads results into registers (used in defer return
+    code path) and spills argument registers (used for partially lived
+    in-register args).
     
-    Change-Id: I3ce98bf9a29d2acc00f92650b27bc59884ed62ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359336
-    Trust: mzh <mzh@golangcn.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: mzh <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Move some code from the amd64 package to a common place.
+    
+    Change-Id: I8d59b68693048fdba86e10769c4ac58de5fcfb64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322851
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/internal/abi/abi_riscv64.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/cmd/compile/internal/amd64/galign.go |  2 +-
+ src/cmd/compile/internal/amd64/ssa.go    | 23 +++++++++--------------
+ src/cmd/compile/internal/arm64/galign.go |  2 ++
+ src/cmd/compile/internal/arm64/ssa.go    | 20 ++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/arch.go  |  8 ++++----
+ src/cmd/compile/internal/ssagen/ssa.go   |  8 ++++++--
+ 6 files changed, 42 insertions(+), 21 deletions(-)

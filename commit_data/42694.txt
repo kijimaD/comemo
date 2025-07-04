@@ -1,24 +1,13 @@
-commit 51ac0f0f4cb432204dee3d434335fd1e61ca8446
-Author: Polina Osadcha <polliosa@google.com>
-Date:   Thu Jun 18 16:17:13 2020 +0300
+commit 527880d05ccded3b69613e9c5f51a1a062ff4180
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 5 14:36:25 2020 -0500
 
-    strings: optimize Replace by using a strings.Builder
+    [dev.boringcrypto] misc/boring: update default CL reviewer to katie@golang.org
     
-    name        old time/op    new time/op    delta
-    ReplaceAll     162ns ±26%     134ns ±26%  -17.44%  (p=0.014 n=10+10)
-    
-    name        old alloc/op   new alloc/op   delta
-    ReplaceAll     32.0B ± 0%     16.0B ± 0%  -50.00%  (p=0.000 n=10+10)
-    
-    name        old allocs/op  new allocs/op  delta
-    ReplaceAll      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
-    
-    Change-Id: Ia8377141d3adb84c7bd94e511ac8f739915aeb40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/245197
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ifd022eb762f78f0b86f8fa7834c2dd891e4a35fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217937
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/strings/strings.go      | 12 ++++++------
- src/strings/strings_test.go |  9 +++++++++
- 2 files changed, 15 insertions(+), 6 deletions(-)
+ misc/boring/merge.sh   | 2 +-
+ misc/boring/release.sh | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

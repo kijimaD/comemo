@@ -1,13 +1,13 @@
-commit ddc2710d69adceb1f457792f17c4837a3d52a10a
-Author: Kyle Lemons <kyle@kylelemons.net>
-Date:   Wed Jan 5 14:34:59 2011 -0500
+commit c22c6daca0cc8d5478011da8df50ad96034e0d0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 5 14:34:45 2011 -0500
 
-    goinstall: add -clean flag
+    A+C: Kyle Lemons (individual CLA)
     
-    R=adg, rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/3821042
+    https://golang.org/cl/3766045
 
- src/cmd/goinstall/main.go |  1 +
- src/cmd/goinstall/make.go | 21 +++++++++++++++------
- 2 files changed, 16 insertions(+), 6 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

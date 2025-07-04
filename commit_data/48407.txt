@@ -1,33 +1,24 @@
-commit 8d4da2c7b582783f30f9c93c2bcb0641748103e2
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Mar 16 18:42:57 2022 -0400
+commit 140cd7c1d3f1f37ae332d504897a98800a80e0e6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 13 18:07:57 2021 -0400
 
-    all: update vendored golang.org/x/tools
+    [dev.typeparams] runtime: use internal/abi.FuncPCABI0 for syscall wrappers on OpenBSD
     
-    Update the vendored golang.org/x/tools to pick up the fix for #51717.
+    Same as CL 313230, for OpenBSD.
     
-    This also picks up some changes to support Fuzz tests in the tests
-    analyzer, but they are currently still guarded by an internal flag.
-    
-    Fixes #51717
-    Updates #36905
-    
-    Change-Id: Ibcd5006624dd9cd9797c811093985e8775c57d51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393373
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I56f4a8a368e1a17615a01db4e2b6c53e4ed263bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320889
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go.mod                                     |   4 +-
- src/cmd/go.sum                                     |   8 +-
- .../go/analysis/passes/composite/whitelist.go      |   9 +-
- .../x/tools/go/analysis/passes/tests/tests.go      | 230 +++++++++++++++++++++
- .../x/tools/go/types/objectpath/objectpath.go      |  56 ++---
- .../golang.org/x/tools/go/types/typeutil/map.go    |  10 +-
- .../x/tools/internal/analysisinternal/analysis.go  |   3 +
- .../x/tools/internal/typeparams/common.go          | 101 +++++++++
- .../tools/internal/typeparams/typeparams_go117.go  |   5 +
- .../tools/internal/typeparams/typeparams_go118.go  |   5 +
- src/cmd/vendor/modules.txt                         |   4 +-
- 11 files changed, 396 insertions(+), 39 deletions(-)
+ src/runtime/os_openbsd.go       |  3 ++-
+ src/runtime/os_openbsd_libc.go  |  3 ++-
+ src/runtime/sys_openbsd.go      | 15 +++++++-----
+ src/runtime/sys_openbsd1.go     | 13 ++++++----
+ src/runtime/sys_openbsd2.go     | 53 ++++++++++++++++++++++-------------------
+ src/runtime/sys_openbsd3.go     | 25 ++++++++++---------
+ src/runtime/sys_openbsd_amd64.s |  2 +-
+ 7 files changed, 64 insertions(+), 50 deletions(-)

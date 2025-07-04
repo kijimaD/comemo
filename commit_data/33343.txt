@@ -1,17 +1,23 @@
-commit f265f5db5d71f120eb6e2cec25ab6dfc3fb249f3
-Author: Carl Mastrangelo <carl.mastrangelo@gmail.com>
-Date:   Mon Jul 3 15:38:55 2017 -0700
+commit 9fbc06e6aa88372a449b75b35420e83ffce05a0b
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Wed Aug 2 19:46:41 2017 +0200
 
-    archive/zip, crypto/tls: use rand.Read instead of casting ints to bytes
+    encoding/csv: preserve \r\n in quoted fields
     
-    Makes tests run ~1ms faster.
+    The parser mistakenly assumed it could always fold \r\n into \n, which
+    is not true since a \r\n inside a quoted fields has no special meaning
+    and should be kept as is.
     
-    Change-Id: Ida509952469540280996d2bd9266724829e53c91
-    Reviewed-on: https://go-review.googlesource.com/47359
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    Fix this by not folding \r\n to \n inside quotes fields.
+    
+    Fixes #21201
+    
+    Change-Id: Ifebc302e49cf63e0a027ee90f088dbc050a2b7a6
+    Reviewed-on: https://go-review.googlesource.com/52810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/writer_test.go            | 8 ++++----
- src/crypto/tls/handshake_messages_test.go | 4 ++--
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/encoding/csv/reader.go      | 11 ++++++++++-
+ src/encoding/csv/reader_test.go |  7 +++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

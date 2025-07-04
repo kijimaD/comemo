@@ -1,35 +1,26 @@
-commit 3c59639b902fada0a2e5a6a35bafd10fc9183b89
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 11 18:55:23 2023 -0700
+commit db19b42ca8771c25aa09e3747812f0229d44e75c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon May 30 13:20:51 2022 -0400
 
-    crypto/sha512: add WriteString and WriteByte method
+    lib/time, time/tzdata: update to 2022a
     
-    This can reduce allocations when hashing a string or byte
-    rather than []byte.
+    Version 2022a was released on 2022-03-15 and we can start using it for
+    Go 1.19. Its release announcement was:
     
-    For #38776
+            https://mm.icann.org/pipermail/tz-announce/2022-March/000070.html
     
-    Change-Id: I4926ae2749f6b167edbebb73d8f68763ffb2f0c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483816
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    For #22487.
+    
+    Change-Id: Ie89b90927a251413e4f67c9e0ed3a67d4161529b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409374
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/crypto/internal/boring/sha.go        | 28 +++++++++++++
- src/crypto/sha512/sha512.go              | 67 ++++++++++++++++++++++++++------
- src/crypto/sha512/sha512_test.go         | 34 +++++++++++++++-
- src/crypto/sha512/sha512block.go         |  2 +-
- src/crypto/sha512/sha512block_amd64.go   | 21 +++++++---
- src/crypto/sha512/sha512block_amd64.s    | 12 +++---
- src/crypto/sha512/sha512block_arm64.go   | 17 ++++++--
- src/crypto/sha512/sha512block_arm64.s    |  6 +--
- src/crypto/sha512/sha512block_decl.go    | 12 +++++-
- src/crypto/sha512/sha512block_generic.go |  4 ++
- src/crypto/sha512/sha512block_ppc64x.s   |  8 ++--
- src/crypto/sha512/sha512block_s390x.go   |  9 ++++-
- src/crypto/sha512/sha512block_s390x.s    |  6 +--
- 13 files changed, 186 insertions(+), 40 deletions(-)
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 425837 -> 425884 bytes
+ src/time/tzdata/zipdata.go | 13745 ++++++++++++++++++++++---------------------
+ 3 files changed, 6875 insertions(+), 6874 deletions(-)

@@ -1,14 +1,12 @@
-commit 7d403871cb7e319cb1f52ce2ff04c80bdc5ac92a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jan 10 14:17:20 2013 +1100
+commit ecb75486f80e320dc0a06dd85c1b83a3daf293f4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 9 15:22:48 2013 -0800
 
-    doc/contribute: Link to IssueTracker docs for more "special sentences"
+    container/list: avoid memory leaks
     
-    Update #4582.
-    
-    R=nigeltao, dave, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7070065
+    https://golang.org/cl/7065067
 
- doc/contribute.html | 2 ++
+ src/pkg/container/list/list.go | 2 ++
  1 file changed, 2 insertions(+)

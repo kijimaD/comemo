@@ -1,43 +1,22 @@
-commit 9b89c380208ea2e85985ee6bf2b1d684274dfa1d
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Apr 22 23:57:06 2022 +0100
+commit 3a9fd99849bbd9eab7e4e14a4dda95239c41ab83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 21:17:54 2021 -0700
 
-    cmd/gofmt: use SkipObjectResolution with -s as well
+    [dev.typeparams] cmd/compile/internal/syntax: cleanup panic calls
     
-    The "simplify" feature used go/ast's object tracking in only one place -
-    to replace s[a:len(s)] with s[a:].
-    Using go/ast.Object did allow us to not simplify code like:
+    End-users are not expected to deal with the details of panics,
+    so providing extra information such as an "internal error" prefix
+    is not helpful.
     
-            len := func(s []int) int { ... }
-            s = s[a:len(s)]
+    Matches the types2 changes made in https://golang.org/cl/339969 .
     
-    The existing code already noted the limitation with that approach,
-    such as "len" being redeclared in a different file in the same package.
-    Since go/ast's object tracking is file-based and very basic,
-    it wouldn't work with edge cases like those.
-    
-    The reasoning is that redeclaring len and abusing it that way is
-    extremely unlikely, and hasn't been a problem in about a decade now.
-    I reason that the same applies to len being redeclared in the same file,
-    so we should be able to safely remove the use of go/ast.Object here.
-    
-    Per https://go.dev/cl/401454, this makes "gofmt -s" about 5% faster.
-    If we ever wanted to truly get rid of false positive simplifications,
-    I imagine we'd want to reimplement the feature under go/analysis,
-    which is able to fully typecheck packages and suggest edits.
-    That seems unnecessary at this point, but we can always course correct
-    in the presumably unlikely scenario that users start reporting bugs.
-    
-    See #46485.
-    For #52463.
-    
-    Change-Id: I77fc97adceafde8f0fe6887ace83ae325bfa7416
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401875
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Icb34a9daab981a84f41f8ae7ae5dc1b85b2d2c81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339904
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/gofmt/gofmt.go    |  6 +++---
- src/cmd/gofmt/simplify.go | 22 +++++++++++++---------
- 2 files changed, 16 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go    | 2 +-
+ src/cmd/compile/internal/syntax/positions.go | 4 ++--
+ src/cmd/compile/internal/syntax/walk.go      | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

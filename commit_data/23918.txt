@@ -1,17 +1,16 @@
-commit a5d23fceab47ff3f0cfacfecbe74f2f853a6ed1c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 30 09:01:22 2015 -0700
+commit 98c9e9e74ffbdaeb7ff4af8a478d502123014626
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 23 06:12:11 2015 +1000
 
-    doc: add go1.5 note about change to zero-sized fields in cgo
+    cmd/vet: refer info about -printfuncs to the -printf flag
     
-    This documents the change made in https://golang.org/cl/12864 for
-    https://golang.org/issue/11925.
+    And vice versa.
     
-    Update #11925.
+    The flags are tightly coupled so make the connection clear.
     
-    Change-Id: Id09f2a489ea947a725ed12c9cf793e5daef07a06
-    Reviewed-on: https://go-review.googlesource.com/12866
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I505f76be631ffa6e489a441c2f3c717aa09ec802
+    Reviewed-on: https://go-review.googlesource.com/11324
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go1.5.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/vet/doc.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

@@ -1,16 +1,13 @@
-commit b8dc93132690faaa9b097ce3225293b726f995f9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 13 15:22:55 2018 -0700
+commit 644b2dafc2885d0780605fa66061431fef55645a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 2 21:06:09 2018 +0100
 
-    misc/cgo/test: add test for passing compatible typedefs
+    test/codegen: add copyright headers to new codegen files
     
-    Fixes #23720
-    
-    Change-Id: I28e0c16503bc043f793e0dab19668f7a66313312
-    Reviewed-on: https://go-review.googlesource.com/118737
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9fe6572d1043ef9ee09c0925059ded554ad24c6b
+    Reviewed-on: https://go-review.googlesource.com/98215
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/issue23720.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ test/codegen/bits.go   | 4 ++++
+ test/codegen/rotate.go | 4 ++++
+ 2 files changed, 8 insertions(+)

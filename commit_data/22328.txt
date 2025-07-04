@@ -1,20 +1,14 @@
-commit 9fa9f966e99eb514f9b6f61821f83d5f9178a4a2
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Apr 7 15:30:27 2015 +1000
+commit 6c58d28ca4f626e11b4ea84d79236df443b55e0b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Mar 4 21:24:58 2015 +0300
 
-    misc/cgo/testso: add test for fixed issue 4339
+    runtime: cleanup
     
-    Update #4339.
+    Cleanup after https://go-review.googlesource.com/3742
     
-    Change-Id: Ic1a7535562b8b824ba166777725f7ba5b9623d77
-    Reviewed-on: https://go-review.googlesource.com/8523
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Change-Id: Iff3ceffc31b778b1ed0b730696fce6d1b5124447
+    Reviewed-on: https://go-review.googlesource.com/6761
     Reviewed-by: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testso/cgoso.c   |  5 +++++
- misc/cgo/testso/cgoso.go  | 19 +++++++++++++++++++
- misc/cgo/testso/cgoso_c.c |  4 ++++
- misc/cgo/testso/cgoso_c.h | 17 +++++++++++++++++
- misc/cgo/testso/test.bat  |  2 +-
- 5 files changed, 46 insertions(+), 1 deletion(-)
+ src/runtime/proc1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

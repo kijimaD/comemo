@@ -1,12 +1,18 @@
-commit cc4aac2b9b2064089dcb8a2215ba51d4ca6b4651
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Aug 14 16:01:41 2017 +0200
+commit adc80c0665c0aa9a4a504e5c5dd2ddf981d3a8c3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 13 06:31:05 2017 -0700
 
-    cmd/compile/internal/syntax: fix 'delimiters' spelling
+    cmd/compile: refactor Linksym
     
-    Change-Id: Iffb52a0bdc479642eda3b5a12ba5da6590d0f0ec
-    Reviewed-on: https://go-review.googlesource.com/55330
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Extract a helper function, linksymname.
+    This simplifies Linksym,
+    and linksymname will be useful in future work.
+    
+    Change-Id: Ic5ff8b704a16d5020f6931e008e2f630f687cbd3
+    Reviewed-on: https://go-review.googlesource.com/40550
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/syntax/tokens.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/obj.go | 27 +++++++++++++--------------
+ 1 file changed, 13 insertions(+), 14 deletions(-)

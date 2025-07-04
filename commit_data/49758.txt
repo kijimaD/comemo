@@ -1,20 +1,19 @@
-commit 1519729c6a1f05735fdc7a6db38dc83838783eee
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Aug 6 20:56:39 2022 +0700
+commit b86e8dd0f3a27bc9577690523c9feeb25593bec7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 9 10:10:54 2021 +0200
 
-    cmd/compile: treat constants to type parameter conversion as non-constant in Unified IR
+    test/typeparam: fix issue48094b test build
     
-    Fixes #54307
+    CL 347529 broke the longtest builders due to missing -G=3 flag when
+    compiling the added test.
     
-    Change-Id: Idcbdb3b1cf7c7fd147cc079659f29a9b5d17e6e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421874
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I73007801dd6871a8cf3554e957d247f5f56fd641
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348330
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/helpers.go |  5 +++++
- src/cmd/compile/internal/noder/reader.go  | 18 ++++++++++++++----
- src/cmd/compile/internal/noder/writer.go  |  2 ++
- test/fixedbugs/issue54307.go              | 19 +++++++++++++++++++
- 4 files changed, 40 insertions(+), 4 deletions(-)
+ test/typeparam/issue48094b.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

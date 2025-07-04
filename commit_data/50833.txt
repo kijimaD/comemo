@@ -1,38 +1,26 @@
-commit 4fe1971b2dff1fa14cb8f5be47aed7fda76c0f7c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 4 14:35:39 2022 -0700
+commit 8b66b3d49f931715c52b4ed71bc1dc935132c30f
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Nov 11 19:07:28 2021 -0500
 
-    os: use poll.fdMutex for Plan 9 files
+    cmd/compile/internal/types2: unexport Context.TypeHash
     
-    This permits us to safely support concurrent access to files on Plan 9.
-    Concurrent access was already safe on other systems.
+    Context.TypeHash is not being used outside of the type checker, so
+    unexport it.
     
-    This does introduce a change: if one goroutine calls a blocking read
-    on a pipe, and another goroutine closes the pipe, then before this CL
-    the close would occur. Now the close will be delayed until the blocking
-    read completes.
+    The TypeHash method is meant to hash instances, not arbitrary types, and
+    will soon be modified to differentiate origin types by pointer identity
+    (even if they are *Signature types).
     
-    Also add tests that concurrent I/O and Close on a pipe are OK.
-    
-    For #50436
-    For #56043
-    
-    Change-Id: I969c869ea3b8c5c2f2ef319e441a56a3c64e7bf5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438347
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia8d4a7c6350ce7f278b70630585efb0009fef63a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363516
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/poll/export_test.go   |  12 ++--
- src/internal/poll/fd_mutex_test.go |  12 ++--
- src/internal/poll/file_plan9.go    |  42 ++++++++++++++
- src/os/file_mutex_plan9.go         |  70 +++++++++++++++++++++++
- src/os/file_plan9.go               |  80 +++++++++++++++++++++-----
- src/os/os_test.go                  | 112 +++++++++++++++++++++++++++++++++++++
- src/os/stat_plan9.go               |   4 ++
- src/os/types_plan9.go              |   2 -
- 8 files changed, 306 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/types2/context.go     | 4 ++--
+ src/cmd/compile/internal/types2/instantiate.go | 2 +-
+ src/cmd/compile/internal/types2/named.go       | 2 +-
+ src/cmd/compile/internal/types2/subst.go       | 2 +-
+ src/cmd/compile/internal/types2/typexpr.go     | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

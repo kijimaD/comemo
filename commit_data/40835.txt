@@ -1,21 +1,20 @@
-commit c726361fff936c3483bea3cc04fecab145a55caa
+commit a005f998cd1a364d5d341eb8f185fb6ae5aa62cb
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 18 09:01:44 2019 -0500
+Date:   Wed Jul 17 12:53:47 2019 -0400
 
-    cmd/go: fail tests immediately if they attempt to create a tempfile within GOROOT
+    cmd/go/internal/mvs: retain modules required by older versions
     
-    This will help to detect regressions of #28387 when running
-    'go test cmd/go' in a writable GOROOT.
+    Fixes #29773
+    Updates #31248
     
-    Updates #28387
-    Updates #30316
-    
-    Change-Id: I551e044111535404688b1a76e63163dfcb41bb5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207701
+    Change-Id: Ic1923119c8cf3a60c586df1b270c3af0c9095f29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186537
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/go_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/mvs/mvs.go                   | 17 +++--
+ src/cmd/go/internal/mvs/mvs_test.go              | 28 +++++---
+ src/cmd/go/testdata/script/mod_indirect.txt      | 81 ++++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_indirect_main.txt | 65 +++++++++++++++++++
+ 4 files changed, 174 insertions(+), 17 deletions(-)

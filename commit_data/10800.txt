@@ -1,15 +1,21 @@
-commit 24e9683ae654c804b7da6da47ef60b9060db718e
-Author: Rob Pike <r@golang.org>
-Date:   Wed Dec 14 16:37:54 2011 -0800
+commit 85fdd68bd963406a90ec68e1532bc6495e88e40b
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Dec 15 10:45:19 2011 +1100
 
-    fmt: don't recur if String method (etc.) misbehaves
+    html: don't leave "in column group" mode when ignoring a token
     
-    Fixes #2555.
+    Pass tests6.dat, test 26:
+    foo<col>
     
-    R=golang-dev, dsymonds, r
+    | <col>
+    
+    Also pass tests through test 35:
+    <table><tr><div><td>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5486076
+    https://golang.org/cl/5482074
 
- src/pkg/fmt/fmt_test.go | 34 ++++++++++++++++++++++++++++++++++
- src/pkg/fmt/print.go    |  7 +++++++
- 2 files changed, 41 insertions(+)
+ src/pkg/html/parse.go      | 7 ++++---
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

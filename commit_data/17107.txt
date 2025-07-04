@@ -1,36 +1,17 @@
-commit 554d47ecb5f35dd5bb850f5e20dde978bea37061
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Aug 9 09:02:27 2013 +0900
+commit 6e5f4bab90456e845d2e4a436718d4ab4cfee238
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Thu Aug 8 15:54:26 2013 -0700
 
-    net: separate unix pollster initialization from network file descriptor allocation
+    misc/emacs: Add support for code coverage output of go test
     
-    Unlike the existing net package own pollster, runtime-integrated
-    network pollster on BSD variants, actually kqueue, requires a socket
-    that has beed passed to syscall.Listen previously for a stream
-    listener.
+    Renders code coverage as an overlay, replicating the look of the
+    HTML that go tool cover produces.
     
-    This CL separates pollDesc.Init of Unix network pollster from newFD
-    to avoid any breakages in the transition from Unix network pollster
-    to runtime-integrated pollster. Upcoming CLs will rearrange the call
-    order of pollster and syscall functions like the following;
+    Also some cleanups.
     
-    - For dialers that open active connections, pollDesc.Init will be
-      called in between syscall.Bind and syscall.Connect.
-    
-    - For stream listeners that open passive stream connections,
-      pollDesc.Init will be called just after syscall.Listen.
-    
-    - For datagram listeners that open datagram connections,
-      pollDesc.Init will be called just after syscall.Bind.
-    
-    This is in preparation for runtime-integrated network pollster for BSD
-    variants.
-    
-    Update #5199
-    
-    R=dvyukov, bradfitz
+    R=adonovan, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12663043
+    https://golang.org/cl/12684043
 
- src/pkg/net/fd_poll_unix.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ misc/emacs/go-mode.el | 112 +++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 97 insertions(+), 15 deletions(-)

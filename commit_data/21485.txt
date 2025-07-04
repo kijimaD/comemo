@@ -1,12 +1,18 @@
-commit 08ca401444cd3e08a98d7fd3f57e44b95243b4fb
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Feb 5 16:50:11 2015 +0300
+commit 878fa886a61c6536b4151c1f13a494434e6c6c82
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Jan 8 02:18:16 2015 +0100
 
-    expvar: fix build
+    strconv: add atoi tests for uncommon bases and syntax errors
     
-    Change-Id: I6ee7aa76673e51576b5a84c512b22a0f8af5b02f
-    Reviewed-on: https://go-review.googlesource.com/3966
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Edge cases like base 2 and 36 conversions are now covered.
+    Many tests are mirrored from the itoa tests.
+    
+    Added more test cases for syntax errors.
+    
+    Change-Id: Iad8b2fb4854f898c2bfa18cdeb0cb4a758fcfc2e
+    Reviewed-on: https://go-review.googlesource.com/2463
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/expvar/expvar_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/strconv/atoi_test.go | 83 ++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 60 insertions(+), 23 deletions(-)

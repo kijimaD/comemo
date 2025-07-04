@@ -1,19 +1,18 @@
-commit ba89d59a3a0fe483c43cd789dbe1f5cbe863f491
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 15 15:49:18 2022 -0400
+commit b61e1ed863886743598c6f816b0740f3768b50f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 8 13:52:46 2021 -0700
 
-    runtime: convert gcController.bgScanCredit to atomic type
+    cmd/compile/internal/types2: temporarily pin the Checker to Interface during checking
     
-    For #53821.
+    This is a clean port of CL 348371.
     
-    Change-Id: I9ccce3eb0adf4300095743c24a411213428306b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417780
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3a61a5a8928279bc783ef16739f7607de3b6ecf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348575
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/align_runtime_test.go |  1 -
- src/runtime/mgcmark.go            | 10 +++++-----
- src/runtime/mgcpacer.go           | 13 ++++++-------
- src/runtime/proc.go               |  2 +-
- 4 files changed, 12 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/types2/interface.go              | 15 ++++++++++++---
+ src/cmd/compile/internal/types2/sizeof_test.go            |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue48234.go2     | 10 ++++++++++
+ src/cmd/compile/internal/types2/universe.go               |  4 ++--
+ 4 files changed, 25 insertions(+), 6 deletions(-)

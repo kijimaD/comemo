@@ -1,18 +1,28 @@
-commit 654c3368e53c923acff5fd5a1eaf4175bb6834d6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Apr 21 14:21:18 2024 -0700
+commit 03ad1f1a340841e7c60ee635ff894fe19cd99506
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 13:21:02 2023 -0400
 
-    cmd/go: update comment to not say GO386 does not exist
+    internal/abi, runtime, cmd: merge StackSmall, StackBig consts into internal/abi
     
-    GO386 was removed by CL 258957, but it was restored by CL 260017.
+    For #59670.
     
-    Change-Id: Iced49ca61512a0f2ef513acbf9700a87ac964c68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580675
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I91448363be2fc678964ce119d85cd5fae34a14da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486975
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/envcmd/env.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/internal/obj/arm/obj5.go     |  8 ++++----
+ src/cmd/internal/obj/arm64/obj7.go   | 10 +++++-----
+ src/cmd/internal/obj/loong64/obj.go  |  7 +++----
+ src/cmd/internal/obj/mips/obj0.go    |  7 +++----
+ src/cmd/internal/obj/ppc64/obj9.go   |  8 ++++----
+ src/cmd/internal/obj/riscv/obj.go    |  6 +++---
+ src/cmd/internal/obj/s390x/objz.go   |  8 ++++----
+ src/cmd/internal/obj/wasm/wasmobj.go |  5 +++--
+ src/cmd/internal/obj/x86/obj6.go     | 12 ++++++------
+ src/cmd/internal/objabi/stack.go     |  9 +++++----
+ src/internal/abi/stack.go            | 25 +++++++++++++++++++++++++
+ src/runtime/stack.go                 | 14 +-------------
+ 12 files changed, 66 insertions(+), 53 deletions(-)

@@ -1,12 +1,57 @@
-commit 3d4b55ad5b99def7f7e3f8694e590c1b44a1be97
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 13 13:57:53 2011 -0700
+commit 7b6ee1a5d4823c3fdf9d157774c90d0865c128be
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 13 16:55:20 2011 -0400
 
-    gofmt: minor refactor to permit easy testing
+    reflect: inline method implementations
     
-    R=rsc
+    This CL is only cut-and-paste, moving code around.
+    Moving it in a separate CL should simplify the diffs in later CLs.
+    
+    There are three patterns here.
+    
+    1. A function like
+            func (v Value) M() (...) {
+                    return v.panicIfNot(K).(*kValue).M()
+            }
+    becomes
+            func (v Value) M() (...) {
+                    vv := v.panicIfNot(K).(*kValue)
+    
+                    // body of (*kValue).M, s/v./vv./g
+            }
+    
+    2. A function like
+            func (v Value) M() (...) {
+                    return v.panicIfNots(kList).(mer).M()
+            }
+    becomes
+            func (v Value) M() (...) {
+                    switch vv := v.panicIfNots(kList).(type) {
+                    case *k1Value:
+                            // body of (*k1Value).M, s/v./vv./g
+                    case *k2Value:
+                            // body of (*k2Value).M, s/v./vv./g
+                    ...
+                    }
+                    panic("not reached")
+            }
+    
+    3. The rewrite of Value.Set follows 2, but each case
+    is built from the bodies of (*kValue).SetValue and (*kValue).Set.
+            func (v *kValue) SetValue(x Value) {
+                    v.Set(x.panicIfNot(K).(*kValue)
+            }
+            func (v *kValue) Set(x *kValue) {
+                    ... body
+            }
+    becomes, in the switch from 2,
+                    case *kValue:
+                            xx := x.panicIfNot(K).(*kValue)
+                            ... body, s/v./vv./g; s/x./xx./g
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4397046
+    https://golang.org/cl/4398044
 
- src/cmd/gofmt/gofmt.go | 41 +++++++++++++++++++++--------------------
- 1 file changed, 21 insertions(+), 20 deletions(-)
+ src/pkg/reflect/value.go | 1550 +++++++++++++++++++---------------------------
+ 1 file changed, 640 insertions(+), 910 deletions(-)

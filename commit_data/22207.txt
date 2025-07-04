@@ -1,24 +1,19 @@
-commit 8da54a4eec860b2b96d43abe3a40f1c08edb6493
-Author: Srdjan Petrovic <spetrovic@google.com>
-Date:   Tue Mar 17 09:47:01 2015 -0700
+commit 0aac9bb82d9cbc34fa723fc653c6659ed48da772
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 28 17:23:32 2015 -0500
 
-    cmd: linker changes for shared library initialization
+    build: give windows builders extra time for tests
     
-    Suggested by iant@, this change:
-      - looks for a symbol _rt0_<GOARCH>_<GOOS>_lib,
-      - if the symbol is present, adds a new entry into the .init_array ELF
-        section that points to the symbol.
+    In the tests, the runtime test fails after 2 minutes.
+    On an unloaded VM it only takes 45 seconds.
+    I think the difference is all the other build work going on
+    simultaneously with the running of the runtime test.
     
-    The end-effect is that the symbol _rt0_<GOARCH>_<GOOS>_lib will be
-    invoked as soon as the (ELF) shared library is loaded, which will in turn
-    initialize the runtime. (To be implemented.)
-    
-    Change-Id: I99911a180215a6df18f8a18483d12b9b497b48f4
-    Reviewed-on: https://go-review.googlesource.com/7692
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I41e95d2e4daea44ceaa8505f81aa7b5bcfa9ec77
+    Reviewed-on: https://go-review.googlesource.com/6364
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/internal/ld/data.go   | 14 ++++++++++++++
- src/cmd/internal/ld/lib.go    |  1 +
- src/runtime/rt0_linux_amd64.s |  7 +++++++
- 3 files changed, 22 insertions(+)
+ src/run.bat | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

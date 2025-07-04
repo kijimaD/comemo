@@ -1,12 +1,15 @@
-commit 2fa657c5d618c24ab306075a1415c9a0ca96c44a
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 12 01:52:05 2014 -0500
+commit baa5d26f629a38335df010a1b5098ebdec8af3b8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 31 00:48:57 2014 -0300
 
-    .gitattributes: enforce unix eol style
+    sync/atomic: fix comment referencing Value.Store's argument name
     
-    Change-Id: I5f021b131f5650217bd14dec09cfb81fb0447b9e
-    Reviewed-on: https://go-review.googlesource.com/1422
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #9029
+    
+    LGTM=adg, r
+    R=r, adg
+    CC=golang-codereviews
+    https://golang.org/cl/161630044
 
- .gitattributes | 2 ++
- 1 file changed, 2 insertions(+)
+ src/sync/atomic/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

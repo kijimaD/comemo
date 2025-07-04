@@ -1,25 +1,88 @@
-commit 38bd725bf1d20c32487ae7e12e37c0060a46ac0f
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Fri Aug 25 12:27:15 2017 -0400
+commit 6e2c4bc012f8cc262db25d3fee414c5231fea03a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 10 21:09:13 2017 -0400
 
-    cmd/compile: bug fixes for DWARF location lists
+    context: define behavior for Err before Done is closed
     
-    Fix two small but serious bugs in the DWARF location list code that
-    should have been caught by the automated tests I didn't write.
+    The Context definition to date has not defined what Err returns
+    before the Done channel is closed. Define that it returns nil,
+    as most implementations do.
     
-    After emitting debug information for a user variable, mark it as done
-    so that it doesn't get emitted again. Otherwise it would be written once
-    per slot it was decomposed into.
+    All the standard context implementations (those in package
+    context and in golang.org/x/net/context) return Err() == nil
+    when Done is not yet closed. However, some non-standard
+    implementations may exist that return Err() != nil in this case,
+    as permitted by the Context definition before this date.
+    Call these "errorful implementations".
     
-    Correct a merge error in CL 44350: the location list abbreviations need
-    to have DW_AT_decl_line too, otherwise the resulting DWARF is gibberish.
+    Because all the standard context implementations ensure that
+    Err() == nil when Done is not yet closed, clients now exist that
+    assume Err() != nil implies Done is closed and use calling Err
+    as a quick short-circuit check instead of first doing a non-blocking
+    receive from Done and then, if that succeeds, needing to call Err.
+    This assumption holds for all the standard Context implementations,
+    so these clients work fine in practice, even though they are making
+    unwarranted assumptions about the Context implementations.
+    Call these "technically incorrect clients".
     
-    Change-Id: I6ab4b8b32b7870981dac80eadf0ebfc4015ccb01
-    Reviewed-on: https://go-review.googlesource.com/59070
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    If a technically incorrect client encounters an errorful
+    implementation, the client misbehaves. Because there are few
+    errorful implementations, over time we expect that many clients
+    will end up being technically incorrect without realizing it,
+    leading to latent, subtle bugs. If we want to eliminate these
+    latent, subtle bugs, there are two ways to do this:
+    either make errorful implementations more common
+    (exposing the client bugs more often) or redefine the Context
+    interface so that the clients are not buggy after all.
+    
+    If we make errorful implementations more common, such
+    as by changing the standard context implementations to
+    return ErrNotDone instead of nil when Err is called before
+    Done is closed, this will shake out essentially all of the
+    technically incorrect clients, forcing people to find and fix
+    those clients during the transition to Go 1.9.
+    Technically this is allowed by the compatibility policy,
+    but we expect there are many pieces of code assuming
+    that Err() != nil means done, so updating will cause real pain.
+    
+    If instead we disallow errorful implementations, then they
+    will need to be fixed as they are discovered, but the fault
+    will officially lie in the errorful Context implementation,
+    not in the clients. Technically this is disallowed by the compatibility
+    policy, because these errorful implementations were "correct"
+    in earlier versions of Go, except that they didn't work with
+    common client code. We expect there are hardly any errorful
+    implementations, so that disallowing them will be less disruptive
+    and more in the spirit of the compatibility policy.
+    
+    This CL takes the path of expected least disruption,
+    narrowing the Context interface semantics and potentially
+    invalidating existing implementations. A survey of the
+    go-corpus v0.01 turned up only five Context implementations,
+    all trivial and none errorful (details in #19856).
+    We are aware of one early Context implementation inside Google,
+    from before even golang.org/x/net/context existed,
+    that is errorful. The misbehavior of an open-source library
+    when passed such a context is what prompted #19856.
+    That context implementation would be disallowed after this CL
+    and would need to be corrected. We are aware of no other
+    affected context implementations. On the other hand, a survey
+    of the go-corpus v0.01 turned up many instances of client
+    code assuming that Err() == nil implies not done yet
+    (details also in #19856). On balance, narrowing Context and
+    thereby allowing Err() == nil checks should invalidate significantly
+    less code than a push to flush out all the currently technically
+    incorrect Err() == nil checks.
+    
+    If release feedback shows that we're wrong about this balance,
+    we can roll back this CL and try again in Go 1.10.
+    
+    Fixes #19856.
+    
+    Change-Id: Id45d126fac70e1fcc42d73e5a87ca1b66935b831
+    Reviewed-on: https://go-review.googlesource.com/40291
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go | 2 ++
- src/cmd/internal/dwarf/dwarf.go     | 2 ++
- 2 files changed, 4 insertions(+)
+ src/context/context.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

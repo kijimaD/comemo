@@ -1,12 +1,12 @@
-commit c98145fb5064291fb53b4cbf2beb8e4ef594b65d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 28 15:55:48 2011 -0700
+commit d38d66e64694de69991310565e14bf460ff7af65
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 28 14:48:35 2011 -0700
 
-    godoc: fix spelling error
+    doc: gccgo now supports method expressions and multiple init functions.
     
-    R=r, r2
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4289079
+    https://golang.org/cl/4314047
 
- lib/godoc/search.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,28 +1,37 @@
-commit 6066fdcf38bbf92bd551f74a6db4cb72306ed493
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 22 10:47:54 2013 -0500
+commit ed1ac056735e67c0f6bc23c60a9c2a0f999c80cb
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Feb 21 20:09:31 2013 -0800
 
-    cmd/6g, cmd/8g: switch to DX for indirect call block
-    runtime: add context argument to gogocall
+    cmd/go: don't call ImportDir unnecessarily
     
-    Too many other things use AX, and at least one
-    (stack zeroing) cannot be moved onto a different
-    register. Use the less special DX instead.
+    This significantly speeds up the go tool on
+    slow file systems (or those with cold caches).
     
-    Preparation for step 2 of http://golang.org/s/go11func.
-    Nothing interesting here, just split out so that we can
-    see it's correct before moving on.
+    The following numbers were obtained using
+    an encrypted ext4 file system running on
+    Linux 3.7.9.
     
-    R=ken2
+    # Before
+    $ sudo sysctl -w 'vm.drop_caches=3'
+    $ time go list code.google.com/p/go.net/... | wc -l
+    9
+    
+    real    0m16.921s
+    user    0m0.637s
+    sys     0m0.317s
+    
+    # After
+    $ sudo sysctl -w 'vm.drop_caches=3'
+    $ time go list code.google.com/p/go.net/... | wc -l
+    9
+    
+    real    0m8.175s
+    user    0m0.220s
+    sys     0m0.177s
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/7395050
+    https://golang.org/cl/7369044
 
- src/cmd/6g/ggen.c           |  2 +-
- src/cmd/8g/ggen.c           |  2 +-
- src/cmd/8l/pass.c           |  4 ++--
- src/pkg/runtime/asm_386.s   | 29 ++++++++++++++++-------------
- src/pkg/runtime/asm_amd64.s | 25 ++++++++++++++-----------
- src/pkg/runtime/asm_arm.s   |  6 +++---
- src/pkg/runtime/runtime.h   |  2 +-
- src/pkg/runtime/stack.c     |  2 +-
- 8 files changed, 39 insertions(+), 33 deletions(-)
+ src/cmd/go/main.go | 27 ++++++++++++++-------------
+ 1 file changed, 14 insertions(+), 13 deletions(-)

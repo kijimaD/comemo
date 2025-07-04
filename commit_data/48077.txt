@@ -1,45 +1,26 @@
-commit 4afcc9f35e97b4e96f2f350f2a00ea65f43f4175
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Feb 2 18:40:27 2022 -0500
+commit 9f601690da59e601ff68f9868d5eb863bd770eae
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Apr 24 02:12:55 2021 -0700
 
-    go/parser, go/types: don't parse type parameters on methods
+    cmd/compile: workaround inlining of closures with type switches
     
-    The go/parser package is updated to report an error on method type
-    parameters, and to not store them in the AST. Tests are updated
-    accordingly, and error messages are normalized accross go/parser and the
-    compiler syntax package.
+    Within clovar, n.Defn can also be *ir.TypeSwitchGuard. The proper fix
+    here would be to populate m.Defn and have it filled in too, but we
+    already leave it nil in inlvar. So for consistency, this CL does the
+    same in clovar too.
     
-    Before this CL, go/parser would parse type parameters on method
-    declarations and interface methods, leaving it to go/types to complain.
-    There are several problems with this:
+    Eventually inl.go should be rewritten to fully respect IR invariants.
     
-    - Interface Methods and Method declarations do not have type parameters
-      in the spec. We try to align the parser with the productions in the
-      spec.
-    - Parsing method type parameters means that downstream libraries
-      (go/doc, go/format, etc.) theoretically need to handle them, even
-      though they are not part of the language.
-    - Relatedly, go/types has inconsistent handling of method type
-      parameters due to support being removed, leading to the crasher in
-      #50427.
+    Fixes #45743.
     
-    It is more consistent and safer to disallow type parameters on methods
-    in the parser.
-    
-    Fixes #50427
-    
-    Change-Id: I555766da0c76c4cf1cfe0baa9416863088088b4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382538
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8b38e5d8b2329ad242de97670f2141f713954d28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313289
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/parser/parser.go                        | 25 +++++++++++------
- src/go/parser/short_test.go                    | 26 +++++++++++-------
- src/go/parser/testdata/issue50427.go2          | 19 +++++++++++++
- src/go/types/errorcodes.go                     |  5 +---
- src/go/types/testdata/check/typeparams.go2     | 37 ++++++++++++++------------
- src/go/types/testdata/fixedbugs/issue39634.go2 |  2 +-
- src/go/types/testdata/fixedbugs/issue50427.go2 | 23 ++++++++++++++++
- 7 files changed, 97 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/inline/inl.go |  2 ++
+ test/fixedbugs/issue45743.go           | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+)

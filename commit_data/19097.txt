@@ -1,16 +1,13 @@
-commit 0944837f7900d18f9be7e6f77673e994399b7ea7
-Author: Alexey Borzenkov <snaury@gmail.com>
-Date:   Thu Apr 10 14:12:36 2014 -0700
+commit bfbb2e827b3c86e0f85f7378667958d91726c928
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 10 07:59:46 2014 -0700
 
-    net/http: fix requests failing on short gzip body
+    cmd/6g: nacl: zero odd multiple of widthptr correctly
     
-    Fixes #7750.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, ibilicc, bradfitz
+    LGTM=iant
+    R=remyoudompheng, iant
     CC=golang-codereviews
-    https://golang.org/cl/84850043
+    https://golang.org/cl/86270043
 
- src/pkg/net/http/transport.go      | 29 ++++++++++++++++++++++-------
- src/pkg/net/http/transport_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 7 deletions(-)
+ src/cmd/6g/ggen.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

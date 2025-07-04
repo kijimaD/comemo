@@ -1,38 +1,22 @@
-commit d178c5888f06918e8dbd221f26c707e501a9fa98
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Aug 2 11:18:56 2019 -0700
+commit 1650f1ba0b964a06a242c3318e85b3b46f010614
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Mar 6 14:24:29 2019 -0500
 
-    os: don't consult Is methods on non-syscall error types
+    cmd/go: drop support for binary-only packages
     
-    CL #163058 moves interpretation of platform-specific errors to the
-    syscall package. Package syscall errors implement an Is method which
-    os.IsPermission etc. consult. This results in an unintended semantic
-    change to the os package predicate functions: The following program
-    now prints 'true' where it used to print 'false':
+    Fixes #28152
     
-            package main
-            import "os"
-            type myError struct{ error }
-            func (e myError) Is(target error) bool { return target == os.ErrPermission }
-            func main() { println(os.IsPermission(myError{})) }
-    
-    Change the os package error predicate functions to only examine syscall
-    errors, avoiding this semantic change.
-    
-    This CL does retain one minor semantic change: On Plan9, os.IsPermission
-    used to return true for any error with text containing the string
-    "permission denied". It now only returns true for a syscall.ErrorString
-    containing that text.
-    
-    Change-Id: I6b512b1de6ced46c2f1cc8d264fa2495ae7bf9f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188817
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I98db923bdf8de7acf2df452313427bfea43b63c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165746
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/error.go       |  3 ++-
- src/os/error_errno.go | 11 +++++++++++
- src/os/error_plan9.go |  9 +++++++++
- src/os/error_test.go  | 10 ++++++++++
- 4 files changed, 32 insertions(+), 1 deletion(-)
+ src/cmd/go/alldocs.go                      | 11 +------
+ src/cmd/go/go_test.go                      | 51 +++++-------------------------
+ src/cmd/go/internal/help/helpdoc.go        |  9 ------
+ src/cmd/go/internal/list/list.go           |  2 +-
+ src/cmd/go/internal/work/exec.go           | 18 ++---------
+ src/cmd/go/testdata/script/binary_only.txt | 12 -------
+ src/go/build/doc.go                        | 24 ++++++++------
+ 7 files changed, 27 insertions(+), 100 deletions(-)

@@ -1,12 +1,15 @@
-commit 05e80cffc344167ccbc49f5b0c416e6372a4f796
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Mon Feb 20 12:32:43 2012 +1100
+commit 441538eb574f8ef69a6f11f1d7eee403335931a1
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Feb 20 12:31:24 2012 +1100
 
-    godoc: fix tag mismatch validation errors
+    os,time: fix Plan 9 build
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5676099
+    https://golang.org/cl/5689043
 
- lib/godoc/package.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/os/file.go             | 13 +++++++++++++
+ src/pkg/os/file_posix.go       | 13 -------------
+ src/pkg/time/sys_plan9.go      |  3 ++-
+ src/pkg/time/zoneinfo_plan9.go |  5 ++---
+ 4 files changed, 17 insertions(+), 17 deletions(-)

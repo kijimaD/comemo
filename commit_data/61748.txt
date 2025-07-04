@@ -1,0 +1,22 @@
+commit 0db250104c0ebfa82f62fe9f12338565dd8f674d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Nov 21 12:50:14 2024 -0500
+
+    internal/copyright: skip testdata and vendor directories only
+    
+    Using filepath.SkipDir without confirming that d is a directory makes
+    it prone to taking unintended action if a file (not a directory) with
+    the same name gets added.
+    
+    This isn't a problem today, but we shouldn't spend human code review
+    time checking that this doesn't somehow happen in the future, either.
+    
+    Change-Id: I29bf203ddef175c3ad23c9ddc10fa934126ac853
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630635
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/internal/copyright/copyright_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

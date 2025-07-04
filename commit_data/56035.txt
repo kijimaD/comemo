@@ -1,18 +1,22 @@
-commit 27fdef6168d2802dcf9ef382407fb6b16db3e150
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Mar 22 23:07:57 2024 +0800
+commit a8ca653892a470daf065b7669061d6ce1b4ff2e9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 4 14:49:23 2023 -0400
 
-    test: put type declaration back inside the function
+    net/http: drop client address comparison in TestTransportRemovesDeadIdleConnections
     
-    Because issue #47631 has been fixed, remove TODO.
+    Since the first client connection is explicitly closed before making
+    the second request, we cannot in general assume that the second
+    request uses a different port (it is equally valid to open the new
+    connection on the same port as the old one that was closed).
     
-    Change-Id: Ic476616729f47485a18a5145bd28c87dd18b4492
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573775
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #59438.
+    
+    Change-Id: I52d5fe493bd8b1b49270d3996d2019d38d375ce9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482175
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- test/typeparam/builtins.go | 8 ++++----
- test/typeparam/typelist.go | 4 +---
- 2 files changed, 5 insertions(+), 7 deletions(-)
+ src/net/http/transport_test.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

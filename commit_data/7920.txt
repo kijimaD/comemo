@@ -1,24 +1,17 @@
-commit 0793176451afc562abf070d9fb4819702744fe46
-Author: Alexey Borzenkov <snaury@gmail.com>
-Date:   Tue Mar 29 14:23:42 2011 -0400
+commit 85c79ef7cb0cdab34fef9b2bbf8d034eb9883b8e
+Author: David Forsythe <dforsythe@gmail.com>
+Date:   Tue Mar 29 14:23:36 2011 -0400
 
-    net: move bind back to sock.go
+    os: fix FileInfo.Name returned by Stat
     
-    It was left in netFD.connect() by an oversight (as the name
-    implies, bind has no business being in connect). As a result
-    of this change and by only calling netFD.connect() when ra
-    isn't nil it becomes simpler with less code duplication.
+    Fixes #1645.
     
-    Additionally, if netFD.connect() fails, set sysfd to -1 to
-    avoid finalizers (e.g. on windows) calling shutdown on a
-    closed and possibly reopened socket that just happened to
-    share the same descriptor.
-    
-    R=golang-dev, rsc1, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4328043
+    https://golang.org/cl/4321045
 
- src/pkg/net/fd.go         | 28 ++++++++++------------------
- src/pkg/net/fd_windows.go | 16 ++++------------
- src/pkg/net/sock.go       | 21 ++++++++++++++++-----
- 3 files changed, 30 insertions(+), 35 deletions(-)
+ src/pkg/os/file_unix.go    | 18 ++++++++++++++++++
+ src/pkg/os/stat_darwin.go  |  8 +-------
+ src/pkg/os/stat_freebsd.go |  8 +-------
+ src/pkg/os/stat_linux.go   |  8 +-------
+ 4 files changed, 21 insertions(+), 21 deletions(-)

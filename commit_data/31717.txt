@@ -1,24 +1,17 @@
-commit b1af5393d9eaa9360f6d08e36653c383394d8b9a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 2 15:56:35 2017 -0700
+commit d11a2184fb29d0f8a447b2e70299dc410c5642ed
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 8 14:48:43 2017 -0800
 
-    runtime: save and restore CR for ppc64le
+    cmd/compile: allow earlier GC of freed constant value
     
-    C code expects CR2, CR3, and CR4 to be preserved across function calls.
-    Preserve the entire CR register across function calls in
-    _rt0_ppc64le_linux_lib and crosscall2. The standard ppc64le call frame
-    uses 8(R1) as the place to save CR; emulate that.
+    Minor fix, because it's the right thing to do.
+    No significant impact.
     
-    It's hard to write a reliable test for this as it requires writing C
-    code that sets CR2, CR3, or CR4 across a call to a Go function.
-    
-    Change-Id: If39e771a5b574602b848227312e83598fe74eab7
-    Reviewed-on: https://go-review.googlesource.com/44733
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2138285d397494daa9a88c414149c2a7860edd7e
+    Reviewed-on: https://go-review.googlesource.com/38001
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgo/asm_ppc64x.s    | 4 ++++
- src/runtime/rt0_linux_ppc64le.s | 4 ++++
- 2 files changed, 8 insertions(+)
+ src/cmd/compile/internal/ssa/func.go | 1 +
+ 1 file changed, 1 insertion(+)

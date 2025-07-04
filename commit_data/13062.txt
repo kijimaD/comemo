@@ -1,19 +1,23 @@
-commit bd13f6ff8eea412885d6a22a284a259edda57980
-Author: Jan Mercl <befelemepeseveze@gmail.com>
-Date:   Mon May 14 11:50:25 2012 -0700
+commit 2a47e0444c4d75ee28f1f60ed41aa274be56dda9
+Author: Joel Sing <jsing@google.com>
+Date:   Mon May 14 10:40:13 2012 -0700
 
-    regexp/syntax: replace internal error on unexpected ) w/ ErrUnexpectedParen
+    syscall: regenerate z* files for netbsd
     
-    Unbalanced extra right parenthesis produced an internal error instead of
-    a more descriptive one.
+    Fix mkerrors.sh so that it works on NetBSD.
     
-    Fixes #3406.
+    Remove directory mode bits from types - this already appears in errors.
     
-    R=r, rsc
+    Regenerate the z* files now that cgo is working.
+    
+    R=golang-dev, m4dh4tt3r, r
     CC=golang-dev
-    https://golang.org/cl/6201063
+    https://golang.org/cl/6201077
 
- api/go1.txt                         | 1 +
- src/pkg/regexp/syntax/parse.go      | 5 +++--
- src/pkg/regexp/syntax/parse_test.go | 8 ++++++++
- 3 files changed, 12 insertions(+), 2 deletions(-)
+ src/pkg/syscall/mkerrors.sh             |   3 +
+ src/pkg/syscall/types_netbsd.go         |  17 -
+ src/pkg/syscall/zerrors_netbsd_386.go   | 744 ++++++++++++++++++++------------
+ src/pkg/syscall/zerrors_netbsd_amd64.go | 736 +++++++++++++++++++------------
+ src/pkg/syscall/ztypes_netbsd_386.go    | 278 +++++-------
+ src/pkg/syscall/ztypes_netbsd_amd64.go  | 263 +++++------
+ 6 files changed, 1139 insertions(+), 902 deletions(-)

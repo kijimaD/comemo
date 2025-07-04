@@ -1,27 +1,21 @@
-commit 162b88265ed41e61d6af20f7ad2039ddcdf51a2c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jun 3 19:15:24 2022 +0000
+commit b9f135d98fe687616b1ca8f7477e72c74af72459
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 21:36:25 2021 -0400
 
-    cmd/compile/internal/escape: escape values with >PtrSize alignment
+    go/types: change types2.Union API to accept a list of Terms
     
-    After CL 381317 there exist values that may have an alignment greater
-    than the pointer size for that platform. Specifically, atomic.{Ui|I}nt64
-    may be aligned to 8 bytes on a 32-bit platform. If such a value, or
-    a container for the value, gets stack-allocated, it's possible that it
-    won't be aligned correctly, because the maximum alignment we enforce on
-    stacks is governed by the pointer size. Changing that would be a
-    significant undertaking, so just escape these values to the heap
-    instead, where we're sure they'll actually be aligned correctly.
+    This is a straightforward port of CL 340250 to go/types.
     
-    Change is by rsc@, I'm just shepherding it through code review.
-    
-    For #50860.
-    
-    Change-Id: I51669561c0a13ecb84f821020e144c58cb528418
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410131
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I8fc1c78833b5393fb39344fd248529df57870a72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342437
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/escape/utils.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/go/types/builtins.go   |  8 +++-----
+ src/go/types/subst.go      |  6 +++---
+ src/go/types/typeset.go    |  2 +-
+ src/go/types/typestring.go |  2 +-
+ src/go/types/union.go      | 50 +++++++++++++++++++++++-----------------------
+ 5 files changed, 33 insertions(+), 35 deletions(-)

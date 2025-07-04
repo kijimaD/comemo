@@ -1,19 +1,14 @@
-commit 13516383146b12963ba7ec37c852508b3f946e57
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Jan 22 21:21:18 2014 +0100
+commit 951c84c41b8a83a4bdee09af3321199e09b5c71f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 22 10:54:51 2014 -0800
 
-    cmd/gc, cmd/ld: fix Plan 9 warnings
+    api: update next.txt
     
-    warning: /usr/go/src/cmd/gc/obj.c:23 format mismatch -10d VLONG, arg 9
-    warning: /usr/go/src/cmd/gc/plive.c:1680 set and not used: printed
-    warning: /usr/go/src/cmd/ld/lib.c:332 non-interruptable temporary
-    warning: /usr/go/src/cmd/ld/lib.c:338 non-interruptable temporary
+    Linux Flock_t, Unix FcntlFlock, and various BSD Termios.
     
-    R=rsc
+    R=golang-codereviews, dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/53820046
+    https://golang.org/cl/55460043
 
- src/cmd/gc/obj.c   | 2 +-
- src/cmd/gc/plive.c | 5 ++---
- src/cmd/ld/lib.c   | 6 ++++--
- 3 files changed, 7 insertions(+), 6 deletions(-)
+ api/next.txt | 150 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 150 insertions(+)

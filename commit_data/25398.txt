@@ -1,12 +1,20 @@
-commit e35901fd65a9c0f475de260a79b7b628d9d07ebf
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Wed Dec 30 13:23:11 2015 +1300
+commit d093bf489b81310b2ce4a78e4a233868e961d0d8
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Oct 24 18:14:51 2015 +0200
 
-    database/sql: fix doc typos
+    runtime: handle abort note on Plan 9
     
-    Change-Id: I374dabed6bf9783839d637e9d7fd6f4e61c7eecf
-    Reviewed-on: https://go-review.googlesource.com/18183
+    Implement an abort note on Plan 9, as an
+    equivalent of the SIGABRT signal on other
+    operating systems.
+    
+    Updates #11975.
+    
+    Change-Id: I010c9b10f2fbd2471aacd1d073368d975a2f0592
+    Reviewed-on: https://go-review.googlesource.com/16300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/sql.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/signal_plan9.go | 3 +++
+ 1 file changed, 3 insertions(+)

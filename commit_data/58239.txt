@@ -1,40 +1,22 @@
-commit 97ae1817fb22913f0bbfa0be2b8181e806c26853
-Author: Matthieu Baerts (NGI0) <matttbe@kernel.org>
-Date:   Thu Nov 21 20:21:18 2024 +0000
+commit 144252d2e64c9f375760f98d6a04d20601b6d3a0
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 18 10:48:50 2023 -0400
 
-    net: check for MPTCP in DialTCP and ListenTCP
+    cmd/go: make pkg-config check less picky
     
-    Setting GODEBUG=multipathtcp= [1] has no effects on apps using
-    ListenTCP or DialTCP directly.
+    CL 529219 tweaked the list_pkgconfig_error script test currently to
+    expect pkg-config to fail with "Package .* not found$", but on several
+    OSes (at least OpenBSD, AIX, and Solaris), pkg-config prints "Package
+    libnot-a-valid-cgo-library was not found in the pkg-config search
+    path". Fix the test on these OSes by dropping the "$" so the test
+    doesn't require the line to end with "not found".
     
-    According to the documentation, these functions are supposed to act like
-    Listen and Dial respectively:
-    
-        ListenTCP acts like Listen for TCP networks.
-        DialTCP acts like Dial for TCP networks.
-    
-    So when reading this, I think we should expect GODEBUG=multipathtcp= to
-    act on these functions as well.
-    
-    Also, since #69016, MPTCP is used by default (if supported) with TCP
-    listeners. Similarly, when ListenTCP is used directly, MPTCP is
-    unexpectedly not used. It is strange to have a different behaviour.
-    
-    So now, ListenTCP and DialTCP also check for MPTCP. Those are the exact
-    same checks that are done in dial.go, see Listen and dialSingle.
-    
-    [1] https://pkg.go.dev/net#Dialer.SetMultipathTCP
-    
-    Fixes #70500
-    
-    Change-Id: I646431a74571668e505493fa8c1b2206bf30ed09
-    GitHub-Last-Rev: 69a31a1b033497fa219309410f16c4524aa6bba9
-    GitHub-Pull-Request: golang/go#70501
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630715
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I40c577521f34c360a1d62355596958f6f969eb54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536195
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/net/tcpsock.go | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/list_pkgconfig_error.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

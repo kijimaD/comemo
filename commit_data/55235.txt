@@ -1,26 +1,23 @@
-commit bb34112d4df7b5dfd12fc83b8d1305631a7b8708
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Dec 4 15:32:01 2023 -0500
+commit 4ff074945a4848cd04c020b7f20ddaa1d78cc548
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 20 13:36:51 2023 -0800
 
-    os: document Readlink behavior for relative links
+    cmd/compile: sort liveness variable reports
     
-    Also provide a runnable example to illustrate that behavior.
+    Sort variables before display so that when there are multiple variables
+    to report, they are in a consistent order.
     
-    This should help users to avoid the common mistake of expecting
-    os.Readlink to return an absolute path.
+    Otherwise they are ordered in the order they appear in the fn.Dcl list,
+    which can vary. Particularly, they vary depending on regabi.
     
-    Fixes #57766.
-    
-    Change-Id: I8f60aa111ebda0cae985758615019aaf26d5cb41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546995
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I0db380f7cbe6911e87177503a4c3b39851ff1b5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462898
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/example_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/os/file.go         |  9 +++++++++
- src/os/file_plan9.go   |  4 +---
- src/os/file_unix.go    |  4 +---
- src/os/file_windows.go |  8 +++-----
- 5 files changed, 68 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/liveness/plive.go | 9 ++++++++-
+ test/live.go                               | 4 ++--
+ test/live_regabi.go                        | 2 +-
+ 3 files changed, 11 insertions(+), 4 deletions(-)

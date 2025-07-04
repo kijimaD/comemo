@@ -1,18 +1,19 @@
-commit ec7c6c16e14a46d907c7dc95662093f0ed846143
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 16 11:48:09 2017 -0700
+commit 5c5a10690e56bf127832b98d73c83720e0093eef
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 20 20:18:02 2017 -0700
 
-    net: don't forget about ongoing DNS lookup if context canceled
+    text/template,html/template: state that Funcs must happen before parsing
     
-    Only forget about it if the context timed out, as the comment says.
+    Any method that affects the parse must happen before parsing.
+    This obvious point is clear, but it's not clear to some that the
+    set of defined functions affect the parse.
     
-    Fixes #20703.
+    Fixes #18971
     
-    Change-Id: Ie6234f1a32f85e6bfd052dc24a33aa63b8883c37
-    Reviewed-on: https://go-review.googlesource.com/45999
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8b7f8c8cf85b028c18e5ca3b9797de92ea910669
+    Reviewed-on: https://go-review.googlesource.com/38413
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/lookup.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/html/template/template.go | 1 +
+ src/text/template/template.go | 1 +
+ 2 files changed, 2 insertions(+)

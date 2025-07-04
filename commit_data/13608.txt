@@ -1,24 +1,15 @@
-commit 18c378c259c0d71eccb25b70c01e1698a0279e7a
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 8 20:02:19 2012 -0700
+commit 22e918f5d6023da619ed8c0790c8a0d6830e95ab
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Aug 9 10:19:25 2012 +1000
 
-    text/template: add 'nil' as a keyword in the language
-    The keyword reprents an untyped nil and is useful for
-    passing nil values to methods and functions. The
-    nil will be promoted to the appropriate type when
-    used; if a type cannot be assigned, an error results.
+    exp/html: ignore </html> in afterBodyIM when parsing a fragment
     
-    R=rsc, dsymonds
+    Pass 1 additional test.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6459056
+    https://golang.org/cl/6454124
 
- src/pkg/text/template/doc.go              |  1 +
- src/pkg/text/template/exec.go             | 28 ++++++++++++++++++++++------
- src/pkg/text/template/exec_test.go        | 15 +++++++++++++--
- src/pkg/text/template/funcs.go            |  8 +++++++-
- src/pkg/text/template/parse/lex.go        |  3 +++
- src/pkg/text/template/parse/lex_test.go   |  6 ++++++
- src/pkg/text/template/parse/node.go       | 21 +++++++++++++++++++++
- src/pkg/text/template/parse/parse.go      |  4 +++-
- src/pkg/text/template/parse/parse_test.go |  4 ++--
- 9 files changed, 78 insertions(+), 12 deletions(-)
+ src/pkg/exp/html/parse.go                           | 7 ++++++-
+ src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log | 2 +-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

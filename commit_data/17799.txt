@@ -1,26 +1,14 @@
-commit 9aee98def8e6c6ce6af36ffab1348c1f9356e316
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Oct 15 14:37:43 2013 -0400
+commit 74f639176da060afc1fa939f7165310abbbb707f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 15 14:25:29 2013 -0400
 
-    undo CL 14231047 / 2f4c2dde2756
+    misc/cgo/test: cut out non-standard functions
     
-    undone because the change slows down profile collection
-    significantly and unpredictable at times (see comments
-    at https://golang.org/cl/14231047 for details)
+    Otherwise the link fails. Fixes build.
     
-    ««« original CL description
-    runtime: collect profiles even while on g0 stack
-    
-    Fixes #6417
-    
-    R=golang-dev, rsc
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/14231047
-    »»»
-    
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/14535046
+    https://golang.org/cl/14483050
 
- src/pkg/runtime/os_windows.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/test/issue6506.go | 17 -----------------
+ 1 file changed, 17 deletions(-)

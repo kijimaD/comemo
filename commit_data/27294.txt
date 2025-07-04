@@ -1,14 +1,27 @@
-commit 9b05ae612a4496df317e3c1c770b4b9c5648616d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu May 5 13:19:07 2016 -0700
+commit ec7c49453516957280ab8756c5dcd45f7cc11efe
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 19 17:02:01 2016 -0700
 
-    doc: update broken links in release notes
+    cmd/compile: remove typechecklist
     
-    Fixes #15559
+    Convert remaining uses to typecheckslice.
     
-    Change-Id: Ie58650f35e32c1f49669134b62876357abcdc583
-    Reviewed-on: https://go-review.googlesource.com/22823
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I6ed0877386fb6c0b036e8ee5a228433343855abd
+    Reviewed-on: https://go-review.googlesource.com/20905
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/devel/release.html | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       |  4 ++--
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  4 ++--
+ src/cmd/compile/internal/gc/main.go      |  2 +-
+ src/cmd/compile/internal/gc/range.go     |  8 +++----
+ src/cmd/compile/internal/gc/select.go    |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/swt.go       |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 36 +++++++++++++-------------------
+ src/cmd/compile/internal/gc/walk.go      | 10 ++++-----
+ 10 files changed, 35 insertions(+), 41 deletions(-)

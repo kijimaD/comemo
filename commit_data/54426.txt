@@ -1,27 +1,27 @@
-commit c8396b51888e4d6ab8b4675b111f329eb23408f6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 12 04:51:16 2023 -0700
+commit dacf88e40a0a3d395988d226b5e43e046dd7e68f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 14 14:50:19 2022 -0400
 
-    cmd/compile/internal/ir: add NewZero
+    misc/cgo/testsigfwd: move to runtime/testprog/testprogcgo
     
-    This constructs a zero value of any type, which helps address some
-    corner case scenarios.
+    This migrates testsigfwd, which uses some one-off build
+    infrastructure, to be part of the runtime's testprogcgo.
     
-    It should also eventually handle the predeclared "zero" value, at
-    least as currently implemented in go.dev/cl/520336.
+    The test is largely unchanged. Because it's part of a larger binary,
+    this CL renames a few things and gates the constructor-time signal
+    handler registration on an environment variable. This CL also replaces
+    an errant fmt.Errorf with fmt.Fprintf.
     
-    For #61372.
+    For #37486, since it eliminates a non-go-test from dist.
     
-    Change-Id: I3a86a94fd8fa388c9c6bf281da8aa532b3da00fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527696
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I0efd146ea0a0a3f0b361431349a419af0f0ecc61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443068
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/const.go      | 30 ++++++++++++++++++++++++++++++
- src/cmd/compile/internal/noder/codes.go   |  2 +-
- src/cmd/compile/internal/noder/helpers.go |  4 ----
- src/cmd/compile/internal/noder/reader.go  | 15 ++++-----------
- src/cmd/compile/internal/noder/writer.go  |  2 +-
- 5 files changed, 36 insertions(+), 17 deletions(-)
+ src/cmd/dist/test.go                               |  3 --
+ src/runtime/crash_cgo_test.go                      | 13 +++++++++
+ .../runtime/testdata/testprogcgo/sigfwd.go         | 34 +++++++++++++++++-----
+ 3 files changed, 39 insertions(+), 11 deletions(-)

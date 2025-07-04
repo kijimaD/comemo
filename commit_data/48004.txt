@@ -1,29 +1,19 @@
-commit 16d6a5233a183be7264295c66167d35c689f9372
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Jan 24 14:38:01 2022 -0800
+commit 122fca49f968c50c3c5be27ae3f69b3b2b13e0e7
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Apr 20 22:27:15 2021 -0400
 
-    cmd/compile: new absdiff.go test, fix problem with g.curDecl
+    go/types: simplify Checker.Call
     
-    Added a new absdiff2.go test case, which works fully without using a
-    typeparam on the right-hand-side of a type declaration (which is
-    disallowed). Fixed an issue that the test revealed, which is that we
-    need to set g.curDecl properly for the "later" functions which are
-    deferred until after all declarations are initially processed. Also,
-    g.curDecl may be non-nil in typeDecl for local type declaration. So, we
-    adjust the associate assertion, and save/restore g.curDecl
-    appropriately.
+    This is a direct port of CL 306171 to go/types.
     
-    Fixes #50790
-    
-    Change-Id: Ieed76a7ad0a83bccb99cbad4bf98a7bfafbcbbd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380594
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: I6f0102c76bad3f1d939074fc4c59f772dd417498
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312190
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/decl.go |  21 +++++--
- test/run.go                            |   2 +
- test/typeparam/absdiff2.go             | 102 +++++++++++++++++++++++++++++++++
- test/typeparam/absdiffimp2.dir/a.go    |  80 ++++++++++++++++++++++++++
- test/typeparam/absdiffimp2.dir/main.go |  29 ++++++++++
- test/typeparam/absdiffimp2.go          |   7 +++
- 6 files changed, 235 insertions(+), 6 deletions(-)
+ src/go/types/call.go                  | 62 +----------------------------------
+ src/go/types/expr.go                  |  6 ----
+ src/go/types/fixedbugs/issue39634.go2 |  3 +-
+ 3 files changed, 3 insertions(+), 68 deletions(-)

@@ -1,0 +1,25 @@
+commit 3b36d92c96436b9fcc2ee3b174edc369a598c163
+Author: Tim King <taking@google.com>
+Date:   Tue Aug 20 12:43:59 2024 -0700
+
+    cmd/compile/internal: write type parameters for aliases
+    
+    Writes the field for type parameter names for aliases when
+    the bitstream is >= V2.
+    
+    This is a no-op at the moment as the writer is hardwired to V1.
+    
+    Updates #68778
+    
+    Change-Id: I5887e3608239b9a6a47e3cc21cacb75b84e1d186
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607235
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/importer/ureader.go |  5 ++++-
+ src/cmd/compile/internal/noder/reader.go     |  4 ++++
+ src/cmd/compile/internal/noder/writer.go     | 16 ++++++++++++----
+ src/go/internal/gcimporter/ureader.go        |  5 ++++-
+ 4 files changed, 24 insertions(+), 6 deletions(-)

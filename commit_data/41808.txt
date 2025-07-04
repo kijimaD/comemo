@@ -1,16 +1,22 @@
-commit 82253ddc7a6b85240fd74cc5138f685ca931f355
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Feb 28 12:36:03 2020 -0800
+commit d1969015b4ac29be4f518b94817d3f525380639d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 4 18:54:00 2019 -0400
 
-    cmd/compile: constant fold CtzNN
+    runtime: abstract M preemption check into a function
     
-    Change-Id: I3ecd2c7ed3c8ae35c2bb9562aed09f7ade5c8cdd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221609
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    We check whether an M is preemptible in a surprising number of places.
+    Put it in one function.
+    
+    For #10958, #24543.
+    
+    Change-Id: I305090fdb1ea7f7a55ffe25851c1e35012d0d06c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201439
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  10 ++
- src/cmd/compile/internal/ssa/rewrite.go        |   7 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 152 +++++++++++++++++++++++++
- 3 files changed, 166 insertions(+), 3 deletions(-)
+ src/runtime/mgcwork.go | 10 +++++-----
+ src/runtime/preempt.go |  9 +++++++++
+ src/runtime/proc.go    |  2 +-
+ src/runtime/stack.go   |  2 +-
+ 4 files changed, 16 insertions(+), 7 deletions(-)

@@ -1,17 +1,17 @@
-commit cae68700cc76d3118e470180a1cbeac616f3dfad
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jun 1 17:00:22 2021 -0700
+commit 1948c00b6e49b4481ab1378247020786db1b7129
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 4 12:40:35 2020 -0500
 
-    runtime: fix formatting
+    doc/go1.16: add release notes for darwin ports
     
-    Fix up a gofmt complaint from CL 310591.
+    Updates #38485, #42100.
+    For #40700.
     
-    Change-Id: I73534ef064a4cfc53539e5e65a8653e2cd684c64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324090
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I2caaa8482f13f9b79d4c2d2fdd242543981060cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267718
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/internal/atomic/atomic_arm64.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.16.html | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

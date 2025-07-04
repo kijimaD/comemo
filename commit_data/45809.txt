@@ -1,20 +1,18 @@
-commit 0fd20ed5b67a950c7085b20c36dbfd9a70d2bfda
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 14 14:30:46 2021 -0700
+commit c72a44888174947dfb010a636d89dc8bdd61183c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 16:38:11 2020 -0800
 
-    reflect: use same conversion panic in reflect and runtime
+    go/types: fix error message for consistency
     
-    Consistently say "pointer to array", not "array pointer".
+    Follow-up on https://golang.org/cl/271706 .
+    (Missed a review comment.)
     
-    Fixes #46743
-    
-    Change-Id: I2388ec5c16f96e82a3a383b9b462b350686ddc5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327870
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibff542f43d721600a2452907c0a20941961e793f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271766
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/reflect/all_test.go | 2 +-
- src/reflect/value.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/expr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

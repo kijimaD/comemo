@@ -1,22 +1,20 @@
-commit a6d95b4508cb65070fd8471ae8018b897da7fc83
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 7 18:27:08 2021 -0700
+commit ef2b318974ae7c77959f83f43283e2c8a6934dfa
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 25 11:14:05 2020 -0400
 
-    cmd/compile/internal/types2: split out function instantiation from index expr
+    [dev.boringcrypto] crypto/boring: expose boring.Enabled()
     
-    Also, factor out recording of type/value information after
-    evaluating an expression into an operand, so that we can
-    use it when handling instantiation expressions manually.
+    This will let applications check whether they are using BoringCrypto
+    without making assumptions.
     
-    Change-Id: I6776e6cc243558079d6a203f2fe0a6ae0ecc33de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308371
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I704304aa4f2095029d536a91708e8b9efddec01c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250499
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/types2/call.go  | 83 +++++++++++++++++---------------
- src/cmd/compile/internal/types2/check.go | 27 +++++++++++
- src/cmd/compile/internal/types2/expr.go  | 32 ++----------
- src/cmd/compile/internal/types2/index.go | 19 +++++---
- 4 files changed, 88 insertions(+), 73 deletions(-)
+ src/crypto/boring/boring.go      | 16 ++++++++++++++++
+ src/crypto/boring/boring_test.go | 20 ++++++++++++++++++++
+ src/go/build/deps_test.go        |  3 +++
+ 3 files changed, 39 insertions(+)

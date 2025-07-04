@@ -1,28 +1,19 @@
-commit 11a80860ada89b5ce8fc34ee2d91f73dfa89ab7b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 14 21:01:43 2016 -0700
+commit e84dad3f6e394f15739db46d9f319f94a1537667
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 15:36:54 2016 -0500
 
-    cmd/compile: move testdclstack out of the xdcl_list loop
+    time: restore old error text for day out of range
     
-    This is a band-aid, but it fixes the problem
-    until a deeper fix is in place.
+    Go 1.5 and earlier said "day out of range".
+    As part of working on this code it morphed into "day of month out of range".
+    To avoid churn in the output restore the old text.
     
-    Testing with genpkg -n 50000, I see:
+    This fixes some tests reported privately.
     
-    Before:
-    
-          154.67 real       184.66 user         3.15 sys
-    
-    After:
-    
-           61.82 real        96.99 user         2.17 sys
-    
-    
-    Fixes #14781.
-    
-    Change-Id: I24c7822d60c289bdd6a18a7840b984954c95f7d4
-    Reviewed-on: https://go-review.googlesource.com/20696
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: If179676cd49f9a471a9441fec2f5220c85eb0799
+    Reviewed-on: https://go-review.googlesource.com/18386
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/time/format.go      | 2 +-
+ src/time/format_test.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

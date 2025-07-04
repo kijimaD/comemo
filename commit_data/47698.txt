@@ -1,17 +1,15 @@
-commit 549cfefc7233f17e6bf2d79294d11882181e9387
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 3 19:24:54 2021 -0800
+commit 7da8490cbb8659e3a9727b15e42def6e961e8fdf
+Author: ianwoolf <btw515wolf2@gmail.com>
+Date:   Tue Apr 6 22:05:45 2021 +0800
 
-    doc/go1.18: expand section on generics
+    path/filepath: replace os.MkdirTemp with T.TempDir
     
-    Also, move it up in the document.
-    
-    Updates #47694
-    
-    Change-Id: I927c4c845089a5c22e2c5b5f3de1831c04c6d990
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369102
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: I6d78e0e742cb0e7f5ea3f430e9cec0f5d1ee03e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307652
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- doc/go1.18.html | 78 ++++++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 60 insertions(+), 18 deletions(-)
+ src/path/filepath/path_test.go | 70 +++++++++---------------------------------
+ 1 file changed, 15 insertions(+), 55 deletions(-)

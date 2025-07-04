@@ -1,12 +1,15 @@
-commit f6279b46f8220a90fb5bcadcfc8cdbe3eedd7cf2
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Fri Nov 18 01:06:59 2011 -0200
+commit 9bfe9dfde7844029bd95793a2f985cabd83c5f70
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 18 13:24:17 2011 +1100
 
-    html: fix doc after Err method name change
+    mime: remove ".wav" from tests (to fix build)
     
-    R=golang-dev, rsc
+    It looks like not all computers have
+    mime type for .wav extension.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5411045
+    https://golang.org/cl/5415045
 
- src/pkg/html/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/mime/type_windows.go | 1 -
+ 1 file changed, 1 deletion(-)

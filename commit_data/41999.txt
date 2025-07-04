@@ -1,17 +1,25 @@
-commit d0d0028207568ebc39b3a5284dfc34c10222bf65
-Author: alex-semenyuk <alexsemenyuk88@gmail.com>
-Date:   Sat Apr 18 20:50:34 2020 +0000
+commit 95149147d86ad33a82a5d0115bbb9c623cd7cade
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 5 12:13:48 2019 -0500
 
-    test: remove duplicate code from makechan/makemap
+    cmd/compile: do not skip TestFormats on short builders
     
-    Change-Id: Ib9bcfaa12d42bf9d2045aef035080b1a990a8b98
-    GitHub-Last-Rev: bee77a8970b8c4483a8106598721472623cf8ec2
-    GitHub-Pull-Request: golang/go#38047
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225219
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    TestFormats adds ~3s of running time to the test, which may be
+    slightly annoying in an edit/compile/test cycle but is negligible in a
+    TryBot run.
+    
+    The test keeps regressing in the longtest builders, requiring a manual
+    fix. Instead, run it even in short mode on the builders, so that
+    TryBot runs will detect regressions ahead of time.
+    
+    Updates #34907
+    Updates #33915
+    Updates #28621
+    
+    Change-Id: I6f9bf0f2ca929a743438310b86d85d8673c720bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205440
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/makechan.go | 6 ------
- test/makemap.go  | 6 ------
- 2 files changed, 12 deletions(-)
+ src/cmd/compile/fmt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

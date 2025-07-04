@@ -1,23 +1,14 @@
-commit f47c8f130e4f5642cda5ee98741c2de25fde8b7e
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Oct 2 16:40:38 2017 -0400
+commit 2c3c8c4247f84f53533dc61f606bbde09f783cdf
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jun 14 11:55:05 2017 +0200
 
-    runtime: skip test that intermittently hangs on ppc64le
+    doc: list html/template and text/template changes in 1.9 relnotes
     
-    A new testcase TestSelectFairness was recently added, and
-    since then the ppc64le build tests have intermittently failed.
+    Updates #20587
     
-    This adds a change to skip this test on ppc64le using
-    SkipFlaky to help determine if the problem is with the
-    test or something else with that commit.
-    
-    Updates #22047
-    
-    Change-Id: Idfef72ed791c5bd45c42ff180947fea3df280ea7
-    Reviewed-on: https://go-review.googlesource.com/67631
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3d65a0124157990b302db8879ee1a4941124ea11
+    Reviewed-on: https://go-review.googlesource.com/45730
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/chan_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/go1.9.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

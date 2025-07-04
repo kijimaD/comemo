@@ -1,17 +1,14 @@
-commit 019297a9aa63fc1ee016e0ff4f4d86e8dc578541
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Fri Jul 24 14:21:11 2015 +1000
+commit 8a28242b5f7c20d0e215ea9996fa3c5171ee14fb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jul 5 10:00:14 2015 -0700
 
-    os: remove a redundant branch in File.Read.
+    doc: add section about standard library to the FAQ
     
-    All implementations of File.read ensure that n >= 0. This is usually via
-    fixCount, except for Windows console reads, which only ever add to n.
+    Fixes #10246
     
-    Change-Id: Ic019d6a2da5ef1ac68d2690c908deca4fcc6b4a4
-    Reviewed-on: https://go-review.googlesource.com/12624
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ifa698232a09e1c37f3a9340ffdc1f2650c06fe4c
+    Reviewed-on: https://go-review.googlesource.com/11900
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/file.go | 3 ---
- 1 file changed, 3 deletions(-)
+ doc/go_faq.html | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

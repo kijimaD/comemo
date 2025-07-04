@@ -1,14 +1,35 @@
-commit e9fc522100e3e3109de96ddb5e0063a5124b97ba
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 7 10:53:07 2016 +1100
+commit 95333aea53e1476587e29a55e3e4f34ccf61ce6a
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Oct 28 18:05:05 2015 +0300
 
-    doc: show relevant test instructions on install page
+    strings: add asm version of Index() for short strings on amd64
     
-    Fixes golang/go#12490
+    Currently we have special case for 1-byte strings,
+    This extends this to strings shorter than 32 bytes on amd64.
+    Results (broadwell):
     
-    Change-Id: I0861e62aaa589fc63217c83e9c227c17e35cda75
-    Reviewed-on: https://go-review.googlesource.com/18277
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    name                 old time/op  new time/op  delta
+    IndexRune-4          57.4ns ± 0%  57.5ns ± 0%   +0.10%        (p=0.000 n=20+19)
+    IndexRuneFastPath-4  20.4ns ± 0%  20.4ns ± 0%     ~     (all samples are equal)
+    Index-4              21.0ns ± 0%  21.8ns ± 0%   +3.81%        (p=0.000 n=20+20)
+    LastIndex-4          7.07ns ± 1%  6.98ns ± 0%   -1.21%        (p=0.000 n=20+16)
+    IndexByte-4          18.3ns ± 0%  18.3ns ± 0%     ~     (all samples are equal)
+    IndexHard1-4         1.46ms ± 0%  0.39ms ± 0%  -73.06%        (p=0.000 n=16+16)
+    IndexHard2-4         1.46ms ± 0%  0.30ms ± 0%  -79.55%        (p=0.000 n=18+18)
+    IndexHard3-4         1.46ms ± 0%  0.66ms ± 0%  -54.68%        (p=0.000 n=19+19)
+    LastIndexHard1-4     1.46ms ± 0%  1.46ms ± 0%   -0.01%        (p=0.036 n=18+20)
+    LastIndexHard2-4     1.46ms ± 0%  1.46ms ± 0%     ~           (p=0.588 n=19+19)
+    LastIndexHard3-4     1.46ms ± 0%  1.46ms ± 0%     ~           (p=0.283 n=17+20)
+    IndexTorture-4       11.1µs ± 0%  11.1µs ± 0%   +0.01%        (p=0.000 n=18+17)
+    
+    Change-Id: I892781549f558f698be4e41f9f568e3d0611efb5
+    Reviewed-on: https://go-review.googlesource.com/16430
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
 
- doc/install.html | 33 ++++++++++++++++++++++++++-------
- 1 file changed, 26 insertions(+), 7 deletions(-)
+ src/runtime/asm_amd64.s        | 162 +++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings.go         |  37 ----------
+ src/strings/strings_amd64.go   |  49 +++++++++++++
+ src/strings/strings_generic.go |  47 ++++++++++++
+ src/strings/strings_test.go    |  53 ++++++++++++++
+ 5 files changed, 311 insertions(+), 37 deletions(-)

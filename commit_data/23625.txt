@@ -1,18 +1,28 @@
-commit 91ba0abef12df6824bcf912ce4bc62f5c9e1fe91
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jul 4 13:49:47 2015 +0900
+commit e610c25df05246efa807e4724a9b2b0d00847604
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 20 15:29:53 2015 -0400
 
-    net: fix misidentification of link-local, global unicast IP addresses
+    runtime: decouple stack bounds and stack allocation size
     
-    Don't treat IPv4-mapped link-local IP addresses as IPv6 link-local
-    addresses, an IPv4 broadcast address as a global unicast IP address.
+    Currently the runtime assumes that the allocation for the stack is
+    exactly [stack.lo, stack.hi). We're about to steal a small part of
+    this allocation for per-stack GC metadata. To prepare for this, this
+    commit adds a field to the G for the allocated size of the stack.
+    With this change, stack.lo and stack.hi continue to act as the true
+    bounds on the stack, but are no longer also used as the bounds on the
+    stack allocation.
     
-    Fixes #11585.
+    (I also tried this the other way around, where stack.lo and stack.hi
+    remained the allocation bounds and I introduced a new top of stack.
+    However, there are far more places that assume stack.hi is the true
+    top of the stack than there are places that assume it's the top of the
+    allocation.)
     
-    Change-Id: I6a7a0c0601f18638f5c624ab63e12ee40f77b182
-    Reviewed-on: https://go-review.googlesource.com/11883
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifa9d956753be53d286d09cbc73d47fb34a18c0c6
+    Reviewed-on: https://go-review.googlesource.com/10312
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/ip.go      | 31 +++++++++++++++----------------
- src/net/ip_test.go | 20 ++++++++++++++++++++
- 2 files changed, 35 insertions(+), 16 deletions(-)
+ src/runtime/proc1.go    |  8 +++++---
+ src/runtime/runtime2.go |  1 +
+ src/runtime/stack1.go   | 22 ++++++++++++++--------
+ 3 files changed, 20 insertions(+), 11 deletions(-)

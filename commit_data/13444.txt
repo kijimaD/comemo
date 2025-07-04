@@ -1,14 +1,18 @@
-commit b213891c06aece21cdfe0e8ebb672f061bb2d7e2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Jul 5 16:52:13 2012 -0400
+commit a54f920bfe473721ef98d94feb88f395cb642cd4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 4 14:52:51 2012 +0400
 
-    misc/chrome/gophertool: fix manifest
-    according to http://code.google.com/chrome/extensions/browserAction.html,
-    it should use "default_popup" instead of "popup".
+    runtime: move panic/defer/recover-related stuff to a separate file
+    Move panic/defer/recover-related stuff from proc.c/runtime.c to a new file panic.c.
+    No semantic changes.
+    proc.c is 1800+ LOC and is a bit difficult to work with.
     
-    R=golang-dev, adg
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/6349077
+    https://golang.org/cl/6343071
 
- misc/chrome/gophertool/manifest.json | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/panic.c   | 392 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/proc.c    | 314 +------------------------------------
+ src/pkg/runtime/runtime.c | 126 +++------------
+ src/pkg/runtime/runtime.h |   1 +
+ 4 files changed, 419 insertions(+), 414 deletions(-)

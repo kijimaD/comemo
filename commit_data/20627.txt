@@ -1,21 +1,13 @@
-commit a22424567c622ee0b111787a37e775c815d2e14b
-Author: Rob Pike <r@golang.org>
-Date:   Fri Oct 3 13:23:35 2014 -0700
+commit dfaf1f71e67de2807e07c880060b457d32a66b8b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 24 17:39:00 2014 -0700
 
-    fmt: part 2 of the great flag rebuild: make %+v work in formatters
-    Apply a similar transformation to %+v that we did to %#v, making it
-    a top-level setting separate from the + flag itself. This fixes the
-    appearance of flags in Formatters and cleans up the code too,
-    probably making it a little faster.
+    net/http: update ProxyFromEnvironment docs for HTTPS_PROXY addition
     
-    Fixes #8835.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=adg
+    R=adg
     CC=golang-codereviews
-    https://golang.org/cl/154820043
+    https://golang.org/cl/142650043
 
- src/fmt/fmt_test.go | 122 ++++++++++++++++++++++------------------------------
- src/fmt/format.go   |  48 +++++++++------------
- src/fmt/print.go    | 111 +++++++++++++++++++++++------------------------
- 3 files changed, 127 insertions(+), 154 deletions(-)
+ src/net/http/transport.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

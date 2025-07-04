@@ -1,19 +1,28 @@
-commit 9131f08a23bd5923d135df15da30b322748ffa12
-Author: Bradford Lamson-Scribner <brad.lamson@gmail.com>
-Date:   Tue Mar 10 21:26:42 2020 -0600
+commit fc3350686404a988e711aac84d70113660c882cf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 24 09:17:54 2019 -0400
 
-    cmd/compile: add dark mode functionality to CFGs in the ssa.html output
+    cmd/go: re-enable 'go list -m' with -mod=vendor for limited patterns
     
-    add dark mode to CFGs in the ssa.html output by targeting individual
-    parts of each svg and applying dark mode styles to the stroke & fill.
+    I had prohibited 'go list -m' with -mod=vendor because the module
+    graph is incomplete, but I've realized that many queries do not
+    actually require the full graph — and may, in fact, be driven using
+    modules previously reported by 'go list' for specific, vendored
+    packages. Queries for those modules should succeed.
     
-    Fixes #37767
+    Updates #33848
     
-    Change-Id: Ic867e161c6837c26d9d735ea02bc94fdb56102f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222877
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I1000b4cf586a830bb78faf620ebf62d73a3cb300
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203138
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/html.go | 37 +++++++++++++++++++++++++++++++++---
- 1 file changed, 34 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/list/list.go                   | 15 +++++++----
+ src/cmd/go/internal/modload/list.go                | 19 +++++++++++---
+ .../go/testdata/script/mod_convert_vendor_json.txt |  2 +-
+ .../script/mod_convert_vendor_manifest.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt  |  9 ++++++-
+ src/cmd/go/testdata/script/mod_vendor.txt          | 30 +++++++++++++++-------
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     |  8 +++---
+ 7 files changed, 60 insertions(+), 25 deletions(-)

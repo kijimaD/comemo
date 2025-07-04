@@ -1,27 +1,21 @@
-commit cdc73f0679c1477c262430d3476ab88c76c4a516
-Author: Dan Peterson <danp@danp.net>
-Date:   Mon Sep 5 14:18:40 2022 -0300
+commit a289e9ce7514a34cd930469322395bf0e89b59ea
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Feb 15 10:19:16 2022 -0600
 
-    .github: suggest using private browsing in pkgsite template
+    database/sql: make WAIT tests more robust, rely on waiter trigger
     
-    I opened #54872 without considering my browser's extensions and one of
-    them ended up being the cause of my issue. This seems to be a common
-    error.
+    Replace the WAIT query prefix with a function callback.
+    This fixes timing issues when the testing on loaded servers.
     
-    To help that, add a suggestion to use a private/incognito tab/window
-    to the pkgsite issue template when reproducing issues. This probably
-    would have been enough for me to figure things out before opening my
-    issue.
+    Fixes #51208
     
-    Updates #54872, #47213
-    
-    Change-Id: Ic61a3462cb902c91554cf9432aaae1222c6a991e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427962
-    Run-TryBot: Dan Peterson <danp@danp.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I5151b397b7066c27ce6bc02c160dde0b584934bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385934
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Daniel Theophanes <kardianos@gmail.com>
 
- .github/ISSUE_TEMPLATE/01-pkgsite.md | 2 ++
- 1 file changed, 2 insertions(+)
+ src/database/sql/fakedb_test.go |  3 +++
+ src/database/sql/sql_test.go    | 31 ++++++++++++++++++-------------
+ 2 files changed, 21 insertions(+), 13 deletions(-)

@@ -1,0 +1,20 @@
+commit 43cf73186b9889583f125188938c4d43d25c9ad3
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Mon Sep 9 17:12:02 2024 +0000
+
+    cmd/go: prevent git from fetching during local only mode
+    
+    Since we added a local context to git lookups, we need to be more
+    careful about fetching from remote.
+    We should not fetch when we are stamping a binary because that could
+    slow down builds.
+    
+    For #50603
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I81a719b7609e8d30b32ffb3c12a05074c5fd0c22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611916
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)

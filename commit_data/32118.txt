@@ -1,15 +1,31 @@
-commit 6dae588a06016a67aad62e732087cb2e32cda139
-Author: Seiji Takahashi <timaki.st@gmail.com>
-Date:   Thu Aug 3 22:08:55 2017 +0900
+commit 99683483d6a0dadd07140fc609135baf0ba0ef8e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 6 10:29:29 2017 -0700
 
-    html: updated entity spec link
+    cmd/internal/obj: unify creation of numeric literal syms
     
-    Fixes #21194
+    This is a straightforward refactoring,
+    to reduce the scope of upcoming changes.
     
-    Change-Id: Iac5187335df67f90f0f47c7ef6574de147c2ac9b
-    Reviewed-on: https://go-review.googlesource.com/52970
-    Reviewed-by: Avelino <t@avelino.xxx>
+    The symbol size and AttrLocal=true was not
+    set universally, but it appears not to matter,
+    since toolstash -cmp is happy.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I7f8392f939592d3a1bc6f61dec992f5661f42fca
+    Reviewed-on: https://go-review.googlesource.com/39791
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/entity.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/fmt_test.go         |  2 --
+ src/cmd/compile/internal/x86/ssa.go | 14 ++++++--------
+ src/cmd/internal/obj/arm/obj5.go    | 12 ++----------
+ src/cmd/internal/obj/arm64/obj7.go  | 20 +++++---------------
+ src/cmd/internal/obj/mips/obj0.go   | 22 ++++++----------------
+ src/cmd/internal/obj/ppc64/obj9.go  | 23 ++++-------------------
+ src/cmd/internal/obj/s390x/objz.go  | 26 ++++++--------------------
+ src/cmd/internal/obj/sym.go         | 28 ++++++++++++++++++++++++++++
+ src/cmd/internal/obj/x86/obj6.go    | 14 +++-----------
+ 9 files changed, 60 insertions(+), 101 deletions(-)

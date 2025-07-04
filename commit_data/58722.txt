@@ -1,26 +1,19 @@
-commit f91ac1b61eb7c18773ff01be58a39f49de436585
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Thu Feb 13 10:31:53 2025 -0500
+commit 3c31998f4f20d79bf2b42f7a43df1867b8c08259
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 4 13:31:23 2023 -0800
 
-    crypto/internal/fips140test: fix TestACVP env vars
+    doc: re-arrange release notes for go/types
     
-    Fix TestACVP environment construction to include both ACVP_WRAPPER and
-    GODEBUG.
+    Better order in description of changes to go/types.
+    Move go/types section up so it's in alphabetical order again.
+    No changes to actual content.
     
-    Previously we were accidentally overwriting the cmd.Env, stomping the
-    ACVP_WRAPPER env var and replacing it with just the GODEBUG env var.
-    This in turn makes the tests start to fail when the test binary
-    subprocess is invoked without knowing it's fulfilling the role of the
-    wrapper, and not the test driver.
-    
-    Change-Id: Ie6ee30c8b93b2051a671e12aaa63d2116c5eb8c8
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649016
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: If2f085b665b412489e5dfdba79b7f93598ff2785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546359
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- src/crypto/internal/fips140test/acvp_test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ doc/go1.22.html | 96 ++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 48 insertions(+), 48 deletions(-)

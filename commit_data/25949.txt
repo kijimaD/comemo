@@ -1,19 +1,19 @@
-commit 922ce58de0181c114c09e6fbd6ab28f1d477898d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 26 17:03:58 2016 -0800
+commit 3fb9e08758df3f2ace772271c73692e483d85a80
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Mon Oct 26 20:10:54 2015 +0800
 
-    cmd/compile: change Func.Cvars to the new Nodes type
+    cmd/vet: make "-all -shadow" mean all default checks and -shadow
     
-    Update #14473.
+    Prior to this change "go tool vet -all -shadow" ran only -shadow check.
     
-    Change-Id: Iba1ecf42d9ab5a93144941439d5cc6b0b4f4a3ac
-    Reviewed-on: https://go-review.googlesource.com/19992
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also fix godoc package path in the usage text.
+    
+    Fixes #13020
+    
+    Change-Id: I87c60d6b06a02106ae8bff56adb79df032cc4646
+    Reviewed-on: https://go-review.googlesource.com/16325
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 14 +++++++-------
- src/cmd/compile/internal/gc/dcl.go     |  2 +-
- src/cmd/compile/internal/gc/esc.go     |  2 +-
- src/cmd/compile/internal/gc/order.go   |  2 +-
- src/cmd/compile/internal/gc/sinit.go   |  2 +-
- src/cmd/compile/internal/gc/syntax.go  | 23 +----------------------
- 6 files changed, 12 insertions(+), 33 deletions(-)
+ src/cmd/vet/doc.go  |  2 +-
+ src/cmd/vet/main.go | 12 ++++++------
+ 2 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,27 +1,20 @@
-commit f7f266c88598398dcf32b448bcea2100e1702630
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 13 12:02:52 2023 -0400
+commit bfcc3a755cbd9b5c38a4961f1df76c4db0d41442
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 19 14:22:25 2022 -0700
 
-    os/exec: avoid calling LookPath in cmd.Start for resolved paths
+    go/types, types2: remove global goVersion flag (cleanup)
     
-    This reapplies CL 512155, which was previously reverted in CL 527337.
-    The race that prompted the revert should be fixed by CL 527820,
-    which will be submitted before this one.
+    Now that we have an easy mechanism to set the Go version with a comment
+    line directly in test files, we don't need this flag anymore.
     
-    For #36768.
-    Updates #62596.
-    
-    Change-Id: I3c3cd92470254072901b6ef91c0ac52c8071e0a2
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-race,gotip-windows-amd64-race,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528038
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Ic1f1a6fdf2c6c692512bff49650916ec43645aee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444275
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/os/exec/exec.go            | 31 +-------------------------
- src/os/exec/lp_plan9.go        |  6 ++++++
- src/os/exec/lp_unix.go         |  6 ++++++
- src/os/exec/lp_wasm.go         |  6 ++++++
- src/os/exec/lp_windows.go      | 49 ++++++++++++++++++++++++++++++++++++++++++
- src/os/exec/lp_windows_test.go | 25 ++++++++++++---------
- 6 files changed, 83 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go | 1 -
+ src/go/types/check_test.go                    | 6 ------
+ 2 files changed, 7 deletions(-)

@@ -1,18 +1,13 @@
-commit ea2ac3fe5fb2011b077809e60bc018e0c6caa66c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 15 10:36:48 2016 -0700
+commit 78715cebcfcca3aaaaba4dd41ef6b82a46d7b93d
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Apr 8 11:55:05 2016 -0400
 
-    runtime: remove useless loop from CgoCCodeSIGPROF test program
+    cmd/link: add s390x to link tool main function
     
-    I verified that the test fails if I undo the change that it tests for.
-    
-    Updates #14732.
-    
-    Change-Id: Ib30352580236adefae946450ddd6cd65a62b7cdf
-    Reviewed-on: https://go-review.googlesource.com/24151
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I83bc2b4a00216b069f133113e4ae9ad76c98a708
+    Reviewed-on: https://go-review.googlesource.com/21741
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/testdata/testprogcgo/aprof.go | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ src/cmd/link/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

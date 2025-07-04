@@ -1,21 +1,24 @@
-commit 8bf13838eb21921bf02e2970f8f8d3f2a745d982
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Feb 6 16:58:07 2015 +1100
+commit 2c7c727c1cbbf943c8d102610769b6d1fed80dca
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Jan 9 23:25:42 2015 +0100
 
-    time: return informative errors when failing to load timezone data.
+    sort: reduce number of comparisons needed by medianOfThree
     
-    If we cannot load timezone information for a reason other than the
-    zoneinfo file not existing, return it since that will be much more
-    useful in debugging failures than "unknown time zone XYZ".
+    For some cases we can ensure the correct order of elements in two
+    instead of three comparisons. It is unnecessary to compare m0 and
+    m1 again if m2 and m1 are not swapped.
     
-    Fixes #9723.
+    benchmark                   old ns/op      new ns/op      delta
+    BenchmarkSortString1K       302721         299590         -1.03%
+    BenchmarkSortInt1K          124055         123215         -0.68%
+    BenchmarkSortInt64K         12291522       12203402       -0.72%
+    BenchmarkSort1e2            58027          57111          -1.58%
+    BenchmarkSort1e4            12426805       12341761       -0.68%
+    BenchmarkSort1e6            1966250030     1960557883     -0.29%
     
-    Change-Id: I3aa5774859cec28e584d16bcc1fef0705d95288c
-    Reviewed-on: https://go-review.googlesource.com/3984
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2b17ff8dee310ec9ab92a6f569a95932538768a9
+    Reviewed-on: https://go-review.googlesource.com/2614
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/time/sys_unix.go         | 2 ++
- src/time/zoneinfo_plan9.go   | 9 +++++----
- src/time/zoneinfo_unix.go    | 6 ++++++
- src/time/zoneinfo_windows.go | 9 +++++----
- 4 files changed, 18 insertions(+), 8 deletions(-)
+ src/sort/sort.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

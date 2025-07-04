@@ -1,16 +1,12 @@
-commit 0830f64bf0a95c310b6396ea53279b17e35f82ad
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 18 10:33:47 2013 -0800
+commit b758d8703a87aa2040302e9503a77d683b5f39f9
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Wed Dec 18 13:29:27 2013 -0500
 
-    liblink: don't search for an import file with an absolute path
+    encoding/csv: remove unused unreadRune function
     
-    This restores the old behaviour, and makes it possible to
-    continue to use 6g and 6l directly, rather than the go tool,
-    with dot imports.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/43710043
+    https://golang.org/cl/37720046
 
- src/liblink/ld.c | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/pkg/encoding/csv/reader.go | 6 ------
+ 1 file changed, 6 deletions(-)

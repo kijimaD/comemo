@@ -1,16 +1,26 @@
-commit 58bfef82fcafdb13c6f456313d2972c4530a8193
+commit c16c2c49e2fa98ae551fc6335215fadd62d33542
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 1 16:27:43 2023 -0500
+Date:   Tue Jan 10 15:59:12 2023 -0500
 
-    net/http: avoid leaking io.Copy goroutines (and hijacked connections) in TestTransportNoReuseAfterEarlyResponse
+    cmd/go: shorten TestScript/test_shuffle and skip it in short mode
     
-    Fixes #64252 (maybe).
+    test_shuffle was added in CL 310033. It takes about 4½ seconds on my
+    workstation prior to this CL, most of which is spent linking and
+    running test binaries in 'go test'.
     
-    Change-Id: Iba2a403a9347be4206f14acb11591dc2eb7f9fb8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546616
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    We can reduce that time somewhat (to 3¾ seconds) by simply running the
+    test fewer times (cases of 'off', 'on', positive, zero, and negative
+    values seem sufficient), but we should also avoid that linking
+    overhead at all in short mode.
+    
+    Fixes #57709.
+    
+    Change-Id: I908a70435ccfb1ca16ed23aec17512bf2b267b21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/http/transport_test.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/test_shuffle.txt | 18 ++----------------
+ 1 file changed, 2 insertions(+), 16 deletions(-)

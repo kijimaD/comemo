@@ -1,15 +1,20 @@
-commit 52e5987f5d92f707411359d9f56cb0cec97ac167
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 15 07:52:23 2019 -0700
+commit 4ad13555184eb0697c2e92c64c1b0bdb287ccc10
+Author: Romain Baugue <romain.baugue@elwinar.com>
+Date:   Tue Apr 30 13:51:05 2019 +0200
 
-    os: keep attr.Files alive when calling StartProcess
+    html: add a Fuzz function
     
-    Updates #34810
-    Fixes #34858
+    Adds a sample Fuzz test function to package html based on
+    https://github.com/dvyukov/go-fuzz-corpus/blob/master/stdhtml/main.go
     
-    Change-Id: Ie934861e51eeafe8a7fd6653c4223a5f5d45efe8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201198
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #19109
+    Updates #31309
+    
+    Change-Id: I8c49fff8f70fc8a8813daf1abf0044752003adbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174301
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/exec_posix.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/html/fuzz.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

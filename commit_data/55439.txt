@@ -1,18 +1,29 @@
-commit fee3f537b4209b1fae478cd29ae2f308b389493f
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Aug 4 20:40:23 2023 +1000
+commit 8fd6cc8bb51ff09990ab13422ef66e18e9295911
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 1 20:03:17 2023 -0800
 
-    cmd/dist,internal/platform: enable openbsd/riscv64 port
+    go/types, types2: eliminate need to sort arguments for type inference
     
-    Fixes #55999
+    When unifying types, we always consider underlying types if inference
+    would fail otherwise. If a type parameter has a (non-defined) type
+    inferred and later matches against a defined type, make sure to keep
+    that defined type instead.
     
-    Change-Id: If76b61b660db3fefe5f9ca97500782f2a650db25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518629
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    For #43056.
+    
+    Change-Id: I24e4cd2939df7c8069e505be10914017c1c1c288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464348
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/dist/build.go            | 1 -
- src/internal/platform/zosarch.go | 2 +-
- 2 files changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/infer.go          | 45 -----------------------
+ src/cmd/compile/internal/types2/infer2.go         | 45 -----------------------
+ src/cmd/compile/internal/types2/unify.go          | 23 ++++++++----
+ src/go/types/infer.go                             | 45 -----------------------
+ src/go/types/infer2.go                            | 45 -----------------------
+ src/go/types/unify.go                             | 23 ++++++++----
+ src/internal/types/testdata/examples/functions.go |  6 +--
+ 7 files changed, 35 insertions(+), 197 deletions(-)

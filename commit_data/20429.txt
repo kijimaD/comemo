@@ -1,15 +1,24 @@
-commit 3d2321f639452afbccc2249153c16abec2a6607f
+commit 50fc0f1af626c57acaae2eb63781a6d76d7de9f0
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 16 10:01:28 2014 -0400
+Date:   Sun Sep 7 23:40:27 2014 -0400
 
-    io: clarify Reader returning 0, nil
+    net/http/httptest: delete TestIssue7264
     
-    Fixes #8317.
+    Now it's failing on Windows:
     
-    LGTM=bradfitz
-    R=bradfitz, iant, r
-    CC=golang-codereviews
-    https://golang.org/cl/143100043
+    panic: httptest: failed to listen on a port: listen tcp 127.0.0.1:0:
+    listen: An operation on a socket could not be performed because the
+    system lacked sufficient buffer space or because a queue was full.
+    
+    Since we can't seem to understand what the test is trying to test,
+    and because it is causing problems on multiple systems,
+    delete it.
+    
+    Fixes #7264.
+    
+    TBR=bradfitz
+    CC=brainman, golang-codereviews
+    https://golang.org/cl/141210043
 
- src/io/io.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/pkg/net/http/httptest/server_test.go | 23 -----------------------
+ 1 file changed, 23 deletions(-)

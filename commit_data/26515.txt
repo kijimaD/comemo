@@ -1,21 +1,20 @@
-commit 4d920410d2a61b9df697337faff3944834b55162
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Mar 24 22:32:38 2016 -0400
+commit f3575a9561319d2398ab01dd0375e0909e2f2aa8
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 26 15:55:05 2016 -0800
 
-    cmd/compile: avoid pointers in go.string.* symbols
+    [dev.ssa] cmd/compile: tweak init function prologue
     
-    When creating binaries for dynamic linking, the linker moves
-    read-only data symbols that contain pointers into relro sections.
-    It is not setup for handling a go.string symbol moving to relro.
+    We used to compare the init state with == to 0 and 2, which
+    requires 2 comparisons.  Instead, compare with 1 and use
+    <, ==.  That requires only one comparison.
     
-    Instead of teaching it how (because go.string symbols with pointers
-    are unusual anyhow), put the data in a type.. section.
+    This isn't a big deal performance-wise, as it is just init
+    code.  But there is a fair amount of init code, so this
+    should help a bit with code size.
     
-    Fixes the android builder.
-    
-    Change-Id: Ica4722d32241643c060923517b90276ff8ac6b07
-    Reviewed-on: https://go-review.googlesource.com/21110
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4a2765f1005776f0edce28ac143f4b7596d95a68
+    Reviewed-on: https://go-review.googlesource.com/18948
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/reflect.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/init.go | 31 +++++++++++++++----------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)

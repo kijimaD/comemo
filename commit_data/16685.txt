@@ -1,12 +1,17 @@
-commit 1184407f2a2955fe2befd22896ee9bf49cd0defe
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 1 18:10:03 2013 -0400
+commit fd23958f49f0967c9a5999ffc2e33740f246a11a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 1 17:36:08 2013 -0400
 
-    runtime: disable preemption test (fix build)
+    runtime: fix memory leaks due to defers
+    fn can clearly hold a closure in memory.
+    argp/pc point into stack and so can hold
+    in memory a block that was previously
+    a large stack serment.
     
-    TBR=golang-dev
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/10849043
+    https://golang.org/cl/10784043
 
- src/pkg/runtime/proc_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/panic.c |  6 ++++-
+ test/deferfin.go        | 59 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+), 1 deletion(-)

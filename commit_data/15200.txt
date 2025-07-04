@@ -1,14 +1,18 @@
-commit 02e05817ada2bd3d0492387a032b1aa879c2cd3f
+commit 7576179aa3de1afc372da5ac9e9d4bcbdf226560
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 11 08:05:46 2013 -0500
+Date:   Mon Feb 11 07:47:41 2013 -0500
 
-    sync: add caution about where to call (*WaitGroup).Add
+    spec: document fp rounding during explicit constant conversion
     
-    Fixes #4762.
+    The gc compilers already behave this way. It was an explicit
+    decision during the very long constant design discussions,
+    but it appears not to have made it into the spec.
     
-    R=daniel.morsing, adg
+    Fixes #4398.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7308045
+    https://golang.org/cl/7313069
 
- src/pkg/sync/waitgroup.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

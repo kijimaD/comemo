@@ -1,28 +1,21 @@
-commit 6a70f9d07339729639520f4ed8faef8965e6e26e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 25 18:14:02 2013 -0400
+commit c0b3c17184735e1f4352aea6a9ecf5779f098cd5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 25 22:12:47 2013 +0100
 
-    runtime: pass setmg function to cgo_init
+    cmd/gc: instrument logical && and ||.
     
-    This keeps the logic about how to set the thread-local variables
-    m and g in code compiled and linked by the gc toolchain,
-    an important property for upcoming cgo changes.
+    The right operand of a && and || is only executed conditionnally,
+    so the instrumentation must be more careful. In particular
+    it should not turn nodes assumed to be cheap after walk into
+    expensive ones.
     
-    It's also just a nice cleanup: one less place to update when
-    these details change.
+    Update #4228
     
-    R=golang-dev, r
+    R=dvyukov, golang-dev
     CC=golang-dev
-    https://golang.org/cl/7560048
+    https://golang.org/cl/7986043
 
- src/pkg/runtime/asm_386.s               | 11 +++++++++++
- src/pkg/runtime/asm_amd64.s             |  8 ++++++++
- src/pkg/runtime/cgo/gcc_freebsd_386.c   | 14 +++++---------
- src/pkg/runtime/cgo/gcc_freebsd_amd64.c | 16 ++++++----------
- src/pkg/runtime/cgo/gcc_linux_386.c     | 17 +++++------------
- src/pkg/runtime/cgo/gcc_linux_amd64.c   | 15 ++++++---------
- src/pkg/runtime/cgo/gcc_netbsd_386.c    | 14 +++++---------
- src/pkg/runtime/cgo/gcc_netbsd_amd64.c  | 15 ++++++---------
- src/pkg/runtime/cgo/gcc_openbsd_386.c   | 14 +++++---------
- src/pkg/runtime/cgo/gcc_openbsd_amd64.c | 15 ++++++---------
- 10 files changed, 63 insertions(+), 76 deletions(-)
+ src/cmd/gc/racewalk.c                     | 41 +++++++++++++++++++++++++++----
+ src/cmd/gc/subr.c                         |  7 ++++++
+ src/pkg/runtime/race/testdata/mop_test.go |  6 ++---
+ 3 files changed, 45 insertions(+), 9 deletions(-)

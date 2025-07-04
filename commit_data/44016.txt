@@ -1,15 +1,19 @@
-commit 5046cb8a6e8496f70e47f648ed368ffe87bc5e4e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Dec 15 10:36:10 2020 +0100
+commit 781c94e4c6f806b091f3bb75b9498e20550758be
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 4 11:25:01 2020 -0400
 
-    doc/go1.16: fix formatting in net, net/http and net/http/httputil sections
+    [dev.link] cmd/link: mmap on more platforms
     
-    For #40700.
+    We didn't mmap on them because they don't support msync. Now we
+    no longer use msync, we can mmap.
     
-    Change-Id: I83d9ef9f79d59a0165a47ccc938fc2bf40e90703
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278212
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I9988278566e0db10be90a994509fc6b733e784a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231920
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.16.html | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/outbuf_mmap.go   | 2 +-
+ src/cmd/link/internal/ld/outbuf_nommap.go | 2 +-
+ src/cmd/link/internal/ld/outbuf_test.go   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

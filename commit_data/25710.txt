@@ -1,17 +1,23 @@
-commit b6c5edae7c0e9dd6d12dbb8f1c9638dea45f9464
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 1 22:02:52 2016 -0500
+commit 662ab8be31d30e250716cc1abd63d6be68563543
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 13:25:48 2015 -0800
 
-    archive/zip: handle pre-zip64 zip files containing 2³²-1-byte content
+    cmd/compile/internal/gc: add dropped line correction again
     
-    This corrects a regression from Go 1.5 introduced by CL 18317.
+    The line correction when reporting a missing package clause
+    was removed before since it wasn't clear that it was needed.
+    Added it again because of issue 13267.
     
-    Fixes #14185.
+    No explicit test case has been added to test/fixedbugs because
+    it would require a file that contains a single byte and such a
+    file doesn't fit the existing test harness. Instead documented
+    the problematic line in the parser for future reference.
     
-    Change-Id: Ic3215714846d9f28809cd04e3eb3664b599244f4
-    Reviewed-on: https://go-review.googlesource.com/19151
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #13267.
+    
+    Change-Id: I590fe8f358042aab73acf16c2ed9567872b174f4
+    Reviewed-on: https://go-review.googlesource.com/16975
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/archive/zip/reader.go      |  12 ++-
- src/archive/zip/reader_test.go | 235 +++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 236 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/parser.go | 1 +
+ 1 file changed, 1 insertion(+)

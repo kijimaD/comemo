@@ -1,34 +1,15 @@
-commit 4110271501f901f53d987fe3a0a0f832b883c8b4
+commit 0e1b6bb5470701090cd8dadacc6eb5074a86cf82
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 3 19:05:59 2014 -0400
+Date:   Thu Apr 3 19:04:47 2014 -0400
 
-    runtime: handle fault during runtime more like unexpected fault address
+    runtime: use mincore correctly in addrspace_free
     
-    Delaying the runtime.throw until here will print more information.
-    In particular it will print the signal and code values, which means
-    it will show the fault address.
-    
-    The canpanic checks were added recently, in CL 75320043.
-    They were just not added in exactly the right place.
+    Fixes #7476.
     
     LGTM=iant
-    R=dvyukov, iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/83980043
+    https://golang.org/cl/84000043
 
- src/pkg/runtime/os_darwin.c      | 3 +++
- src/pkg/runtime/os_dragonfly.c   | 3 +++
- src/pkg/runtime/os_freebsd.c     | 3 +++
- src/pkg/runtime/os_linux.c       | 3 +++
- src/pkg/runtime/os_nacl.c        | 3 +++
- src/pkg/runtime/os_netbsd.c      | 3 +++
- src/pkg/runtime/os_openbsd.c     | 3 +++
- src/pkg/runtime/os_plan9.c       | 3 +++
- src/pkg/runtime/os_plan9_386.c   | 3 ---
- src/pkg/runtime/os_plan9_amd64.c | 3 ---
- src/pkg/runtime/os_solaris.c     | 3 +++
- src/pkg/runtime/os_windows.c     | 3 +++
- src/pkg/runtime/signal_386.c     | 4 ----
- src/pkg/runtime/signal_amd64x.c  | 4 ----
- src/pkg/runtime/signal_arm.c     | 4 ----
- 15 files changed, 30 insertions(+), 18 deletions(-)
+ src/pkg/runtime/mem_linux.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

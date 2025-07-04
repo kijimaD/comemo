@@ -1,29 +1,21 @@
-commit d7b34d5f29324d77fad572676f0ea139556235e0
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sun Oct 30 01:54:19 2016 +0200
+commit 923a74ce7710c1e3b24b4cc3220e2ba38d7673af
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 6 14:48:47 2016 -0700
 
-    runtime: improve atoi implementation
+    cmd/compile: ignore contentEscapes for marking nodes as escaping
     
-    - Adds overflow checks
-    - Adds parsing of negative integers
-    - Adds boolean return value to signal parsing errors
-    - Adds atoi32 for parsing of integers that fit in an int32
-    - Adds tests
+    We can still stack allocate and VarKill nodes which don't
+    escape but their content does.
     
-    Handling of errors to provide error messages
-    at the call sites is left to future CLs.
+    Fixes #16996
     
-    Updates #17718
-    
-    Change-Id: I3cacd0ab1230b9efc5404c68edae7304d39bcbc0
-    Reviewed-on: https://go-review.googlesource.com/32390
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If8aa0fcf2c327b4cb880a3d5af8d213289e6f6bf
+    Reviewed-on: https://go-review.googlesource.com/28575
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/export_test.go |  3 ++
- src/runtime/mgc.go         |  8 ++--
- src/runtime/proc.go        | 13 +++----
- src/runtime/runtime1.go    | 13 +++++--
- src/runtime/string.go      | 63 ++++++++++++++++++++++++++++---
- src/runtime/string_test.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 174 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  2 +-
+ test/live.go                       | 10 ++++++++++
+ test/live_ssa.go                   |  8 ++++++++
+ 3 files changed, 19 insertions(+), 1 deletion(-)

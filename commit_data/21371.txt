@@ -1,19 +1,13 @@
-commit 6488b217c2cdda50beea73ce3312da9e853160f8
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Dec 12 19:41:18 2014 +0100
+commit e26e3fa25a2ab428ab04103757b08ed938b356ae
+Author: mattn <mattn.jp@gmail.com>
+Date:   Fri Dec 26 11:44:55 2014 +0900
 
-    cmd/go: add tracing support
+    reflect, runtime: gofmt
     
-    cmd/go part of tracing functionality:
-    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
-    Full change:
-    https://codereview.appspot.com/146920043
-    
-    Change-Id: If346e11b8029c475b01fbf7172ce1c88171fb1b2
-    Reviewed-on: https://go-review.googlesource.com/1460
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5437b3a36181373d8ff33225d7520ab321459de9
+    Reviewed-on: https://go-review.googlesource.com/2084
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/doc.go      | 4 ++++
- src/cmd/go/test.go     | 4 ++++
- src/cmd/go/testflag.go | 4 +++-
- 3 files changed, 11 insertions(+), 1 deletion(-)
+ src/reflect/export_test.go | 6 +++---
+ src/runtime/hashmap.go     | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

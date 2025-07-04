@@ -1,12 +1,16 @@
-commit ddd67f2ecd1c100c48563addf4293bfe6dc7535f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 25 10:29:44 2012 +1100
+commit e3ab30bbc1f17d04fd2f5ce4ea767e0121c5c886
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 24 21:04:40 2012 -0200
 
-    math/big: add examples for Rat and Int's SetString and Scan methods
+    encoding/xml: add docs for ignoring tag
     
-    R=golang-dev, bradfitz, rsc, r, gri, r
+    That was supposed to be in the original CL, but missed
+    the files.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5543047
+    https://golang.org/cl/5570052
 
- src/pkg/math/big/example_test.go | 51 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ src/pkg/encoding/xml/marshal.go | 1 +
+ src/pkg/encoding/xml/read.go    | 2 ++
+ 2 files changed, 3 insertions(+)

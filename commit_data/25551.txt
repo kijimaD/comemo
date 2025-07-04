@@ -1,16 +1,12 @@
-commit 040932869ed8c9549e18f7b3ca2ea844b0e28978
+commit 6c967c0ad2a23c8824d9be8fef18aaf00d2ff0f4
 Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Jan 12 11:40:17 2016 +1300
+Date:   Fri Sep 4 08:31:43 2015 +1200
 
-    runtime/internal/atomic: use //go:noinline to prevent inlining, not assembly nop
+    cmd/dist: run more cgo tests on ppc64x
     
-    A bit cleanuppy for 1.6 maybe, but something I happened to notice.
-    
-    Change-Id: I70f3b48445f4f527d67f7b202b6171195440b09f
-    Reviewed-on: https://go-review.googlesource.com/18550
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I992655bb02690ad95122a9e4c45cbd0948b545a0
+    Reviewed-on: https://go-review.googlesource.com/14238
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/internal/atomic/atomic_386.go    |  8 ++------
- src/runtime/internal/atomic/atomic_amd64x.go | 10 +++-------
- src/runtime/internal/atomic/stubs.go         |  2 --
- 3 files changed, 5 insertions(+), 15 deletions(-)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

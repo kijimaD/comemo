@@ -1,41 +1,41 @@
-commit 19d0b3e81f4a072615f92fd6821c8ed2cee27c9f
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jan 3 14:03:08 2025 +0100
+commit 6e7aee5f6bdcf2823be358d6e4452b5e2fafb8ed
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jan 22 13:54:56 2024 -0500
 
-    crypto/rsa: use Div instead of GCD for trial division
+    net: delete TestListenCloseListen
     
-    Div is way faster. We could actually test a lot more primes and still
-    gain performance despite the diminishing returns, but necessarily it
-    would have marginal impact overall.
+    In CL 557177, I attempted to fix a logical race in this test (#65175).
+    However, I introduced a data race in the process (#65209).
     
-    fips140: off
-    goos: linux
-    goarch: amd64
-    pkg: crypto/rsa
-    cpu: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics
-                        │  e325b41ad1  │             0f611af2e1              │
-                        │    sec/op    │   sec/op     vs base                │
-    GenerateKey/2048-16   124.19m ± 0%   39.93m ± 0%  -67.85% (p=0.000 n=20)
+    The race was reported on the windows-amd64-race builder. When I tried
+    to reproduce it on linux/amd64, I added a time.Sleep in the Accept
+    loop. However, that Sleep causes the test to fail outright with
+    EADDRINUSE, which suggests that my earlier guess about the open Conn
+    preventing reuse of the port was, in fact, incorrect.
     
-    Surprisingly, the performance gain is similar on ARM64, which doesn't
-    have intrinsified math.Div.
+    On some platforms we could instead use SO_REUSEPORT and avoid closing
+    the first Listener entirely, but that wouldn't be even remotely in the
+    spirit of the original test.
     
-    fips140: off
-    goos: darwin
-    goarch: arm64
-    pkg: crypto/rsa
-    cpu: Apple M2
-                       │  e325b41ad1  │             6276161a7f              │
-                       │    sec/op    │   sec/op     vs base                │
-    GenerateKey/2048-8   136.49m ± 0%   47.97m ± 1%  -64.86% (p=0.000 n=20)
+    Since I don't see a way to preserve the test in a way that is not
+    inherently flaky / racy, I suggest that we just delete it. It was
+    originally added as a regression test for a bug in the nacl port,
+    which no longer exists anyway. (Some of that code may live on in the
+    wasm port, but it doesn't seem worth maintaining a flaky
+    port-independent test to maintain a regression test for a bug specific
+    to secondary platforms.)
     
-    Change-Id: I6a6a46560331198312bd09c1cbe4d2b3c370c552
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/639955
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #65209.
+    Updates #65175.
+    
+    Change-Id: I32f9da779d24f2e133571f0971ec460cebe7820a
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557536
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/crypto/internal/fips140/rsa/keygen.go | 53 +++++++++++++++++++------------
- 1 file changed, 32 insertions(+), 21 deletions(-)
+ src/net/net_test.go | 70 -----------------------------------------------------
+ 1 file changed, 70 deletions(-)

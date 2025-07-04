@@ -1,16 +1,12 @@
-commit 91938fd1ca0e1ed15fdda2552155216a28bdb8f4
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 4 14:35:35 2015 -0400
+commit 684473d19bdbf71bdc619448667588fe27d1933a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:44:18 2015 -0400
 
-    cmd/internal/ld: put all type decoding in decodesym.go
+    misc/ios: pick clang arch based on GOARCH
     
-    Move the one instance of type structure decoding in the linker that
-    doesn't live decodesym.go in to decodesym.go.
-    
-    Change-Id: Ic6a23500deb72f0e9c8227ab611511e9781fac70
-    Reviewed-on: https://go-review.googlesource.com/9690
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia49ab729747acb07bf392d90aea9e752471e152e
+    Reviewed-on: https://go-review.googlesource.com/8789
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/internal/ld/decodesym.go | 4 ++++
- src/cmd/internal/ld/lib.go       | 5 +----
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ misc/ios/clangwrap.sh | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

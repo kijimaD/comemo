@@ -1,32 +1,27 @@
-commit 0d3c23fe87ca0ee727d833ce11ab16b405a93ea3
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Tue Apr 4 16:35:06 2023 +0800
+commit f12461cb0f3878b6d332f4be3a02fa44cc744df6
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Apr 22 10:10:23 2022 -0400
 
-    cmd/link: bump loong64 function alignment to 16 bytes
+    go/doc: remove unused top-level declarations from playable example
     
-    The loong64 PCALIGN directive works with PCs relative to beginning of
-    functions. So if the function alignment is less than that requested by
-    PCALIGN, the following code may in fact not be aligned as such, leading
-    to unexpected performance.
+    When we synthesize a playable example, prune declarations that may be
+    in the original example file but aren't used by the example.
     
-    The current function alignment on loong64 is 8 bytes, which seems to
-    stem from mips64 or riscv64. In order to make performance more
-    predictable on loong64, it is raised to 16 bytes to ensure that at
-    least `PCALIGN $16` works.
+    This is ported from pkgsite, where it fixed #43658.
     
-    As alignment of loops written in Go is yet to be tackled, and the
-    codegen is not otherwise touched, benchmark numbers for this change are
-    not going to be meaningful, and not included.
-    
-    Change-Id: I2120ef3746ce067e274920c82091810073bfa3be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481936
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I41e6d4c28afa993c77c8a82b47bd86ba15ed13b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401758
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: WANG Xuerui <git@xen0n.name>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/link/internal/loong64/l.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/doc/example.go                              | 135 +++++++++++--
+ .../doc/testdata/examples/generic_constraints.go   |  38 ++++
+ .../testdata/examples/generic_constraints.golden   |  39 ++++
+ src/go/doc/testdata/examples/iota.go               |  34 ++++
+ src/go/doc/testdata/examples/iota.golden           |  23 +++
+ src/go/doc/testdata/examples/issue43658.go         | 223 +++++++++++++++++++++
+ src/go/doc/testdata/examples/issue43658.golden     | 156 ++++++++++++++
+ src/go/doc/testdata/examples/values.go             |  22 ++
+ src/go/doc/testdata/examples/values.golden         |  21 ++
+ 9 files changed, 676 insertions(+), 15 deletions(-)

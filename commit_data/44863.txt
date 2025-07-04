@@ -1,31 +1,18 @@
-commit e4a4161f1f3157550846e1b6bd4fe83aae15778e
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Mar 11 12:28:45 2021 -0500
+commit 521393e7e05cd9272ae6023387fa92839d72eb4f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 27 13:57:12 2020 -0400
 
-    runtime: non-strict InlTreeIndex lookup in Frames.Next
+    cmd/go/internal/modget: move MVS code to a separate file
     
-    When using cgo, some of the frames can be provided by cgoTraceback, a
-    cgo-provided function to generate C tracebacks. Unlike Go tracebacks,
-    cgoTraceback has no particular guarantees that it produces valid
-    tracebacks.
+    For #36460
     
-    If one of the (invalid) frames happens to put the PC in the alignment
-    region at the end of a function (filled with int 3's on amd64), then
-    Frames.Next will find a valid funcInfo for the PC, but pcdatavalue will
-    panic because PCDATA doesn't cover this PC.
-    
-    Tolerate this case by doing a non-strict PCDATA lookup. We'll still show
-    a bogus frame, but at least avoid throwing.
-    
-    Fixes #44971
-    
-    Change-Id: I9eed728470d6f264179a7615bd19845c941db78c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301369
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie81c03df18c6987527da765d5f6575556340cb01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249877
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/symtab.go      |  4 ++-
- src/runtime/symtab_test.go | 85 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 88 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modget/get.go | 188 +----------------------------------
+ src/cmd/go/internal/modget/mvs.go | 202 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 203 insertions(+), 187 deletions(-)

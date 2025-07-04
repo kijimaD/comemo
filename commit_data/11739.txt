@@ -1,22 +1,12 @@
-commit be0f6febad2111ba1b2e95c61b21389d9ba1d400
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 9 16:55:36 2012 +1100
+commit 1253c75cf5d1f8540fd8e3cee5c0932ebb1465e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 9 16:48:52 2012 +1100
 
-    os: talk about errors and PathError in the package documentation
+    runtime: fix compiler warnings
     
-    Fixes #2383.
-    
-    R=golang-dev, bradfitz, adg, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5641061
+    https://golang.org/cl/5642068
 
- src/pkg/os/exec_plan9.go   |  2 ++
- src/pkg/os/exec_posix.go   |  4 ++++
- src/pkg/os/file.go         | 16 ++++++++++++----
- src/pkg/os/file_plan9.go   |  7 ++++++-
- src/pkg/os/file_posix.go   |  8 ++++++++
- src/pkg/os/file_unix.go    | 14 +++++++++-----
- src/pkg/os/file_windows.go |  3 ++-
- src/pkg/os/stat_plan9.go   |  8 +++++---
- src/pkg/os/stat_windows.go | 10 ++++++----
- 9 files changed, 54 insertions(+), 18 deletions(-)
+ src/pkg/runtime/malloc.goc | 7 +++++++
+ 1 file changed, 7 insertions(+)

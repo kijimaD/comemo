@@ -1,22 +1,21 @@
-commit a0fb8f8cce1d3b239f83c198204b616aab136510
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 12 08:42:11 2015 -0800
+commit 4100f7d95c0b51bc366103f91c9c9cad223c4168
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 24 14:28:49 2015 -0800
 
-    net/http: ignore the Unix epoch time in ServeContent
+    cmd/go: make asm the first assembler
     
-    ServeContent ignored zero time.Time{} values when generating
-    Last-Modified response headers and checking If-Modified-Since request
-    headers. Do the same for a time.Time representing the Unix epoch zero
-    value, as this is a common bogus value. Callers who really want to
-    send that value (incredibly unlikely) can add a nanosecond to it and
-    it will be truncated to second granularity anyway.
+    verifyAsm is still on, but this CL changes the order to asm then 6a.
+    Before, it was 6a then asm, but that meant that any bugs in asm
+    for bad input would be prevented from happening because 6a would
+    catch them. Now asm gets first crack, as it must.
     
-    Fixes #9842
+    Also implement the -trimpath flag in asm. It's necessary and trivial.
     
-    Change-Id: I69f697bfc4017404a92a34e3fe57e2711c1e299d
-    Reviewed-on: https://go-review.googlesource.com/7915
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Change-Id: Ifb2ab870de1aa1b53dec76a78ac697a0d36fa80a
+    Reviewed-on: https://go-review.googlesource.com/5850
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/fs.go      | 15 ++++++++++-----
- src/net/http/fs_test.go |  6 ++++++
- 2 files changed, 16 insertions(+), 5 deletions(-)
+ src/cmd/asm/internal/flags/flags.go | 2 +-
+ src/cmd/asm/main.go                 | 1 +
+ src/cmd/go/build.go                 | 6 +++---
+ 3 files changed, 5 insertions(+), 4 deletions(-)

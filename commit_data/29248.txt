@@ -1,26 +1,20 @@
-commit f4c7a12c2c4b0aef99b4957a778736a4da9ae4ec
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Oct 30 21:19:59 2016 -0400
+commit cd2d5ee0485fd0fa5a102c9de372c70b7a31d154
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Jun 19 12:11:47 2016 -0700
 
-    runtime: make module typemaps visible to the GC
+    cmd/compile: unify arraylit and structlit
     
-    The map[typeOff]*_type object is created at run time and stored in
-    the moduledata. The moduledata object is marked by the linker as
-    SNOPTRDATA, so the reference is ignored by the GC. Running
-    misc/cgo/testplugin/test.bash with GOGC=1 will eventually collect
-    the typemap and crash.
+    They were almost identical.
+    Merge them and some of their calling code.
     
-    This bug probably comes up in -linkshared binaries in Go 1.7.
-    I don't know why we haven't seen a report about this yet.
+    Passes toolstash -cmp.
     
-    Fixes #17680
-    
-    Change-Id: I0e9b5c006010e8edd51d9471651620ba665248d3
-    Reviewed-on: https://go-review.googlesource.com/32430
+    Change-Id: I9e92a864a6c09c9e18ed52dc247a678467e344ba
+    Reviewed-on: https://go-review.googlesource.com/26754
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/symtab.go | 9 +++++++++
- src/runtime/type.go   | 4 +++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/sinit.go | 199 ++++++++++-------------------------
+ src/cmd/compile/internal/gc/walk.go  |   6 +-
+ 2 files changed, 55 insertions(+), 150 deletions(-)

@@ -1,27 +1,23 @@
-commit ba7673069d9be4972a864023d74e9e0dd6a77b80
-Author: korzhao <korzhao95@gmail.com>
-Date:   Sat Sep 25 01:13:27 2021 +0800
+commit 35b9c666012dcc5203a1362f10fe5279df163a1a
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Dec 22 16:48:13 2020 -0500
 
-    cmd/compile: add required CONVIFACE nodes when translating OFUNCINST node
+    [dev.regabi] cmd/compile,cmd/link: additional code review suggestions for CL 270863
     
-    In CL 349614. we removed the early transformation code that
-    was needed to create the implicit CONVIFACE nodes.
+    This patch pulls in a few additional changes requested by code
+    reviewers for CL 270863 that were accidentally left out. Specifically,
+    guarding use of ORETJMP to insure it is not used when building dynlink
+    on ppc64le, and a tweaking the command line flags used to control
+    wrapper generation.
     
-    Because the transformCall function is not called when translating OFUNCINST.
-    So we add in needed CONVIFACE nodes via typecheckaste().
-    
-    Fixes #48598
-    
-    Change-Id: If9dc7040cdc38ef2e52fdbb08c840095651426f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351856
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I4f96462e570180887eb8693e11badd83d142710a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279527
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/noder/stencil.go   |  4 ++++
- src/cmd/compile/internal/noder/transform.go |  6 ++++++
- test/typeparam/issue48598.go                | 28 ++++++++++++++++++++++++++++
- 3 files changed, 38 insertions(+)
+ src/cmd/compile/internal/ssagen/abi.go | 3 ++-
+ src/cmd/link/internal/ld/main.go       | 5 +----
+ src/cmd/link/internal/ld/symtab.go     | 2 +-
+ 3 files changed, 4 insertions(+), 6 deletions(-)

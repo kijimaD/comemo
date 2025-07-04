@@ -1,15 +1,22 @@
-commit 47f095501eb331a4cd2b6b80345317be099331bf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 13 17:19:09 2015 -0700
+commit 87ec06f96165fcbacf06904cc70a5f19c2a6c00a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 17 15:07:05 2015 -0400
 
-    net: remove old comment
+    runtime: fix writebarrier throw in lock_sema
     
-    The memory model has been clarified since. This is legal and doesn't
-    need justification.
+    The value in question is really a bit pattern
+    (a pointer with extra bits thrown in),
+    so treat it as a uintptr instead, avoiding the
+    generation of a write barrier when there
+    might not be a p.
     
-    Change-Id: I60f9938503f86f52bb568ca1a99ac721ee72cee5
-    Reviewed-on: https://go-review.googlesource.com/8913
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Also add the obligatory //go:nowritebarrier.
+    
+    Change-Id: I4ea097945dd7093a140f4740bcadca3ce7191971
+    Reviewed-on: https://go-review.googlesource.com/7667
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/net.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/runtime/lock_sema.go | 6 ++++--
+ src/runtime/runtime2.go  | 2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

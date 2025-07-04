@@ -1,21 +1,15 @@
-commit 3f5edd2461159bc24e8dd4274eb857270a1aecb8
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 18 13:27:18 2011 +1000
+commit d2a45dbf0831e6570cc6c958f3ed8c5c3fd56dbc
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Aug 18 11:50:55 2011 +1000
 
-    test/chan/select5.go: change "with" to "if" in templatea
+    misc/vim: command complete using autoload helper function.
     
-    I converted this program yesterday and the output is the
-    same as it used to be, ignoring space, but the result is
-    not the best expression of the algorithm.  The old {.section
-    Maybe} pieces are now {{with .Maybe}}, as a direct translation,
-    but I they should be {{if .Maybe}} as the output is just a
-    bool and there is no cascading.
-    
-    I have verified that the output of the program is unaffected.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, dsymonds, jnwhiteh, n13m3y3r, gustavo
     CC=golang-dev
-    https://golang.org/cl/4889053
+    https://golang.org/cl/4837051
 
- test/chan/select5.go | 92 ++++++++++++++++++++++++++--------------------------
- 1 file changed, 46 insertions(+), 46 deletions(-)
+ misc/vim/autoload/go/complete.vim | 49 +++++++++++++++++++++++++++++++++++++++
+ misc/vim/ftplugin/go/import.vim   |  6 ++---
+ misc/vim/plugin/godoc.vim         | 40 +-------------------------------
+ misc/vim/readme.txt               | 35 ++++++++++++++++++++--------
+ 4 files changed, 78 insertions(+), 52 deletions(-)

@@ -1,18 +1,12 @@
-commit 043ace1213bc996615fb0551effaa879a68cc4f6
+commit 94bd34fe50a7ea7e913b58b3a278fc8dc36db1b3
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 15 14:34:46 2013 -0400
+Date:   Tue Oct 15 13:46:57 2013 -0400
 
-    cmd/cgo: fix Xcode 5 incompatibility for #defined expressions
+    misc/cgo/test: fix build (define prototype for alloca)
     
-    Ensure that clang always exits with a non-zero status by
-    giving it something that it always warns about (the statement "1;").
-    
-    Fixes #6128.
-    
-    R=golang-dev, iant, minux.ma
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/14702043
+    https://golang.org/cl/14454063
 
- misc/cgo/test/issue6128.go | 20 ++++++++++++++++++++
- src/cmd/cgo/gcc.go         | 13 +++++++++++++
- 2 files changed, 33 insertions(+)
+ misc/cgo/test/issue6506.go | 1 +
+ 1 file changed, 1 insertion(+)

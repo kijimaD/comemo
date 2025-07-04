@@ -1,25 +1,25 @@
-commit ad60cd8b929553611c30b01b0f39164acc91473f
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 30 18:20:13 2015 -0400
+commit 8f4d9646417ae1904f53d7ba111b2290d80d0097
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 10:40:47 2015 -0400
 
-    runtime: report MemStats.PauseEnd in UNIX time
+    cmd/compile, cmd/internal: replace %P with %v in a few final prints
     
-    Currently we report MemStats.PauseEnd in nanoseconds, but with no
-    particular 0 time. On Linux, the 0 time is when the host started. On
-    Darwin, it's the UNIX epoch. This is also inconsistent with the other
-    absolute time in MemStats, LastGC, which is always reported in
-    nanoseconds since 1970.
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 168
+    $
     
-    Fix PauseEnd so it's always reported in nanoseconds since 1970, like
-    LastGC.
-    
-    Fixes one of the issues raised in #10323.
-    
-    Change-Id: Ie2fe3169d45113992363a03b764f4e6c47e5c6a8
-    Reviewed-on: https://go-review.googlesource.com/11801
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1e2f17bfee0e6ca7213706c4cef8d990f4461915
+    Reviewed-on: https://go-review.googlesource.com/10533
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/malloc_test.go | 4 ++++
- src/runtime/mgc.go         | 5 +++--
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/arm/cgen64.go | 6 +++---
+ src/cmd/compile/internal/arm/ggen.go   | 4 ++--
+ src/cmd/compile/internal/arm/gsubr.go  | 2 +-
+ src/cmd/compile/internal/gc/popt.go    | 6 +++---
+ src/cmd/internal/obj/arm/asm5.go       | 2 +-
+ src/cmd/internal/obj/data.go           | 4 ++--
+ src/cmd/internal/obj/pcln.go           | 2 +-
+ src/cmd/internal/obj/ppc64/asm9.go     | 6 +++---
+ src/cmd/internal/obj/x86/asm6.go       | 6 +++---
+ 9 files changed, 19 insertions(+), 19 deletions(-)

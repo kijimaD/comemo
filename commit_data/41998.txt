@@ -1,19 +1,29 @@
-commit bbaae9c43d71dd43a6b306d8daa307d733b1dc91
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Apr 17 23:00:35 2020 +0200
+commit 0994cc1af63ce084712d6257f9993f9cefa2d441
+Author: Pantelis Sampaziotis <psampaz@gmail.com>
+Date:   Tue Nov 5 17:42:30 2019 +0000
 
-    cmd/compile: switch to typed aux for 386 lowering rules
+    testing/iotest: add missing tests
     
-    Convert all the 386 lowering rules to the typed aux form.
+    Adds missing tests for all the types:
+    * OneByteReader
+    * HalfReader
+    * DataErrReader
+    * TimeoutReader
+    * TruncateWriter
+    * writeLogger
+    * readLogger
     
-    Passes
+    Fixes #33650
     
-      GOARCH=386 gotip build -toolexec 'toolstash -cmp' -a std
-    
-    Change-Id: I15256f20bc4442391755e6fffb8206dcaab94830
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228818
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1c773f9f1625ff33a1d0b5a045c72a73a9eca9ce
+    GitHub-Last-Rev: 2ab650677bb9cad43ea2ce620c9898123c7ec396
+    GitHub-Pull-Request: golang/go#33651
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190259
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules | 461 +++++++++++++++--------------
- src/cmd/compile/internal/ssa/rewrite386.go | 459 +++++++++++++++-------------
- 2 files changed, 487 insertions(+), 433 deletions(-)
+ src/testing/iotest/logger_test.go | 160 +++++++++++++++++++++++++++
+ src/testing/iotest/reader_test.go | 226 ++++++++++++++++++++++++++++++++++++++
+ src/testing/iotest/writer_test.go |  39 +++++++
+ 3 files changed, 425 insertions(+)

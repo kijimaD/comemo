@@ -1,30 +1,24 @@
-commit 81609c454be36b92155f795e726dc090659e1c50
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 8 14:29:26 2024 -0800
+commit af758177c06f24c870bb0b07c3f23da4943f12cf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 27 22:13:16 2023 +0000
 
-    go/types: generate builtins.go from types2 source
+    cmd/go: disable workspace mode in GOPATH mode
     
-    Minor changes to types2.builtin.go to simplify automatic translation.
+    Workspace mode is specifically for working with modules;
+    it doesn't make sense in GOPATH mode.
     
-    Added new conversion functions to generate_test.go to handle the
-    translation of builtins.go.
+    This also fixes a panic in (*modload.MainModuleSet).GoVersion
+    when go.work is present in GOPATH mode.
     
-    While at it, added additional helper functions to generate_test.go
-    and simplified some of the existing conversion functions.
+    For #58767.
     
-    This CL reduces the amount of code that needs to be maintained
-    manually by about 1000 LOC.
-    
-    Change-Id: I1bd5c8eda0c0194a0b47e69882d2b987d91eef50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562835
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Ic6924352afb486fecc18e009e6b517f078e81094
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471600
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/builtins.go |   5 +-
- src/cmd/compile/internal/types2/util.go     |  11 ++
- src/go/types/builtins.go                    |   6 +-
- src/go/types/generate_test.go               | 201 ++++++++++++++++++----------
- src/go/types/util.go                        |  10 ++
- 5 files changed, 159 insertions(+), 74 deletions(-)
+ src/cmd/go/internal/modload/init.go                    |  7 +++++--
+ src/cmd/go/testdata/script/work_empty_panic_GOPATH.txt | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

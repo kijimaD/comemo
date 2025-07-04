@@ -1,23 +1,18 @@
-commit 4df6b1ec2f27d0dded28ecc7cde5d12f57e144d9
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 11:53:51 2015 -0400
+commit 02f40842990c6f5e219f2ecd3f91041a820210e9
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Wed May 27 10:44:44 2015 +0200
 
-    path/filepath: document and test behavior of SkipDir on files
+    archive/tar: don't panic on negative file size
     
-    This behavior is not what we might have designed from the start,
-    but it has been present since Go 1. Rather than make a visible
-    behavioral change that might cause programs to work differently
-    in Go ≤1.4 vs Go ≥1.5, document what SkipDir on a non-directory
-    has always meant. If code doesn't want this meaning, it is easy
-    enough not to return SkipDir on non-directories.
+    Fixes #10959.
+    Fixes #10960.
     
-    Fixes #10533.
-    
-    Change-Id: Ic0612f032044bc7c69bf62583a02037e4b47530b
-    Reviewed-on: https://go-review.googlesource.com/11690
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9a81a0e2b8275338d0d1c3f7f7265e0fd91f3de2
+    Reviewed-on: https://go-review.googlesource.com/10402
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/path/filepath/path.go      |  9 +++++----
- src/path/filepath/path_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 4 deletions(-)
+ src/archive/tar/reader.go             |   4 ++++
+ src/archive/tar/reader_test.go        |  16 ++++++++++++++++
+ src/archive/tar/testdata/neg-size.tar | Bin 0 -> 512 bytes
+ 3 files changed, 20 insertions(+)

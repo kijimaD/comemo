@@ -1,16 +1,19 @@
-commit 5de3b97554121ce0a95763cf2b50a8ced76b051b
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Sat Nov 23 00:31:39 2019 -0500
+commit 951143cf1425189965498cc32fc8dc132bf7c777
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 9 10:54:43 2019 -0700
 
-    cmd/link: fix TestStrictDup in module mode
+    cmd/link: increase the function call limit in stkcheck
     
-    Fixes #35790
+    There is real (albeit generated) code that exceeds the limit.
     
-    Change-Id: Ie9df103c5c21b34a378821dfad60804ce4b0cad4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208517
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #33555
+    
+    Change-Id: I668e85825d3d2a471970e869abe63f3492213cc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189697
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/link_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/link/internal/ld/lib.go |  2 +-
+ test/fixedbugs/issue33555.go    | 81 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 1 deletion(-)

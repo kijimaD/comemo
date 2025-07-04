@@ -1,30 +1,21 @@
-commit 435450bf3c6efcc65111e96a42fc1c8acd3081e3
-Author: Thomas Bonfort <thomas.bonfort@gmail.com>
-Date:   Sun Jan 1 17:02:44 2017 +0100
+commit 325c2aa5b6f12ccc82e8472beec0e1511e975bd4
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Oct 17 09:28:06 2016 -0700
 
-    image/jpeg: improve performance when encoding *image.YCbCr
+    database/sql: update the conversion errors to be clearer
     
-    The existing implementation falls back to using image.At()
-    for each pixel when encoding an *image.YCbCr which is
-    inefficient and causes many memory allocations.
+    There was some ambiguity over which argument was referred to when
+    a conversion error was returned. Now refer to the argument by
+    either explicit ordinal position or name if present.
     
-    This change makes the jpeg encoder directly read Y, Cb, and Cr
-    pixel values.
+    Fixes #15676
     
-    benchmark                  old ns/op     new ns/op     delta
-    BenchmarkEncodeYCbCr-4     43990846      24201148      -44.99%
-    
-    benchmark                  old MB/s     new MB/s     speedup
-    BenchmarkEncodeYCbCr-4     20.95        38.08        1.82x
-    
-    Fixes #18487
-    
-    Change-Id: Iaf2ebc646997e3e1fffa5335f1b0d642e15bd453
-    Reviewed-on: https://go-review.googlesource.com/34773
+    Change-Id: Id933196b7e648baa664f4121fa3fb1b07b3c4880
+    Reviewed-on: https://go-review.googlesource.com/31262
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/image/jpeg/writer.go      | 27 ++++++++++++++++++++
- src/image/jpeg/writer_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 84 insertions(+), 1 deletion(-)
+ src/database/sql/convert.go  | 33 +++++++++++++++++++++------------
+ src/database/sql/sql_test.go |  4 ++--
+ 2 files changed, 23 insertions(+), 14 deletions(-)

@@ -1,23 +1,19 @@
-commit eb975601a07ad25a47fdcb0cc6166ec695973d3e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Sep 5 18:56:26 2024 -0400
+commit 78af0bbc65a06461e05318619acdaf35b630632a
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Mon Aug 7 13:43:52 2023 +0000
 
-    cmd/compile: correct wasmexport result type checking
+    strings: use the builtin max function
     
-    The function resultsToWasmFields was originally for only
-    wasmimport. I adopted it for wasmexport as well, but forgot to
-    update a few places that were wasmimport-specific. This leads to
-    compiler panic if an invalid result type is passed, and also
-    unsafe.Pointer not actually supported. This CL fixes it.
-    
-    Updates #65199.
-    
-    Change-Id: I9bbd7154b70422504994840ff541c39ee596ee8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611315
+    Change-Id: I9093c0ce822f0620152a7b911321c57bc50dc90b
+    GitHub-Last-Rev: dc6be231b315262e13925814b16786618ef5dad4
+    GitHub-Pull-Request: golang/go#61807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516615
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/ssagen/abi.go | 4 +++-
- test/wasmexport2.go                    | 9 +++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/strings/search.go | 7 -------
+ 1 file changed, 7 deletions(-)

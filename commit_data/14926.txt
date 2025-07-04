@@ -1,15 +1,15 @@
-commit 059fed3dfb6f480598c72ab18fe28b322151ba38
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Jan 18 16:56:17 2013 -0500
+commit c0d9bf5650361191f5e86c4a31176a01a9c2867b
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Fri Jan 18 22:46:10 2013 +0100
 
-    runtime: try to determine the actual type during garbage collection
+    cmd/gc: more robust checking of OIND nodes.
     
-    If the scanned block has no typeinfo the garbage collector will attempt
-    to get the actual type of the block.
+    Fixes #4610.
     
-    R=golang-dev, bradfitz, rsc
-    CC=golang-dev
-    https://golang.org/cl/7093045
+    R=golang-dev, remyoudompheng, rsc
+    CC=golang-dev, nigeltao
+    https://golang.org/cl/7058057
 
- src/pkg/runtime/mgc0.c | 34 ++++++++++++++++++++++++++++++++--
- 1 file changed, 32 insertions(+), 2 deletions(-)
+ src/cmd/gc/typecheck.c      |  9 ++++++---
+ test/fixedbugs/issue4610.go | 17 +++++++++++++++++
+ 2 files changed, 23 insertions(+), 3 deletions(-)

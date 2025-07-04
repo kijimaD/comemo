@@ -1,21 +1,13 @@
-commit 6d9db54be5327617d0c234ae0b0d07c41696c5b0
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu Feb 17 16:17:33 2011 -0800
+commit 8ba4df2e9a742f89640b03b484e3d0251ba7fbd8
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Fri Feb 18 10:58:47 2011 +1100
 
-    testing: rename cmdline flags to avoid conflicts
+    6l: pe fixes
     
-    Flags defined in the testing package may conflict
-    with real flags defined in the main package, or in
-    any other imported package.
-    
-    This change makes them less likely to be used for
-    other purposes.
-    
-    R=r, rsc, r2
+    R=rsc, brainman
     CC=golang-dev
-    https://golang.org/cl/4167055
+    https://golang.org/cl/4182061
 
- src/cmd/gotest/doc.go        | 18 +++++++++---------
- src/pkg/testing/benchmark.go |  4 ++--
- src/pkg/testing/testing.go   |  6 +++---
- 3 files changed, 14 insertions(+), 14 deletions(-)
+ src/cmd/6l/pass.c | 2 +-
+ src/cmd/ld/pe.c   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,17 +1,19 @@
-commit 33a9f01729cb88b80f915ae6d2ae9779106b9f0c
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Nov 3 11:11:27 2017 +0100
+commit 9c9df65c539a0e2b1de9094382b87cc0f2748ae3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 10 11:17:59 2017 +0900
 
-    cmd/compile: add mul by ±2ⁿ code-generation tests for arm/arm64
+    reflect: remove useless parameter from newName
     
-    This change adds code generation tests for multiplication by ±2ⁿ for
-    arm and arm64, in preparation for a future CL which will remove the
-    relevant architecture-specific SSA rules (the reduction is already
-    performed by rules in generic.rules added in CL 36323).
+    pkgPath always received the empty string. Worse yet, it panicked if it
+    received anything else. This has been the case ever since newName was
+    introduced in early 2016.
     
-    Change-Id: Iebdd5c3bb2fc632c85888569ff0c49f78569a862
-    Reviewed-on: https://go-review.googlesource.com/75752
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I5f164305bd30c34455ef35e776c7616f303b37e4
+    Reviewed-on: https://go-review.googlesource.com/54331
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 40 +++++++++++++++++++++++++++++++++
- 1 file changed, 40 insertions(+)
+ src/reflect/export_test.go |  2 +-
+ src/reflect/type.go        | 29 +++++++++++------------------
+ 2 files changed, 12 insertions(+), 19 deletions(-)

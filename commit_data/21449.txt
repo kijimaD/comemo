@@ -1,21 +1,29 @@
-commit e66ad16ddbfe0534e187905b499a28fbcc9c1143
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 29 15:18:22 2015 -0500
+commit ea64e5785d37487f40083a04d36f3d20c95b3f74
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Dec 19 15:14:03 2014 -0800
 
-    liblink: renumber ARM conditions to make C_SCOND_NONE == 0
+    crypto/tls: fix renegotiation extension.
     
-    A step toward making the zero Prog useful.
+    There are two methods by which TLS clients signal the renegotiation
+    extension: either a special cipher suite value or a TLS extension.
     
-    Change-Id: I427b98b1ce9bd8f093da825aa4bb83244fc01903
-    Reviewed-on: https://go-review.googlesource.com/3573
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Austin Clements <austin@google.com>
+    It appears that I left debugging code in when I landed support for the
+    extension because there's a "+ 1" in the switch statement that shouldn't
+    be there.
+    
+    The effect of this is very small, but it will break Firefox if
+    security.ssl.require_safe_negotiation is enabled in about:config.
+    (Although almost nobody does this.)
+    
+    This change fixes the original bug and adds a test. Sadly the test is a
+    little complex because there's no OpenSSL s_client option that mirrors
+    that behaviour of require_safe_negotiation.
+    
+    Change-Id: Ia6925c7d9bbc0713e7104228a57d2d61d537c07a
+    Reviewed-on: https://go-review.googlesource.com/1900
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5a/a.h      |  4 ++--
- src/cmd/5a/a.y      |  2 +-
- src/cmd/5a/lex.c    | 38 +++++++++++++++---------------
- src/cmd/5a/y.tab.c  |  2 +-
- src/cmd/5l/5.out.h  | 37 +++++++++++++++++-------------
- src/liblink/asm5.c  | 66 +++++++++++++++++++++++++++++------------------------
- src/liblink/list5.c |  2 +-
- 7 files changed, 81 insertions(+), 70 deletions(-)
+ src/crypto/tls/handshake_messages.go    |  2 +-
+ src/crypto/tls/handshake_server_test.go | 48 +++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 1 deletion(-)

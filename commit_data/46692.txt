@@ -1,19 +1,18 @@
-commit 96d3ba868aae7aa043147f18e0ca299ada4e34b7
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Sep 30 11:46:00 2021 -0400
+commit 5a8a2265fb3f2a4f2b37737e8a69e1aea763325f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 11 10:01:24 2021 -0500
 
-    cmd/link: reduce alignment for some funcdata symbols
+    cmd/cgo: report exec errors a bit more clearly
     
-    Funcdata like opendefer info and traceback arginfo are varints or
-    bytes. There is no need to align them.
-    
-    GC liveness map and inline tree have 32-bit fields, so continue
-    align them to 4 bytes.
-    
-    Change-Id: I9d5dd750a926c65a910efe5817f9f5c473019bc6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353469
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I0e6bebf0e2e6efdef4be880e0c6c7451b938924b
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/949417
+    Reviewed-by: Katie Hockman <katiehockman@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284781
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
 
- src/cmd/link/internal/ld/symtab.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/cgo/util.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

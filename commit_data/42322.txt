@@ -1,12 +1,30 @@
-commit 98d20fb23551a7ab900fcfe9d25fd9cb6a98a07f
-Author: Kevin Burke <kev@inburke.com>
-Date:   Wed Apr 22 10:22:12 2020 -0700
+commit 22688f740dbbae281c1de09c2b4fe6520337a124
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 26 23:57:35 2019 +0000
 
-    database/sql: form a complete sentence in code comment
+    net/http: update bundled x/net/http2
     
-    Change-Id: Ib6d0f81b5f64473f9ee6be26a08d5102e8edadc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229477
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Updates bundled http2 to x/net git rev ef20fe5d7 for:
+    
+       http2: make Transport.IdleConnTimeout consider wall (not monotonic) time
+       https://golang.org/cl/208798 (#29308)
+    
+       http2: make CipherSuites validation error more verbose
+       https://golang.org/cl/200317 (#34776)
+    
+       http2: track unread bytes when the pipe is broken
+       https://golang.org/cl/187377 (#28634)
+    
+       http2: split cookie pair into separate hpack header fields
+       https://golang.org/cl/155657 (#29386)
+    
+    Fixes #29308
+    Fixes #28634
+    
+    Change-Id: I71a03ca62ccb5ff35a5cfadd8dc705a4491ae7ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209077
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/net/http/h2_bundle.go    | 51 +++++++++++++++++++++++++++++++++++++++-----
+ src/net/http/socks_bundle.go |  2 +-
+ 2 files changed, 47 insertions(+), 6 deletions(-)

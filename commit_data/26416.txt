@@ -1,21 +1,18 @@
-commit 70ef564e795dea06d37e5233fcf3182b231c31f0
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Mar 21 19:27:35 2016 +1300
+commit b203f88c7f0b81043a3f387136147d8193a0a8b8
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 19 08:27:10 2016 -0800
 
-    cmd/link: delete unreachable hash collision check
+    crypto/tls: note in comment that Certificate.Leaf is nil after parsing.
     
-    This expression in readsym:
+    LoadX509KeyPair and X509KeyPair don't retain the parsed form of
+    certificates in their return value because it's generally not needed.
+    This change makes that clear in the comment.
     
-        dup != nil && len(dup.P) > 0 && strings.HasPrefix(s.Name, "gclocals·")
+    See https://groups.google.com/d/msg/golang-dev/VResvFj2vF8/Wt6WkVT2AwAJ
     
-    can never be true: if dup != nil, then s.Name is ".dup" (and this is not new:
-    the same broken logic is present in 1.4, at least). Delete the whole block.
-    
-    Change-Id: I33b14d9a82b292116d6fd79d22b38e3842501317
-    Reviewed-on: https://go-review.googlesource.com/20970
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibb759cd6e84c00f4450a012992088422c0546638
+    Reviewed-on: https://go-review.googlesource.com/18734
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/objfile.go | 8 --------
- 1 file changed, 8 deletions(-)
+ src/crypto/tls/tls.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

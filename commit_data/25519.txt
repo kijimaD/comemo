@@ -1,14 +1,20 @@
-commit 4c38b6a96a19022f6ab87c489f32d7e78ca83214
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 8 14:51:50 2016 -0500
+commit 6083bd65f7a8e621efe9b6381c040ffab7f8d189
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Nov 5 10:20:32 2015 +0100
 
-    api: fix build for go/build change
+    cmd/go: skip TestBuildOutputToDevNull on Plan 9
     
-    Fixes build.
+    TestBuildOutputToDevNull was added in CL 16585.
+    However, copying to /dev/null couldn't work on Plan 9,
+    because /dev/null is a regular file. Since it's not
+    different from any other file, the logic in copyFile
+    couldn't distinguish it from another, already existing,
+    file, that we wouldn't want to overwrite.
     
-    Change-Id: I5235deed7b93157854acb79c15e2e99cc28d300a
-    Reviewed-on: https://go-review.googlesource.com/18456
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie8d353f318fedfc7cfb9541fed00a2397e232592
+    Reviewed-on: https://go-review.googlesource.com/16691
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
 
- api/go1.6.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

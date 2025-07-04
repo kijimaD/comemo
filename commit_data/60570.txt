@@ -1,0 +1,23 @@
+commit 864513dda9d96dfd0fbdbe4c2b68ebbfa3d34bc7
+Author: limeidan <limeidan@loongson.cn>
+Date:   Tue Jan 16 17:42:48 2024 +0800
+
+    cmd/internal/obj/loong64: merge two branch classes into one
+    
+    When the kind of the operand is TYPE_BRANCH, we cannot determine
+    whether it is a long branch or a short branch, so we merge these
+    two classes into one.
+    
+    Change-Id: I7d7fa8f62ff02791ec3de4e3e3f7610bc9cb1743
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565626
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/internal/obj/loong64/a.out.go  |  3 +--
+ src/cmd/internal/obj/loong64/asm.go    | 23 +++++++++--------------
+ src/cmd/internal/obj/loong64/cnames.go |  3 +--
+ 3 files changed, 11 insertions(+), 18 deletions(-)

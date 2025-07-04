@@ -1,16 +1,57 @@
-commit 1162aae0ad7d7fefeebd1c8537c457eae76d43ec
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 13 13:58:23 2021 -0700
+commit 5934c434c1931f7227db4a97bb7e6dac6fc3b7a3
+Merge: dea96ada17 9f39a43e0d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Dec 1 21:15:51 2020 -0500
 
-    time/tzdata: update links in comment
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    Change-Id: I141d29bb4adc957de5de1f8ed8867980fd3c8386
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342071
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Add BoringCrypto-specific test data to TestAESCipherReordering
+    and TestAESCipherReordering13.
+    
+    Change-Id: Id1def4cf166d5059920741f045e3e61bb17c23c8
 
- src/time/tzdata/generate_zipdata.go | 4 ++--
- src/time/tzdata/zipdata.go          | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ doc/articles/race_detector.html                    |   2 +-
+ doc/go1.16.html                                    |  11 +
+ src/crypto/tls/common.go                           |  74 ++++-
+ src/crypto/tls/handshake_server.go                 |  15 +
+ src/crypto/tls/handshake_server_test.go            | 323 +++++++++++++++++--
+ src/crypto/tls/handshake_server_tls13.go           |  14 +
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  84 +++--
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  84 +++--
+ .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven | 170 +++++-----
+ ...erver-TLSv12-ClientAuthRequestedAndEd25519Given | 171 +++++-----
+ .../Server-TLSv12-ClientAuthRequestedAndGiven      | 170 +++++-----
+ ...rver-TLSv12-ClientAuthRequestedAndPKCS1v15Given | 170 +++++-----
+ .../Server-TLSv12-ClientAuthRequestedNotGiven      | 152 +++++----
+ src/crypto/tls/testdata/Server-TLSv12-Ed25519      |  61 ++--
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  81 +++--
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  66 ++--
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   |  66 ++--
+ .../tls/testdata/Server-TLSv12-RSA-RSAPKCS1v15     |  63 ++--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   |  48 ++-
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  60 ++--
+ .../tls/testdata/Server-TLSv12-ResumeDisabled      | 167 +++++-----
+ src/crypto/tls/testdata/Server-TLSv13-ALPN         | 186 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-ALPN-NoMatch | 186 ++++++-----
+ .../Server-TLSv13-ClientAuthRequestedAndECDSAGiven | 345 ++++++++++-----------
+ ...erver-TLSv13-ClientAuthRequestedAndEd25519Given | 285 +++++++++--------
+ .../Server-TLSv13-ClientAuthRequestedAndGiven      | 339 ++++++++++----------
+ .../Server-TLSv13-ClientAuthRequestedNotGiven      | 195 ++++++------
+ src/crypto/tls/testdata/Server-TLSv13-Ed25519      | 139 ++++-----
+ .../testdata/Server-TLSv13-ExportKeyingMaterial    | 184 ++++++-----
+ .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 218 +++++++------
+ src/crypto/tls/testdata/Server-TLSv13-IssueTicket  | 184 ++++++-----
+ .../testdata/Server-TLSv13-IssueTicketPreDisable   | 184 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-P256         | 186 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 109 ++++++-
+ .../tls/testdata/Server-TLSv13-RSA-RSAPSS-TooSmall |  25 +-
+ src/crypto/tls/testdata/Server-TLSv13-Resume       | 106 +++----
+ .../Server-TLSv13-Resume-HelloRetryRequest         | 168 +++++-----
+ .../tls/testdata/Server-TLSv13-ResumeDisabled      | 185 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-X25519       | 182 ++++++-----
+ src/encoding/asn1/asn1.go                          |  50 +--
+ src/encoding/asn1/marshal_test.go                  |  28 ++
+ src/runtime/crash_test.go                          | 126 --------
+ src/runtime/testdata/testprog/deadlock.go          |  13 -
+ src/runtime/traceback.go                           | 173 +++--------
+ 44 files changed, 3000 insertions(+), 2848 deletions(-)

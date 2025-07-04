@@ -1,18 +1,20 @@
-commit 2729cd07510b38c6be4f99beebe32ccb888d1f0f
-Author: Bobby DeSimone <bobbydesimone@gmail.com>
-Date:   Mon May 6 21:26:08 2019 +0000
+commit 49abcf1a974fb452e345cb696216bf47a97dc3e2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 17 20:39:48 2018 +1100
 
-    net/url: add tests for URLHostname
+    os: adjust TempDir for Z:\
     
-    These changes add tests for URLHostname.
+    If TMP environment variable is set to Z:\, TempDir returns Z:.
+    But Z: refers to current directory on Z:, while Z:\ refers to root
+    directory on Z:. Adjust TempDir to return Z:\.
     
-    Change-Id: Ie474516401a2236a9be65fb5c4e478322b1a199c
-    GitHub-Last-Rev: 18f2d597be960c4d13cde12fef5d115926bff7bd
-    GitHub-Pull-Request: golang/go#31832
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175142
+    Fixes #29291
+    
+    Change-Id: If04d0c7977a8ac2d9d558307502e81beb68776ef
+    Reviewed-on: https://go-review.googlesource.com/c/154384
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/url/url_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/os/file_windows.go    |  5 ++++-
+ src/os/os_windows_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 1 deletion(-)

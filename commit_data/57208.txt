@@ -1,21 +1,26 @@
-commit b292799ddd0e81ef6ffbbe5c7972786673d122f9
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Aug 20 10:07:05 2024 -0400
+commit eaa8419a72215b53576ab5d2def399f9503d1f58
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 15 17:41:19 2023 -0700
 
-    testing: use temp dir without symlinks in TestChdir/relative
+    runtime: decrement netpollWaiters in netpollunblock
     
-    When paths with symlinks are involved, it's not viable to compare them
-    with string equality. Don't use a temporary directory with symlinks in
-    it as input, so the test works in more environments.
+    We used to decrement it in netpollgoready, but that missed
+    the common case of a descriptor becoming ready due to I/O.
+    All calls to netpollgoready go through netpollunblock,
+    so this shouldn't miss any decrements we missed before.
     
-    For #62516.
+    Fixes #60782
     
-    Change-Id: I95d774365cc2f90eb0ffcffa61229ed5cee43e3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607035
+    Change-Id: Ideefefa1ac96ca38e09fe2dd5d595c5dd7883237
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503923
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/testing/testing_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/crash_test.go                   |  9 ++++
+ src/runtime/netpoll.go                      |  5 ++-
+ src/runtime/testdata/testprognet/waiters.go | 68 +++++++++++++++++++++++++++++
+ 3 files changed, 80 insertions(+), 2 deletions(-)

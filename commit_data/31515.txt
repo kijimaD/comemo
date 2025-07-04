@@ -1,18 +1,36 @@
-commit 716761b8b13926ef4a82dcb4ffc324066779239c
-Author: Rob Phoenix <rob@robphoenix.com>
-Date:   Mon May 8 22:08:42 2017 +0100
+commit 7b8f51188bd24746b7d0a624b2e9979a425745eb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 24 16:02:31 2017 -0800
 
-    net: add examples for IPv4, ParseCIDR & IPv4Mask
+    cmd/compile/internal/gc: refactor liveness bitmap generation
     
-    Further examples to support the net package.
+    Keep liveness bit vectors as simple live-variable vectors during
+    liveness analysis. We can defer expanding them into runtime heap
+    bitmaps until we're actually writing out the symbol data, and then we
+    only need temporary memory to expand one bitmap at a time.
     
-    See issue #5757
+    This is logically cleaner (e.g., we no longer depend on stack frame
+    layout during analysis) and saves a little bit on allocations.
     
-    Change-Id: I839fd97a468c8d9195e8f4a0ee886ba50ca3f382
-    Reviewed-on: https://go-review.googlesource.com/42912
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    name       old alloc/op    new alloc/op    delta
+    Template      41.4MB ± 0%     41.3MB ± 0%  -0.28%        (p=0.000 n=60+60)
+    Unicode       32.6MB ± 0%     32.6MB ± 0%  -0.11%        (p=0.000 n=59+60)
+    GoTypes        119MB ± 0%      119MB ± 0%  -0.35%        (p=0.000 n=60+59)
+    Compiler       483MB ± 0%      481MB ± 0%  -0.47%        (p=0.000 n=59+60)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        381k ± 1%       380k ± 1%  -0.32%        (p=0.000 n=60+60)
+    Unicode         325k ± 1%       325k ± 1%    ~           (p=0.867 n=60+60)
+    GoTypes        1.16M ± 0%      1.15M ± 0%  -0.40%        (p=0.000 n=60+59)
+    Compiler       4.22M ± 0%      4.19M ± 0%  -0.61%        (p=0.000 n=59+60)
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I8175efe55201ffb5017f79ae6cb90df03f1b7e99
+    Reviewed-on: https://go-review.googlesource.com/37458
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/example_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ src/cmd/compile/internal/gc/plive.go | 194 +++++++++++++----------------------
+ 1 file changed, 73 insertions(+), 121 deletions(-)

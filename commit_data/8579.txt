@@ -1,35 +1,14 @@
-commit f259f6ba0adfa0b98e74b27dbe6013d012a037eb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 1 15:26:53 2011 -0700
+commit 2132a7f575cba670eeffde495c0bb2df120c2c5b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 1 15:19:34 2011 -0700
 
-    exec: new API, replace Run with Command
+    fix build: remove non-portable test case
     
-    This removes exec.Run and replaces exec.Cmd with a
-    new implementation. The new exec.Cmd represents
-    both a currently-running command and also a command
-    being prepared. It has a good zero value.
+    On a 32bit machine, the big.Words are only 32bit.
     
-    You can Start + Wait on a Cmd, or simply Run it.
-    Start (and Run) deal with copying stdout, stdin,
-    and stderr between the Cmd's io.Readers and
-    io.Writers.
-    
-    There are convenience methods to capture a command's
-    stdout and/or stderr.
-    
-    R=r, n13m3y3r, rsc, gustavo, alex.brainman, dsymonds, r, adg, duzy.chan, mike.rosset, kevlar
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4552052
+    https://golang.org/cl/4561055
 
- misc/dashboard/builder/exec.go      |  53 ++---
- misc/goplay/goplay.go               |  28 +--
- src/cmd/gofix/main.go               |  14 +-
- src/cmd/gofmt/gofmt.go              |  18 +-
- src/cmd/goinstall/main.go           |  36 +---
- src/cmd/hgpatch/main.go             |  41 +---
- src/pkg/exec/exec.go                | 380 ++++++++++++++++++++++--------------
- src/pkg/exec/exec_test.go           | 224 ++++++++++-----------
- src/pkg/go/types/gcimporter_test.go |  18 +-
- src/pkg/http/cgi/host.go            |  44 +++--
- src/pkg/http/cgi/host_test.go       |  23 +--
- 11 files changed, 408 insertions(+), 471 deletions(-)
+ src/pkg/big/nat_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

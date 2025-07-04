@@ -1,24 +1,20 @@
-commit b003a8b1ae26fa684ec35eb7543efa1ded1bcae7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jul 7 12:33:40 2021 -0700
+commit 294c214ccac877be8d8ce16b0302434a15a2476b
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Fri Nov 20 08:32:06 2020 +0000
 
-    cmd/compile: optimize types.sconv
+    runtime: gofmt
     
-    Now that symfmt is simpler, we can simply manually inline it into
-    sconv. Importantly, this allows us to avoid allocating a buffer +
-    writing a string + re-interning it when we don't need to qualify the
-    identifier.
+    CL 268578 was not formatted properly.
     
-    Passes toolstash -cmp.
-    
-    Updates #47087.
-    
-    Change-Id: I47b57aef22301ba242556a645346f478f0c1a7d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/333162
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I08d2fc691e4f90a38d8165344c135b7b4f73b339
+    GitHub-Last-Rev: 6183bb063962ef4bf5a6050c1f5108976108ff42
+    GitHub-Pull-Request: golang/go#42736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271807
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types/fmt.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/runtime/crash_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

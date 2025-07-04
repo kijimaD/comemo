@@ -1,15 +1,13 @@
-commit 582d6e5848e030564cc131d345e61c29ed936ec5
-Author: Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
-Date:   Thu Jul 7 10:49:03 2011 +1000
+commit 7875ecb4629cf50d125dbfc7e9a744c1b4842a40
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 7 10:46:54 2011 +1000
 
-    crypto/openpgp: fixed dangerous use of for loop variable
+    C+A: Gideon Jan-Wessel Redelinghuys
     
-    In function readSignedMessage a pointer to for loop variable 'key' was incorrectly being assigned
-    to md.SignedBy. Changed so that md.SignedBy is pointing to the 'more correct' memory position.
-    
-    R=golang-dev, r, agl
-    CC=golang-dev
-    https://golang.org/cl/4631088
+    R=golang-dev, dsymonds
+    CC=gjredelinghuys, golang-dev
+    https://golang.org/cl/4675059
 
- src/pkg/crypto/openpgp/read.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

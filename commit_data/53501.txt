@@ -1,21 +1,26 @@
-commit b9baf4452fe949a5a159eec4d4a437ad2833ead1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 15 11:34:46 2023 -0400
+commit 6dc7b060cd725aa61421e627ec233e9a936600fc
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 22 15:08:07 2022 -0700
 
-    go/printer: error out of Fprint when it would write a '//line' directive with a multiline file path
+    cmd/compile: rip out support for OpVarKill from ssa backend
     
-    Line directives do not provide a way to escape newline characters, so
-    source file paths containing newlines must not be written in them.
-    
-    Updates #60167.
-    
-    Change-Id: I30f8b381cc7d1df6914c27591544edf424a4b634
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501578
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I008479a7516d8379186ce630748e503d94d3b1e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419235
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/go/printer/printer.go      | 18 +++++++++++++-----
- src/go/printer/printer_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/liveness/arg.go       |  2 +-
+ src/cmd/compile/internal/liveness/plive.go     | 13 ++-----------
+ src/cmd/compile/internal/ssa/deadstore.go      |  4 ++--
+ src/cmd/compile/internal/ssa/debug.go          |  4 ++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  1 -
+ src/cmd/compile/internal/ssa/lower.go          |  2 +-
+ src/cmd/compile/internal/ssa/nilcheck.go       |  2 +-
+ src/cmd/compile/internal/ssa/numberlines.go    |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  8 --------
+ src/cmd/compile/internal/ssa/value.go          |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go   |  8 ++++----
+ src/cmd/compile/internal/ssagen/ssa.go         |  5 +----
+ 12 files changed, 16 insertions(+), 37 deletions(-)

@@ -1,29 +1,21 @@
-commit b4ca1cec69f8248b77d8d8ce019943ced5235ed0
-Author: David Chase <drchase@google.com>
-Date:   Tue Mar 9 20:43:49 2021 -0500
+commit 55f8d56c31c7c940202c892e0e35d26930c6a8b0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 18:04:47 2020 +1000
 
-    cmd/compile: set unsayable "names" for regabi testing triggers
+    runtime: add support for openbsd/mips64
     
-    This disables the "testing names" for method names and
-    trailing input types passed to closure/interface/other calls.
-    The logic using the names remains, so that editing the change
-    to enable local testing is not too hard.
+    Update #40995
     
-    Also fixes broken build tag in reflect/abi_test.go
-    
-    Updates #44816.
-    
-    Change-Id: I3d222d2473c98d04ab6f1122ede9fea70c994af1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300150
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie028dfd87ef8731804567a0501f1f7758e8dd203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250580
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/cmd/compile/internal/ssagen/ssa.go |  7 +++--
- src/reflect/abi_test.go                |  7 +++--
- test/abi/fibish2.go                    | 40 --------------------------
- test/abi/fibish2.out                   |  1 -
- test/abi/methods.go                    | 52 ----------------------------------
- test/abi/methods.out                   |  2 --
- 6 files changed, 9 insertions(+), 100 deletions(-)
+ src/runtime/os_openbsd.go            |   6 +-
+ src/runtime/os_openbsd_mips64.go     |  12 ++
+ src/runtime/rt0_openbsd_mips64.s     |  36 ++++
+ src/runtime/signal_mips64x.go        |   2 +-
+ src/runtime/signal_openbsd_mips64.go |  78 +++++++
+ src/runtime/sys_openbsd_mips64.s     | 400 +++++++++++++++++++++++++++++++++++
+ 6 files changed, 532 insertions(+), 2 deletions(-)

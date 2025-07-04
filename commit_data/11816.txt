@@ -1,12 +1,14 @@
-commit 71c8b82dd1e59f1864dd347ea76726406f871365
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 13 14:05:57 2012 +1100
+commit aee1c38cda006e652e2589b6bbf16db0e6095a29
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 13 08:05:53 2012 +1100
 
-    strings: more examples
+    go1: fix old reference to Sys method
+    The example was fixed; the simplifying rewrite was missed.
     
-    R=golang-dev, adg
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5645092
+    https://golang.org/cl/5651080
 
- src/pkg/strings/example_test.go | 155 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 155 insertions(+)
+ doc/go1.html | 2 +-
+ doc/go1.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

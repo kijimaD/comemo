@@ -1,21 +1,19 @@
-commit a7277e5494c696a4798b99e1e55d55acf61211de
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Aug 17 21:23:36 2016 -0400
+commit 562d398aef1378c781a3164f59f54dd1b0f4638f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 19 11:27:52 2016 -0700
 
-    cmd/compile: compare size in dead store elimination
+    go/types: accept trailing empty stmts in terminating stmt lists
     
-    Only remove stores that is shadowed by another store with same or
-    larger size. Normally we don't need this check because we did check
-    the types, but unsafe pointer casting can get around it.
+    Per the latest spec refinement (https://golang.org/cl/19981).
     
-    Fixes #16769.
+    Fixes #14537.
     
-    Change-Id: I3f7c6c57807b590a2f735007dec6c65a4fa01a34
-    Reviewed-on: https://go-review.googlesource.com/27320
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2dedee942c4da21dc94bdeda466f133827ab5bb9
+    Reviewed-on: https://go-review.googlesource.com/22241
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/deadstore.go      | 22 +++++++++++------
- src/cmd/compile/internal/ssa/deadstore_test.go | 33 ++++++++++++++++++++++++--
- 2 files changed, 46 insertions(+), 9 deletions(-)
+ src/go/types/return.go          |  9 +++--
+ src/go/types/testdata/stmt1.src | 76 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 2 deletions(-)

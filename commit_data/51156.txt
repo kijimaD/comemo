@@ -1,35 +1,24 @@
-commit 4b43b741710eb87cbae25f19cbde7eb733b08df1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Sep 28 18:50:01 2022 -0400
+commit a76511f3a40ea69ee4f5cd86e735e1c8a84f0aa2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 18:05:11 2021 -0500
 
-    cmd/go: add -pgo build flag
+    syscall: fix ForkLock spurious close(0) on pipe failure
     
-    Add a -pgo flag for "go build" (and other build actions), to
-    specify the file path of a profile used for PGO. Special name
-    "off" turns off PGO.
+    Pipe (and therefore forkLockPipe) does not make any guarantees
+    about the state of p after a failed Pipe(p). Avoid that assumption
+    and the too-clever goto, so that we don't accidentally Close a real fd
+    if the failed pipe leaves p[0] or p[1] set >= 0.
     
-    The given profile path is passed to the compiler.
+    Fixes #50057
+    Fixes CVE-2021-44717
     
-    The build cache is sensitive to the content of the given PGO
-    profile.
-    
-    TODO: auto mode.
-    
-    For #55022.
-    
-    Change-Id: Ieee1b131b4c041f9502fd0a1acf112f3e44246be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438736
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Iff8e19a6efbba0c73cc8b13ecfae381c87600bb4
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1291270
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370576
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
 
- src/cmd/go/alldocs.go                    |  3 ++
- src/cmd/go/internal/cfg/cfg.go           |  2 ++
- src/cmd/go/internal/load/pkg.go          |  7 ++++
- src/cmd/go/internal/work/build.go        |  4 +++
- src/cmd/go/internal/work/exec.go         |  3 ++
- src/cmd/go/internal/work/gc.go           |  3 ++
- src/cmd/go/internal/work/init.go         | 20 +++++++++++
- src/cmd/go/testdata/script/build_pgo.txt | 62 ++++++++++++++++++++++++++++++++
- 8 files changed, 104 insertions(+)
+ src/syscall/exec_unix.go | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)

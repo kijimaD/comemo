@@ -1,16 +1,56 @@
-commit 89f02eb8370e31907d33e88f3e25de5176fe84f0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 13 12:56:51 2019 -0700
+commit 41cb0aedffdf4c5087de82710c4d016a3634b4ac
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Fri Nov 9 22:49:38 2018 +0900
 
-    go/types: add -halt flag to ease debugging in test mode
+    sync: allow inlining the Mutex.Lock fast path
     
-    Specifying -halt in `go test -run Check$ -halt` causes a panic
-    upon encountering the first error. The stack trace is useful to
-    determine what code path issued the error.
+    name                    old time/op  new time/op  delta
+    MutexUncontended        18.9ns ± 0%  16.2ns ± 0%  -14.29%  (p=0.000 n=19+19)
+    MutexUncontended-4      4.75ns ± 1%  4.08ns ± 0%  -14.20%  (p=0.000 n=20+19)
+    MutexUncontended-16     2.05ns ± 0%  2.11ns ± 0%   +2.93%  (p=0.000 n=19+16)
+    Mutex                   19.3ns ± 1%  16.2ns ± 0%  -15.86%  (p=0.000 n=17+19)
+    Mutex-4                 52.4ns ± 4%  48.6ns ± 9%   -7.22%  (p=0.000 n=20+20)
+    Mutex-16                 139ns ± 2%   140ns ± 3%   +1.03%  (p=0.011 n=16+20)
+    MutexSlack              18.9ns ± 1%  16.2ns ± 1%  -13.96%  (p=0.000 n=20+20)
+    MutexSlack-4             225ns ± 8%   211ns ±10%   -5.94%  (p=0.000 n=18+19)
+    MutexSlack-16           98.4ns ± 1%  90.9ns ± 1%   -7.60%  (p=0.000 n=17+18)
+    MutexWork               58.2ns ± 3%  55.4ns ± 0%   -4.82%  (p=0.000 n=20+17)
+    MutexWork-4              103ns ± 7%    95ns ±18%   -8.03%  (p=0.000 n=20+20)
+    MutexWork-16             163ns ± 2%   155ns ± 2%   -4.47%  (p=0.000 n=18+18)
+    MutexWorkSlack          57.7ns ± 1%  55.4ns ± 0%   -3.99%  (p=0.000 n=20+13)
+    MutexWorkSlack-4         276ns ±13%   260ns ±10%   -5.64%  (p=0.001 n=19+19)
+    MutexWorkSlack-16        147ns ± 0%   156ns ± 1%   +5.87%  (p=0.000 n=14+19)
+    MutexNoSpin              968ns ± 0%   900ns ± 1%   -6.98%  (p=0.000 n=20+18)
+    MutexNoSpin-4            270ns ± 2%   255ns ± 2%   -5.74%  (p=0.000 n=19+20)
+    MutexNoSpin-16           120ns ± 4%   112ns ± 0%   -6.99%  (p=0.000 n=19+14)
+    MutexSpin               3.13µs ± 1%  3.19µs ± 6%     ~     (p=0.401 n=20+20)
+    MutexSpin-4              832ns ± 2%   831ns ± 1%   -0.17%  (p=0.023 n=16+18)
+    MutexSpin-16             395ns ± 0%   399ns ± 0%   +0.94%  (p=0.000 n=17+19)
+    RWMutexUncontended      69.5ns ± 0%  68.4ns ± 0%   -1.59%  (p=0.000 n=20+20)
+    RWMutexUncontended-4    17.5ns ± 0%  16.7ns ± 0%   -4.30%  (p=0.000 n=18+17)
+    RWMutexUncontended-16   7.92ns ± 0%  7.87ns ± 0%   -0.61%  (p=0.000 n=18+17)
+    RWMutexWrite100         24.9ns ± 1%  25.0ns ± 1%   +0.32%  (p=0.000 n=20+20)
+    RWMutexWrite100-4       46.2ns ± 4%  46.2ns ± 5%     ~     (p=0.840 n=19+20)
+    RWMutexWrite100-16      69.9ns ± 5%  69.9ns ± 3%     ~     (p=0.545 n=20+19)
+    RWMutexWrite10          27.0ns ± 2%  26.8ns ± 2%   -0.98%  (p=0.001 n=20+20)
+    RWMutexWrite10-4        34.7ns ± 2%  35.0ns ± 4%     ~     (p=0.191 n=18+20)
+    RWMutexWrite10-16       37.2ns ± 4%  37.3ns ± 2%     ~     (p=0.438 n=20+19)
+    RWMutexWorkWrite100      164ns ± 0%   163ns ± 0%   -0.24%  (p=0.025 n=20+20)
+    RWMutexWorkWrite100-4    193ns ± 3%   191ns ± 2%   -1.06%  (p=0.027 n=20+20)
+    RWMutexWorkWrite100-16   210ns ± 3%   207ns ± 3%   -1.22%  (p=0.038 n=20+20)
+    RWMutexWorkWrite10       153ns ± 0%   153ns ± 0%     ~     (all equal)
+    RWMutexWorkWrite10-4     178ns ± 2%   179ns ± 2%     ~     (p=0.186 n=20+20)
+    RWMutexWorkWrite10-16    192ns ± 2%   192ns ± 2%     ~     (p=0.731 n=19+20)
     
-    Change-Id: I2e17e0014ba87505b01786980b98565f468065bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190257
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    linux/amd64 bin/go 14663387 (previous commit 14630572, +32815/+0.22%)
+    
+    Change-Id: I98171006dce14069b1a62da07c3d165455a7906b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/148959
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/check_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/runtime/sema.go | 16 ++++++++--------
+ src/sync/mutex.go   |  6 +++++-
+ src/sync/runtime.go |  4 +++-
+ src/sync/rwmutex.go |  4 ++--
+ test/inline_sync.go | 11 ++++++++++-
+ 5 files changed, 28 insertions(+), 13 deletions(-)

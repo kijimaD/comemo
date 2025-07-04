@@ -1,0 +1,21 @@
+commit 49dd7726a9e2e4371de984871082ea0e3791cbdd
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Sep 28 16:50:03 2024 +0000
+
+    internal/testlog: use atomic.Pointer instead of atomic.Value
+    
+    We know the type (*Interface), so we can use the generic atomic.Pointer.
+    This change also makes sure that concurrent use of SetLogger also
+    causes a panic, currently it races (Load, then Store).
+    
+    Change-Id: I6fae5ce0587b37eede2060342c3fcd0cde4386ff
+    GitHub-Last-Rev: 0c053be03e22d4afcee235a247a377d7bd4d5aea
+    GitHub-Pull-Request: golang/go#69701
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616516
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/testlog/log.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

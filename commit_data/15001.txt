@@ -1,20 +1,19 @@
-commit 66bf59712e6ee1ea84ce88ff35cea78e525ac5a7
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Jan 28 18:06:14 2013 -0500
+commit 4f6a2b9840f7894086a04e42ebf497b2d8fdbd33
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jan 28 21:29:45 2013 +0100
 
-    exp/ssa: (#2 of 5): core utilities
+    test: add support for build tags.
     
-    This CL includes the implementation of Literal, all the
-    Value.String and Instruction.String methods, the sanity
-    checker, and other misc utilities.
+    This enables a few tests that were only executed
+    unconditionnally.
     
-    R=gri, iant, iant
+    R=rsc, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7199052
+    https://golang.org/cl/7103051
 
- src/pkg/exp/ssa/literal.go | 137 ++++++++++++++++
- src/pkg/exp/ssa/print.go   | 383 +++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/exp/ssa/sanity.go  | 263 +++++++++++++++++++++++++++++++
- src/pkg/exp/ssa/ssa.go     |  21 +--
- src/pkg/exp/ssa/util.go    | 172 ++++++++++++++++++++
- 5 files changed, 961 insertions(+), 15 deletions(-)
+ test/fixedbugs/bug385_32.go |  8 ++--
+ test/fixedbugs/bug385_64.go |  6 +--
+ test/run.go                 | 89 +++++++++++++++++++++++++++++++++++++++------
+ test/sigchld.go             |  7 +---
+ test/testlib                | 25 +++++++++++++
+ 5 files changed, 110 insertions(+), 25 deletions(-)

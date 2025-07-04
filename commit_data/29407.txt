@@ -1,37 +1,15 @@
-commit e0178025978470e9f7b5fa9365891d20db809a7c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 4 19:12:09 2016 +0000
+commit 567aefd99ddc66d596fffd442b6c014d83ac5eb9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 07:46:59 2016 -0400
 
-    cmd/vet: parallelize tests
+    cmd/link: address comments from CL 28540
     
-    Was 2.3 seconds. Now 1.4 seconds.
-    
-    Next win would be not running a child process and refactoring main so
-    it could be called from tests easily. But that would also require
-    rewriting the errchk written in Perl. This appears to be the last user
-    of errchk in the tree.
-    
-    Updates #17751
-    
-    Change-Id: Id7c3cec76f438590789b994e756f55b5397be07f
-    Reviewed-on: https://go-review.googlesource.com/32754
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I11899096c71ee0e24e902c87914601fcd7ffd7a9
+    Reviewed-on: https://go-review.googlesource.com/28967
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/testdata/{ => asm}/asm.go              |   0
- src/cmd/vet/testdata/{ => asm}/asm1.s              |   0
- src/cmd/vet/testdata/{ => asm}/asm2.s              |   0
- src/cmd/vet/testdata/{ => asm}/asm3.s              |   0
- src/cmd/vet/testdata/{ => asm}/asm4.s              |   0
- src/cmd/vet/testdata/{ => asm}/asm5.s              |   0
- src/cmd/vet/testdata/{ => asm}/asm6.s              |   0
- src/cmd/vet/testdata/{ => asm}/asm7.s              |   0
- src/cmd/vet/testdata/{ => buildtag}/buildtag.go    |   0
- .../vet/testdata/{ => buildtag}/buildtag_bad.go    |   0
- src/cmd/vet/testdata/{ => cgo}/cgo.go              |   0
- src/cmd/vet/testdata/{ => cgo}/cgo2.go             |   0
- src/cmd/vet/testdata/testingpkg/tests.go           |   1 +
- .../vet/testdata/{ => testingpkg}/tests_test.go    |   0
- src/cmd/vet/vet_test.go                            | 125 +++++++++++++++------
- 15 files changed, 92 insertions(+), 34 deletions(-)
+ src/cmd/link/internal/amd64/asm.go | 3 +++
+ src/cmd/link/internal/ld/data.go   | 3 +++
+ 2 files changed, 6 insertions(+)

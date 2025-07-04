@@ -1,31 +1,14 @@
-commit 203c16592bd20ec22ed407d445719b90585626b1
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 15 22:56:37 2018 -0400
+commit 56eaf574a1f33a8e25561f256158059cc41a2add
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 29 21:46:28 2018 +0200
 
-    cmd/go/internal/module: define fs-safe module path encoding
+    test/codegen: match 387 ops too for GOARCH=386
     
-    Module paths, like import paths, are case-sensitive, for better or worse.
-    But not all file systems distinguish file paths with different cases.
-    If we are going to use module paths to construct file system paths,
-    we must apply an encoding that distinguishes case without relying
-    upon the file system to do it.
-    
-    This CL defines that encoding, the "safe module path encoding".
-    Module paths today are ASCII-only with limited punctuation,
-    so the safe module path encoding is to convert the whole path
-    to lower case and insert an ! before every formerly upper-case letter:
-    github.com/Sirupsen/logrus is stored as github.com/!sirupsen/logrus.
-    
-    Although this CL defines the encoding, it does not change the rest
-    of the go command to use the encoding. That will be done in
-    follow-up CLs.
-    
-    Change-Id: I06e6188dcfcbbc1d88674f7c95e1cb45cb476238
-    Reviewed-on: https://go-review.googlesource.com/124378
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I99407e27e340689009af798989b33cef7cb92070
+    Reviewed-on: https://go-review.googlesource.com/103376
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/module/module.go      | 277 ++++++++++++++++++++++++++----
- src/cmd/go/internal/module/module_test.go | 277 +++++++++++++++++++++---------
- 2 files changed, 439 insertions(+), 115 deletions(-)
+ test/codegen/floats.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

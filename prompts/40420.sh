@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40420: 3d457f1a3669f8609018bfdc981de7da2f0e95d9
+# Index 40420: 83f205fa8829781b9a4ef67ab47ae5fc96ecb6b5
 
 echo "🚀 Generating explanation for commit 40420..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 40420
-- **コミットハッシュ**: 3d457f1a3669f8609018bfdc981de7da2f0e95d9
-- **GitHub URL**: https://github.com/golang/go/commit/3d457f1a3669f8609018bfdc981de7da2f0e95d9
+- **コミットハッシュ**: 83f205fa8829781b9a4ef67ab47ae5fc96ecb6b5
+- **GitHub URL**: https://github.com/golang/go/commit/83f205fa8829781b9a4ef67ab47ae5fc96ecb6b5
 
 ### 章構成
 

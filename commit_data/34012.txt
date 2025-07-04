@@ -1,37 +1,27 @@
-commit d162a297ed216fb02ebe409ace2387c3a656de66
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jan 12 10:08:38 2018 -0800
+commit 4d3d333468b6a36106550bf90d93b3cc88b1efa4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 23 21:44:18 2017 +0100
 
-    cmd/cgo: rewrite CFTypeRef and subytes on Darwin to uintptr
+    cmd/compile: add runtime GC funcs to inlining test
     
-    Cgo currently maps CFTypeRef and its subtypes to unsafe.Pointer
-    or a pointer to a named empty struct.
+    This is based on a list that Austin Clements provided in mid-2016. It is
+    mostly untouched, except for the fact that the wbufptr funcs were
+    removed from the runtime thus removed from the lits here too.
     
-    However, Darwin sometimes encodes some of CFTypeRef's subtypes as a
-    few int fields packed in a pointer wrapper. This hackery confuses the
-    Go runtime as the pointers can look like they point to things that
-    shouldn't be pointed at.
+    Add a section for these GC funcs, since there are quite a lot of them
+    and the runtime has tons of funcs that we want to inline. As before,
+    sort this section too.
     
-    Switch CFTypeRef and its subtypes to map to uintptr.
+    Also place some of these funcs out of the GC section, as they are not
+    directly related to the GC.
     
-    Detecting the affected set of types is tricky, there are over 200 of
-    them, and the set isn't static across Darwin versions. Fortunately,
-    downcasting from CFTypeRef to a subtype requires calling CFGetTypeID,
-    getting a CFTypeID token, and comparing that with a known id from a
-    *GetTypeID() call. So we can find all the type names by detecting all
-    the *GetTypeID() prototypes and rewriting the corresponding *Ref types
-    to uintptr. This strategy covers all the cases I've checked and is
-    unlikely to have a false positive.
+    Updates #21851.
     
-    Update #23091.
-    
-    Change-Id: I487eb4105c9b4785ba564de9c38d472c8c9a76ac
-    Reviewed-on: https://go-review.googlesource.com/87615
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I35eb777a4c50b5f655618920dc2bc568c7c30ff5
+    Reviewed-on: https://go-review.googlesource.com/65654
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/cgo/doc.go    | 68 ++++-----------------------------------------------
- src/cmd/cgo/gcc.go    | 63 +++++++++++++++++++++++++++++++++++++++--------
- src/cmd/fix/cftype.go |  6 ++---
- 3 files changed, 61 insertions(+), 76 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

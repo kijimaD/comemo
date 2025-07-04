@@ -1,0 +1,20 @@
+commit bdef1778311c19c997d4fb14a4374bd712014d13
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Jan 7 18:28:10 2025 +0000
+
+    go/parser: require label after goto
+    
+    Fixes #70957
+    
+    Change-Id: Ied7cf29ea3e02bb71ddce8a19ddd381ce5991ed1
+    GitHub-Last-Rev: 310bd1537b7a36758f3fbf8db476fa68e1a11599
+    GitHub-Pull-Request: golang/go#70958
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/syntax/testdata/issue70957.go | 9 +++++++++
+ src/go/parser/parser.go                                | 2 +-
+ src/go/parser/short_test.go                            | 4 ++++
+ 3 files changed, 14 insertions(+), 1 deletion(-)

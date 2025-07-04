@@ -1,21 +1,21 @@
-commit a14ac8635f673218c91e13c103cb2f3e29ff4b74
-Author: Nobuki Fujii <scofni@gmail.com>
-Date:   Fri Sep 23 22:53:31 2022 +0900
+commit b07c41d2c1c8d5729250a13b7c560c150c1d9011
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Nov 3 16:46:44 2021 +0100
 
-    testing: update description of Setenv
+    net/netip: add IPv4Unspecified
     
-    Add the description of Setenv that it cannot use if the test have
-    parallel ancestors.
+    There is IPv6Unspecified but there is not IPv4Unspecified, making for
+    inconsistent code. This commit adds the missing function.
     
-    Fixes #55128
+    Updates #49298.
     
-    Change-Id: Ia5a1deaa1a3116d1ebb439600a7d316c7d155412
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/434115
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Id2519b646323642f59fb1cc6ea8e335fdde16290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361056
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/testing.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/net/netip/netip.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

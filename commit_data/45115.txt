@@ -1,43 +1,23 @@
-commit f2d5bd1ad306e87804d600d92105dc37279af83f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Mar 31 22:55:06 2021 +0000
+commit e70bbc702f093ab2d5e305ddb33b8dca2baf8104
+Author: Roland Bracewell Shoemaker <rolandshoemaker@gmail.com>
+Date:   Mon Oct 5 15:46:23 2020 +0000
 
-    runtime: move internal GC statistics from memstats to gcController
+    encoding/asn1: clarify use of SET suffix
     
-    This change moves certain important but internal-only GC statistics from
-    memstats into gcController. These statistics are mainly used in pacing
-    the GC, so it makes sense to keep them in the pacer's state.
+    This change clarifies the usage of the SET type name suffix. Previously
+    the documentation was somewhat confusing about where the suffix should
+    be used, and when used what it applied to. For instance the previous
+    language could be interpreted such that []exampleSET would be parsed as
+    a SEQUENCE OF SET, which is incorrect as the SET suffix only applies to
+    slice types, such as type exampleSET []struct{} which is parsed as a
+    SET OF SEQUENCE.
     
-    This CL was mostly generated via
-    
-    rf '
-        ex . {
-            memstats.gc_trigger -> gcController.trigger
-            memstats.triggerRatio -> gcController.triggerRatio
-            memstats.heap_marked -> gcController.heapMarked
-            memstats.heap_live -> gcController.heapLive
-            memstats.heap_scan -> gcController.heapScan
-        }
-    '
-    
-    except for a few special cases, like updating names in comments and when
-    these fields are used within gcControllerState methods (at which point
-    they're accessed through the reciever).
-    
-    For #44167.
-    
-    Change-Id: I6bd1602585aeeb80818ded24c07d8e6fec992b93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306598
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I74201d9969f931f69391c236559f66cb460569ec
+    GitHub-Last-Rev: d0d2ddc587df4564a265c800efb9d8e204002624
+    GitHub-Pull-Request: golang/go#38543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229078
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/runtime/mcache.go   |  26 ++++-----
- src/runtime/mgc.go      |  34 ++++++------
- src/runtime/mgcpacer.go | 145 ++++++++++++++++++++++++++++++++++++------------
- src/runtime/mgcsweep.go |   4 +-
- src/runtime/mheap.go    |   8 +--
- src/runtime/mstats.go   |  65 +---------------------
- src/runtime/trace.go    |   2 +-
- 7 files changed, 146 insertions(+), 138 deletions(-)
+ src/encoding/asn1/asn1.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

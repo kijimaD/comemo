@@ -1,21 +1,18 @@
-commit 364a05e2feab48611bb5e4f26f47a02b9b49a988
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 14 07:51:10 2020 -0700
+commit e751af1abacaf9958fe2e69d6dcb2e93cb1a3e4d
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Wed Dec 4 19:37:00 2019 -0800
 
-    cmd/compile: add test for issue 37246
+    cmd/go: print newline after GOOS/GOARCH error
     
-    CL 233857 fixed the underlying issue for #37246,
-    which had arisen again as #38916.
+    The newline was dropped during the refactor in CL 194617.
     
-    Add the test case from #37246 to ensure it stays fixed.
+    Fixes #35984
     
-    Fixes #37246
-    
-    Change-Id: If7fd75a096d2ce4364dc15509253c3882838161d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233941
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7e0d7aa2d7a4d1f44898921f8bb40401620d78b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209965
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue37246.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/cmd/go/internal/work/action.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

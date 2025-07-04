@@ -1,37 +1,24 @@
-commit a97c527ac491cc13f6778010a2a81c84642ea1ca
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Wed Sep 29 17:35:27 2021 -0700
+commit b98ce3b606b2bb620c9c62482cd73f068157a32c
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Mar 1 09:05:58 2021 -0800
 
-    runtime: add padding to Linux kernel structures
+    cmd/compile:  import empty closure function correctly
     
-    Go exchanges siginfo and sigevent structures with the kernel. They
-    contain unions, but Go's use is limited to the first few fields. Pad out
-    the rest so the size Go sees is the same as what the Linux kernel sees.
+    On import, make sure that an empty closure is represented as a single
+    empty block statement. Otherwise, the closure is dropped. Block
+    statements are not exported explicitly, so must recreate on import.
     
-    This is a follow-up to CL 342052 which added the sigevent struct without
-    padding, and to CL 353136 which added the padding but with an assertion
-    that confused several type-checkers. It updates the siginfo struct as
-    well so there are no bad examples in the defs_linux_*.go files.
+    Fixes #44330
     
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353136
-    
-    Change-Id: I9610632ff0ec43eba91f560536f5441fa907b36f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360094
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I061598f0f859dd71d2d0cbd10c77cdd81525d1f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297569
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/runtime/defs_linux_386.go     | 20 ++++++++++++++++++--
- src/runtime/defs_linux_amd64.go   | 20 ++++++++++++++++++--
- src/runtime/defs_linux_arm.go     | 20 ++++++++++++++++++--
- src/runtime/defs_linux_arm64.go   | 20 ++++++++++++++++++--
- src/runtime/defs_linux_mips64x.go | 20 ++++++++++++++++++--
- src/runtime/defs_linux_mipsx.go   | 20 ++++++++++++++++++--
- src/runtime/defs_linux_ppc64.go   | 20 ++++++++++++++++++--
- src/runtime/defs_linux_ppc64le.go | 20 ++++++++++++++++++--
- src/runtime/defs_linux_riscv64.go | 20 ++++++++++++++++++--
- src/runtime/defs_linux_s390x.go   | 20 ++++++++++++++++++--
- src/runtime/export_linux_test.go  |  5 +++++
- src/runtime/os_linux.go           | 16 ++++++++++------
- src/runtime/runtime_linux_test.go | 11 +++++++++++
- 13 files changed, 206 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go |  5 +++++
+ test/fixedbugs/issue44330.dir/a.go            | 21 +++++++++++++++++++++
+ test/fixedbugs/issue44330.dir/b.go            | 23 +++++++++++++++++++++++
+ test/fixedbugs/issue44330.go                  |  7 +++++++
+ 4 files changed, 56 insertions(+)

@@ -1,0 +1,23 @@
+commit d365f2266df98985f19705717ff8cf4ad3e743dc
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon May 5 12:33:46 2025 -0400
+
+    runtime: replace mentions of "raised" with "panicked"
+    
+    Fixes #73526
+    
+    Change-Id: I4b801cf3e54b99559e6d5ca8fdb2fd0692a0d3a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669975
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+
+ doc/next/4-runtime.md                               |  6 +++---
+ src/cmd/go/testdata/script/test_cleanup_failnow.txt |  4 ++--
+ src/cmd/go/testdata/script/test_fuzz_return.txt     |  2 +-
+ src/runtime/crash_test.go                           | 16 ++++++++--------
+ src/runtime/panic.go                                | 10 +++++-----
+ src/runtime/runtime2.go                             |  2 +-
+ src/runtime/testdata/testprog/crash.go              | 14 +++++++-------
+ 7 files changed, 27 insertions(+), 27 deletions(-)

@@ -1,23 +1,19 @@
-commit 54079dfd7fff6c61d41c4832c074e8231f235fc3
-Author: korzhao <korzhao95@gmail.com>
-Date:   Sat Sep 25 04:42:57 2021 +0800
+commit 0c86b999c35ed199bc7aa001affb1d5d186c9e73
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 14 12:00:23 2021 -0800
 
-    cmd/compile: fix stencil call expression
+    cmd/test2json: document passing -test.paniconexit0
     
-    In CL 349613,we have supported types.IdentityStrict() that does strict
-    type comparison.
-    Therefore, OCONVNOP becomes a possible case in call.X.Op().
+    For #29062
+    Fixes #43263
     
-    Fixes #48604
-    
-    Change-Id: Ibab27ffcf09656e3380314662f05f38294c1c6ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351857
-    Trust: Dan Scales <danscales@google.com>
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I160197c94cc4f936967cc22c82cec01663a14fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283873
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/noder/stencil.go |  3 +++
- test/typeparam/issue48604.go              | 25 +++++++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+ src/cmd/go/testdata/script/test_exit.txt | 17 +++++++++++++++++
+ src/cmd/test2json/main.go                |  6 +++++-
+ 2 files changed, 22 insertions(+), 1 deletion(-)

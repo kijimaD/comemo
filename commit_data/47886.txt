@@ -1,35 +1,22 @@
-commit 042548b1fdba21e351368e9f3ecd93059d09083f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 6 10:58:30 2022 -0800
+commit 48b7432e3f5318a026842fc4f39fb690e13f79f8
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Apr 13 02:48:32 2021 +0000
 
-    cmd/compile: report type parameter error for methods only once
+    cmd/internal/obj/arm64: fix the wrong sp dst register of ADDS/SUBS instructions
     
-    Move switch to enable method type parameters entirely
-    to the parser, by adding the mode AllowMethodTypeParams.
-    Ensure that the error messages are consistent.
-    Remove unnecessary code in the type checker.
+    According the armv8-a specification, the destination register of the ADDS/ADDSW/
+    SUBS/SUBSW instructions can not be RSP, the current implementation does not
+    check this and encodes this wrong instruction format as a CMN instruction. This
+    CL adds a check and test cases for this situation.
     
-    Fixes #50317.
-    
-    Change-Id: I4f3958722400bdb919efa4c494b85cf62f4002bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376054
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I92cc2f8e17dbda70f0dce8fddf1ca6d5d7730589
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309989
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go                 | 12 +++++++++---
- src/cmd/compile/internal/syntax/parser_test.go            |  2 +-
- src/cmd/compile/internal/syntax/syntax.go                 |  1 +
- src/cmd/compile/internal/syntax/testdata/issue48382.go2   | 10 +++++-----
- src/cmd/compile/internal/syntax/testdata/tparams.go2      |  2 +-
- src/cmd/compile/internal/types2/api_test.go               |  2 +-
- src/cmd/compile/internal/types2/check_test.go             |  2 +-
- src/cmd/compile/internal/types2/interface.go              |  7 -------
- src/cmd/compile/internal/types2/lookup.go                 |  5 +++++
- src/cmd/compile/internal/types2/resolver.go               |  9 ++-------
- src/cmd/compile/internal/types2/signature.go              | 10 +---------
- .../internal/types2/testdata/fixedbugs/issue39634.go2     |  2 +-
- src/cmd/compile/internal/types2/types_test.go             |  9 ---------
- test/typeparam/issue50317.go                              | 15 +++++++++++++++
- 14 files changed, 43 insertions(+), 45 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 20 ++++++++++++++++++++
+ src/cmd/internal/obj/arm64/asm7.go             | 20 ++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

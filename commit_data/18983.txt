@@ -1,47 +1,15 @@
-commit e150ca9c9aba9b8d8e61d0953ea4b90deef620bc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 28 11:30:02 2014 -0400
+commit 2dc7552f5701c110fd54609fc8eed421cef7f20f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 28 17:35:00 2014 +1100
 
-    cmd/gc: never pass ptr to uninit temp to runtime
+    runtime: ignore windows exception if not in Go binary
     
-    chanrecv now expects a pointer to the data to be filled in.
-    mapiterinit expects a pointer to the hash iterator to be filled in.
-    In both cases, the temporary being pointed at changes from
-    dead to alive during the call. In order to make sure it is
-    preserved if a garbage collection happens after that transition
-    but before the call returns, the temp must be marked as live
-    during the entire call.
-    
-    But if it is live during the entire call, it needs to be safe for
-    the garbage collector to scan at the beginning of the call,
-    before the new data has been filled in. Therefore, it must be
-    zeroed by the caller, before the call. Do that.
-    
-    My previous attempt waited to mark it live until after the
-    call returned, but that's unsafe (see first paragraph);
-    undo that change in plive.c.
-    
-    This makes powser2 pass again reliably.
-    
-    I looked at every call to temp in the compiler.
-    The vast majority are followed immediately by an
-    initialization of temp, so those are fine.
-    The only ones that needed changing were the ones
-    where the next operation is to pass the address of
-    the temp to a function call, and there aren't too many.
-    
-    Maps are exempted from this because mapaccess
-    returns a pointer to the data and lets the caller make
-    the copy.
-    
-    Fixes many builds.
-    
-    TBR=khr
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/80700046
+    https://golang.org/cl/80400043
 
- src/cmd/gc/plive.c  |  3 +--
- src/cmd/gc/range.c  |  3 +++
- src/cmd/gc/select.c | 12 ++++++++++++
- src/cmd/gc/walk.c   | 13 +++++++++++++
- 4 files changed, 29 insertions(+), 2 deletions(-)
+ src/pkg/runtime/os_windows_386.c   | 11 +++++++++--
+ src/pkg/runtime/os_windows_amd64.c | 11 +++++++++--
+ src/pkg/runtime/sys_windows_386.s  | 31 ++++++-------------------------
+ 3 files changed, 24 insertions(+), 29 deletions(-)

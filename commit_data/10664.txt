@@ -1,12 +1,16 @@
-commit 0397b28a9016c07bd27e7b06055796bd70596146
-Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 8 10:15:53 2011 -0800
+commit 83c30f3ec28cc87b8814fb29c7bd88c311dace58
+Author: Andrea Spadaccini <spadaccio@google.com>
+Date:   Thu Dec 8 15:12:08 2011 +0900
 
-    html/template: clean up locking for ExecuteTemplate
+    syscall: add constants for flock() system call under Linux.
     
-    R=mikesamuel, rogpeppe
-    CC=golang-dev
-    https://golang.org/cl/5448137
+    The values have been generated only for the i386 and amd64 architectures.
+    
+    R=golang-dev, mikioh.mikioh, dsymonds
+    CC=bradfitz, dsymonds, golang-dev
+    https://golang.org/cl/5452060
 
- src/pkg/html/template/template.go | 22 +++++++++++++++-------
- 1 file changed, 15 insertions(+), 7 deletions(-)
+ src/pkg/syscall/mkerrors.sh            | 2 ++
+ src/pkg/syscall/zerrors_linux_386.go   | 4 ++++
+ src/pkg/syscall/zerrors_linux_amd64.go | 4 ++++
+ 3 files changed, 10 insertions(+)

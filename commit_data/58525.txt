@@ -1,23 +1,21 @@
-commit 80bf7d83edbb48e2411d755f0636565467bb5a56
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 16 16:08:26 2025 -0800
+commit 1ab9df4849d1bb527035ccf475cc5b7b4aa9b789
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Nov 16 13:00:55 2023 -0500
 
-    go/types, types2: remove superfluous assertion (fix build)
+    cmd/compile: allow disable of PGO function value devirtualization with flag
     
-    Remove an assertion that was overly restrictive and hard to get
-    correct under all circumstances (i.e., in the presence of incorrect)
-    code. This matches the code for *Named types in that specific switch.
+    Extend the pgodevirtualize debug flag to distinguish interface and
+    function devirtualization. Setting 1 keeps interface devirtualization
+    enabled but disables function value devirtualization.
     
-    Fixes #71284.
+    For #64209.
     
-    Change-Id: Ifccf8b73dc70cac9cb1c8b24946d16851d511454
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643255
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I33aa7eb95ca0bdb215256d8c7cc8f9dac53ae30e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543115
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/types2/typexpr.go          |  5 -----
- src/go/types/typexpr.go                             |  5 -----
- src/internal/types/testdata/fixedbugs/issue71284.go | 10 ++++++++++
- 3 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/base/debug.go       | 2 +-
+ src/cmd/compile/internal/base/flag.go        | 2 +-
+ src/cmd/compile/internal/devirtualize/pgo.go | 8 ++++++++
+ 3 files changed, 10 insertions(+), 2 deletions(-)

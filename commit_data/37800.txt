@@ -1,29 +1,20 @@
-commit 480373c7560cd64e4b6c624d84e9d0de6d72c076
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Sat Dec 29 14:27:15 2018 +0200
+commit 54f9c0416a588963cb5a1c10ffb6a88f3956858c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 28 14:52:30 2018 -0400
 
-    syscall: revert to pre-FreeBSD 10 / POSIX-2008 timespec field names in Stat_t on FreeBSD
+    cmd/compile: count nil check as use in dead auto elim
     
-    CL 138595 introduced the new names when the hardcoded stat8 definitions was replaced
-    with a cgo generated one.
+    Nil check is special in that it has no use but we must keep it.
+    Count it as a use of the auto.
     
-    Fixes #29393
-    Updates #22448
+    Fixes #27278.
     
-    Change-Id: I6309958306329ff301c17344b2e0ead0cc874224
-    Reviewed-on: https://go-review.googlesource.com/c/155958
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I857c3d0db2ebdca1bc342b4993c0dac5c01e067f
+    Reviewed-on: https://go-review.googlesource.com/131955
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- api/except.txt                      | 24 -----------
- api/go1.12.txt                      | 24 -----------
- src/archive/tar/stat_actime1.go     |  2 +-
- src/archive/tar/stat_actime2.go     |  2 +-
- src/os/stat_freebsd.go              |  4 +-
- src/syscall/mkpost.go               |  8 +++-
- src/syscall/syscall_freebsd.go      | 32 +++++++--------
- src/syscall/ztypes_freebsd_386.go   | 82 ++++++++++++++++++-------------------
- src/syscall/ztypes_freebsd_amd64.go | 72 ++++++++++++++++----------------
- src/syscall/ztypes_freebsd_arm.go   | 72 ++++++++++++++++----------------
- 10 files changed, 140 insertions(+), 182 deletions(-)
+ src/cmd/compile/internal/ssa/deadstore.go |  3 +-
+ test/fixedbugs/issue27278.go              | 63 +++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 1 deletion(-)

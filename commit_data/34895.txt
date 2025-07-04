@@ -1,25 +1,16 @@
-commit b65122f99a81fb745b1b1395607d10385eb9ea2a
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Mar 26 21:18:27 2018 +0100
+commit 2e1f07133d2447125cd45887d6d54e6aa53ba5b5
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Nov 23 15:31:28 2017 -0700
 
-    cmd/compile: optimize comparisons using load merging where available
+    runtime: tweak doc for Goexit
     
-    Multi-byte comparison operations were used on amd64, arm64, i386
-    and s390x for comparisons with constant arrays, but only amd64 and
-    i386 for comparisons with string constants. This CL combines the
-    check for platform capability, since they have the same requirements,
-    and also enables both on ppc64le which also supports load merging.
+    Use singular form of panic and remove the unnecessary
+    'however', when comparing Goexit's behavior to 'a panic'
+    as well as what happens for deferred recovers with Goexit.
     
-    Note that these optimizations currently use little endian byte order
-    which results in byte reversal instructions on s390x. This should
-    be fixed at some point.
-    
-    Change-Id: Ie612d13359b50c77f4d7c6e73fea4a59fa11f322
-    Reviewed-on: https://go-review.googlesource.com/102558
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3116df3336fa135198f6a39cf93dbb88a0e2f46e
+    Reviewed-on: https://go-review.googlesource.com/79755
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 48 ++++++++++++++++++++-----------------
- test/codegen/comparisons.go         | 15 ++++++++++++
- 2 files changed, 41 insertions(+), 22 deletions(-)
+ src/runtime/panic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

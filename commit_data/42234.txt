@@ -1,26 +1,27 @@
-commit 8740bdc5afd07cf62722907644f65411cc52fa1c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 30 13:24:05 2020 -0700
+commit 73d20f8186a091c8d7e81b621136770981cf8e44
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Nov 16 17:08:11 2019 -0500
 
-    strconv: fix for parseFloatPrefix
+    runtime: always use Go signal stack in non-cgo program
     
-    parseFloatPrefix accepts a string if it has a valid floating-point
-    number as prefix. Make sure that "infi", "infin", ... etc. are
-    accepted as valid numbers "inf" with suffix "i", "in", etc. This
-    is important for parsing complex numbers such as "0+infi".
+    When initializing an M, we set up its signal stack to the gsignal
+    stack if an alternate signal stack is not already set. On Android,
+    an alternate signal stack is always set, even cgo is not used.
+    This breaks the logic of saving/fetching G on the signal stack
+    during VDSO, which assumes the signal stack is allocated by Go if
+    cgo is not used (if cgo is used, we use TLS for saving G).
     
-    This change does not affect the correctness of ParseFloat because
-    ParseFloat rejects strings that contain a suffix after a valid
-    floating-point number.
+    When cgo is not used, we can always use the Go signal stack, even
+    if an alternate signal stack is already set. Since cgo is not
+    used, no one other than the Go runtime will care.
     
-    Updates #36771.
+    Fixes #35554.
     
-    Change-Id: Ie1693a8ca2f8edf07b57688e0b35751b7100d39d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231237
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ia9d84cd55cb35097f3df46f37996589c86f10e0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207445
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/strconv/atof.go      | 6 +++++-
- src/strconv/atof_test.go | 5 +++--
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/runtime/signal_unix.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

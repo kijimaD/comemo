@@ -1,22 +1,25 @@
-commit 8f1031df779fa31da80b270474a737459dbd1726
+commit 2aa473cc54128c1498f80263763a2a876308e565
 Author: Austin Clements <austin@google.com>
-Date:   Thu May 18 21:46:55 2023 -0400
+Date:   Wed Jul 13 15:18:41 2022 -0400
 
-    cmd/cgo/internal/testcarchive: fix nocgo and no-c-archive builds
+    go/types, types2: correct alignment of atomic.Int64
     
-    CL 495918 enabled testcarchive much more widely and added many dynamic
-    test skips. CL 495855 added TestDeepStack before these dynamic skips
-    were in. Unfortunately, the two CLs don't logically commute, so when
-    CL 495918 landed, it broke at least nocgo builders and platforms that
-    don't support c-archive builds. Fix this by adding the necessary skips
-    to TestDeepStack.
+    atomic.Int64 has special logic in the compiler to ensure it's 8-byte
+    aligned on 32-bit architectures. The equivalent logic is missing in
+    go/types, which means the compiler and go/types can come to different
+    conclusions about the layout of types.
     
-    Change-Id: I3d352f731fe67a01c7b96871fde772db8eb21b5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496376
-    Auto-Submit: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Fix this by mirroring the compiler's logic into go/types.
+    
+    Fixes #53884.
+    
+    Change-Id: I3f58a56babb76634839a161ca174c8f085fe3ba4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417555
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/cgo/internal/testcarchive/carchive_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/types/size.go        |  2 ++
+ src/cmd/compile/internal/types2/sizes.go      | 23 +++++++++++++++
+ src/cmd/compile/internal/types2/sizes_test.go | 41 ++++++++++++++++++++++++++-
+ src/go/types/sizes.go                         | 23 +++++++++++++++
+ src/go/types/sizes_test.go                    | 41 ++++++++++++++++++++++++++-
+ 5 files changed, 128 insertions(+), 2 deletions(-)

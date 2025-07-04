@@ -1,14 +1,12 @@
-commit feb9a146f9d5970937262e011d940c940a531322
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed May 25 11:39:40 2011 +1000
+commit 2f655c4bb7e2002da4329c9deec9513601172a26
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 25 10:58:58 2011 +1000
 
-    doc: mention go/printer instead of container/vector in effective go
+    spec: delete spurious tag.
     
-    Fixes #1876.
-    
-    R=golang-dev, bradfitz, gri, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4538093
+    https://golang.org/cl/4536082
 
- doc/effective_go.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 1 -
+ 1 file changed, 1 deletion(-)

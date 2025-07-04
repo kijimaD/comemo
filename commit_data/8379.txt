@@ -1,12 +1,14 @@
-commit e113e405dedbb5b446d86d2b395c406cb814ea84
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 13 08:12:34 2011 -0700
+commit cc5ac676da74807a8328ec240b268cd2b53a0b7e
+Author: Sameer Ajmani <ajmani@gmail.com>
+Date:   Fri May 13 11:05:03 2011 -0400
 
-    doc: auto-generated html change missing from 7ee7980ea06d
+    misc/emacs: bug fix: use UTF-8 when invoking gofmt as a subprocess.
+    Without this, Unicode characters are stripped out by M-x gofmt.
     
-    R=golang-dev, r
+    R=rsc, amdragon
     CC=golang-dev
-    https://golang.org/cl/4515077
+    https://golang.org/cl/4523065
 
- doc/codelab/wiki/index.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/emacs/go-mode-load.el | 2 +-
+ misc/emacs/go-mode.el      | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

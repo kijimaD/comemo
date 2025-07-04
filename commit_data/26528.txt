@@ -1,24 +1,17 @@
-commit 93c5fbf3905920a8d0cb0618816165f368e9d965
-Author: Christopher Nelson <nadiasvertex@gmail.com>
-Date:   Thu Mar 24 17:50:21 2016 -0400
+commit b6c5edae7c0e9dd6d12dbb8f1c9638dea45f9464
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 22:02:52 2016 -0500
 
-    misc/cgo/testcarchive: split main.c into unix and non-unix
+    archive/zip: handle pre-zip64 zip files containing 2³²-1-byte content
     
-    This is in support of https://golang.org/cl/18057 which adds
-    support for c-archive to the Windows platform.
+    This corrects a regression from Go 1.5 introduced by CL 18317.
     
-    The signal handling tests do not compile on Windows. This splits
-    them out into a separate main_unix.c file, and conditionally
-    includes them for non-Windows platforms.
+    Fixes #14185.
     
-    Change-Id: Ic79ce83da7656d6703505e514554748a482b81a1
-    Reviewed-on: https://go-review.googlesource.com/21086
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic3215714846d9f28809cd04e3eb3664b599244f4
+    Reviewed-on: https://go-review.googlesource.com/19151
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 33 ++++++++++++---------
- misc/cgo/testcarchive/main.c           | 41 +++++---------------------
- misc/cgo/testcarchive/main_unix.c      | 53 ++++++++++++++++++++++++++++++++++
- misc/cgo/testcarchive/main_windows.c   | 17 +++++++++++
- 4 files changed, 97 insertions(+), 47 deletions(-)
+ src/archive/zip/reader.go      |  12 ++-
+ src/archive/zip/reader_test.go | 235 +++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 236 insertions(+), 11 deletions(-)

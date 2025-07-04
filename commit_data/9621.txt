@@ -1,21 +1,32 @@
-commit e5c20dc270c3471bddee57f470bff6481ed12234
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Sep 7 14:49:48 2011 -0700
+commit 1e480cd1adde73b0f7549a2d0c79bcc666ebb74d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 7 15:50:21 2011 -0400
 
-    path/filepath: Simplify Walk interface
+    gc: add -p flag to catch import cycles earlier
     
-    The last argument of filepath.Walk was removed, and the Visitor
-    interface now contains an Error method that is called on errors.
+    The linker would catch them if gc succeeded,
+    but too often the cycle manifests as making the
+    current package and the imported copy of itself
+    appear as different packages, which result in
+    type signature mismatches that confuse users.
     
-    Fixes #2237.
+    As a crutch, add the -p flag to say 'if you see an
+    import of this package, give up early'.  Results in
+    messages like (during gotest in sort):
     
-    R=golang-dev, gri, r
-    CC=golang-dev
-    https://golang.org/cl/4964067
+    export_test.go:7: import "sort" while compiling that package (import cycle)
+    export_test.go:7: import "container/heap": package depends on "sort" (import cycle)
+    
+    Fixes #2042.
+    
+    R=ken
+    CC=bradfitz, dsymonds, golang-dev
+    https://golang.org/cl/4972057
 
- src/cmd/gofix/main.go              |  6 +++++-
- src/cmd/gofmt/gofmt.go             |  6 +++++-
- src/cmd/govet/govet.go             | 18 +++++++++++-------
- src/pkg/path/filepath/path.go      | 24 +++++++++---------------
- src/pkg/path/filepath/path_test.go | 31 +++++++++++++++----------------
- 5 files changed, 45 insertions(+), 40 deletions(-)
+ src/Make.pkg      |  4 ++--
+ src/cmd/gc/doc.go |  3 +++
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/go.y   | 10 +++++++---
+ src/cmd/gc/lex.c  | 20 +++++++++++++++-----
+ src/cmd/gc/subr.c |  2 +-
+ 6 files changed, 29 insertions(+), 11 deletions(-)

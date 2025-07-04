@@ -1,71 +1,22 @@
-commit f38f43d029de16f21f9102226d5c24684fb0ea25
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 1 20:11:30 2016 -0700
+commit fb54e0305fe209dd7ef36b901d28e7ee9b649442
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 24 16:19:20 2016 -0800
 
-    cmd/compile: shrink gc.Type in half
+    [dev.ssa] cmd/compile: small improvements
     
-    Many of Type's fields are etype-specific.
-    This CL organizes them into their own auxiliary types,
-    duplicating a few fields as necessary,
-    and adds an Extra field to hold them.
-    It also sorts the remaining fields for better struct packing.
-    It also improves documentation for most fields.
+    Found looking at mapaccess1_faststr.
     
-    This reduces the size of Type at the cost of some extra allocations.
-    There's no CPU impact; memory impact below.
-    It also makes the natural structure of Type clearer.
+    runtime.throw never returns.
+    Do x+y+c with an LEA.
     
-    Passes toolstash -cmp on all architectures.
-    
-    Ideas for future work in this vein:
-    
-    (1) Width and Align probably only need to be
-    stored for Struct and Array types.
-    The refactoring to accomplish this would hopefully
-    also eliminate TFUNCARGS and TCHANARGS entirely.
-    
-    (2) Maplineno is sparsely used and could probably better be
-    stored in a separate map[*Type]int32, with mapqueue updated
-    to store both a Node and a line number.
-    
-    (3) The Printed field may be removable once the old (non-binary)
-    importer/exported has been removed.
-    
-    (4) StructType's fields field could be changed from *[]*Field to []*Field,
-    which would remove a common allocation.
-    
-    (5) I believe that Type.Nod can be moved to ForwardType. Separate CL.
-    
-    name       old alloc/op     new alloc/op     delta
-    Template       57.9MB ± 0%      55.9MB ± 0%  -3.43%        (p=0.000 n=50+50)
-    Unicode        38.3MB ± 0%      37.8MB ± 0%  -1.39%        (p=0.000 n=50+50)
-    GoTypes         185MB ± 0%       180MB ± 0%  -2.56%        (p=0.000 n=50+50)
-    Compiler        824MB ± 0%       806MB ± 0%  -2.19%        (p=0.000 n=50+50)
-    
-    name       old allocs/op    new allocs/op    delta
-    Template         486k ± 0%        497k ± 0%  +2.25%        (p=0.000 n=50+50)
-    Unicode          377k ± 0%        379k ± 0%  +0.55%        (p=0.000 n=50+50)
-    GoTypes         1.39M ± 0%       1.42M ± 0%  +1.63%        (p=0.000 n=50+50)
-    Compiler        5.52M ± 0%       5.57M ± 0%  +0.84%        (p=0.000 n=47+50)
-    
-    Change-Id: I828488eeb74902b013d5ae4cf844de0b6c0dfc87
-    Reviewed-on: https://go-review.googlesource.com/21611
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I27ea6669324242a6302397cbdc73230891d97591
+    Reviewed-on: https://go-review.googlesource.com/19911
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/align.go       |  12 +-
- src/cmd/compile/internal/gc/bexport.go     |   4 +-
- src/cmd/compile/internal/gc/bimport.go     |  28 +-
- src/cmd/compile/internal/gc/dcl.go         |  10 +-
- src/cmd/compile/internal/gc/export.go      |   2 +-
- src/cmd/compile/internal/gc/fmt.go         |  17 +-
- src/cmd/compile/internal/gc/pgen.go        |   2 +-
- src/cmd/compile/internal/gc/pgen_test.go   |  20 +-
- src/cmd/compile/internal/gc/reflect.go     |  90 +++---
- src/cmd/compile/internal/gc/sizeof_test.go |  16 +-
- src/cmd/compile/internal/gc/ssa.go         |   2 +-
- src/cmd/compile/internal/gc/type.go        | 487 ++++++++++++++++++++++-------
- src/cmd/compile/internal/gc/typecheck.go   |  17 +-
- src/cmd/compile/internal/gc/universe.go    |   6 +-
- src/cmd/compile/internal/gc/walk.go        |   2 +-
- 15 files changed, 490 insertions(+), 225 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |  5 +--
+ src/cmd/compile/internal/ssa/TODO            |  8 +++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  6 +++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 48 ++++++++++++++++++++++++++++
+ 4 files changed, 64 insertions(+), 3 deletions(-)

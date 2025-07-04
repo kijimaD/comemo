@@ -1,22 +1,14 @@
-commit 028e48c1dae1083ec9d8e55bd890157a44ab4499
+commit a62a62d5b419b534553f293bc129f44489f1e58f
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Mar 3 06:22:11 2016 +0900
+Date:   Sat Jan 9 03:45:06 2016 +0900
 
-    net: deduplicate raw IP socket code
+    runtime/testdata: gofmt
     
-    This change consolidates functions and methods related to IPAddr and
-    IPConn for maintenance purpose, especially for documentation.
-    
-    The followup changes will update comments and examples.
-    
-    Updates #10624.
-    
-    Change-Id: Ia5146f234225704a3c0b6459e1903e56a7b68134
-    Reviewed-on: https://go-review.googlesource.com/20124
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I728d4c709c4122fe4b96e1350be73696ac6fb1f7
+    Reviewed-on: https://go-review.googlesource.com/18422
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/iprawsock.go       | 129 +++++++++++++++++++++++++++++++++++++++++
- src/net/iprawsock_plan9.go |  70 ++++------------------
- src/net/iprawsock_posix.go | 141 ++++++++-------------------------------------
- 3 files changed, 163 insertions(+), 177 deletions(-)
+ src/runtime/testdata/testprog/main.go    | 2 +-
+ src/runtime/testdata/testprogcgo/main.go | 2 +-
+ src/runtime/testdata/testprognet/main.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

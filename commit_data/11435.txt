@@ -1,12 +1,18 @@
-commit 21c65e8f33c2b190c3612509b24046f75c478403
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Jan 27 09:36:53 2012 +0100
+commit 75397e65ee29e38ec89db58885fa6cf6e52ca558
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jan 27 11:27:05 2012 +0400
 
-    cgo: accept null pointers in gccgo flavour of C.GoString.
+    net/rpc: fix data race on Call.Error
+    +eliminates a possibility of sending a call to Done several times.
+    +fixes memory leak in case of temporal Write errors.
+    +fixes data race on Client.shutdown.
+    +fixes data race on Client.closing.
+    +fixes comments.
+    Fixes #2780.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/5569074
+    R=r, rsc
+    CC=golang-dev, mpimenov
+    https://golang.org/cl/5571063
 
- src/cmd/cgo/out.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/net/rpc/client.go | 55 +++++++++++++++++++++++------------------------
+ 1 file changed, 27 insertions(+), 28 deletions(-)

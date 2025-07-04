@@ -1,21 +1,23 @@
-commit 5fce1d96137e1079c393c94febfac49d1e2979b0
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Oct 27 16:07:40 2021 -0400
+commit 43652dc46f770253b3603f47165b1568b439b0b5
+Author: David Benjamin <davidben@google.com>
+Date:   Fri Dec 25 12:02:04 2020 -0500
 
-    runtime: disable TestSegv panic check on darwin, illumos, solaris
+    bufio, bytes, strings: handle negative runes in WriteRune
     
-    CL 339990 made this test more strict, exposing pre-existing issues on
-    these OSes. Skip for now until they can be resolved.
+    Updates #43254
     
-    Updates #49182
-    
-    Change-Id: I3ac400dcd21b801bf4ab4eeb630e23b5c66ba563
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359254
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7d4bf3b99cc36ca2156af5bb01a1c595419d1d3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280492
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/crash_cgo_test.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/bufio/bufio.go          |  3 ++-
+ src/bufio/bufio_test.go     | 14 ++++++++++++++
+ src/bytes/buffer.go         |  3 ++-
+ src/bytes/buffer_test.go    | 11 +++++++++++
+ src/strings/builder.go      |  3 ++-
+ src/strings/builder_test.go | 11 +++++++++++
+ 6 files changed, 42 insertions(+), 3 deletions(-)

@@ -1,21 +1,35 @@
-commit c95bd2e6a99ab06efadb265bf42bbaf8d964904f
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Sep 16 10:13:37 2020 -0700
+commit 6d63a74f8e8be044d672fc594c0d356eb911f14b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 21 18:28:16 2020 -0700
 
-    cmd/compile: optimize generated struct/array equality code
+    time/tzdata: new package
     
-    Use a standard "not-equal" label that we can jump to when we
-    detect that the arguments are not equal. This prevents the
-    recombination that was noticed in #39428.
+    Importing the time/tzdata package will embed a copy of the IANA
+    timezone database into the program. This will let the program work
+    correctly when the timezone database is not available on the system.
+    It will increase the size of the binary by about 800K.
     
-    Fixes #39428
+    You can also build a program with -tags timetzdata to embed the
+    timezone database in the program being built.
     
-    Change-Id: Ib7c6b3539f4f6046043fd7148f940fcdcab70427
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255317
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #21881
+    Fixes #38013
+    Fixes #38017
+    
+    Change-Id: Iffddee72a8f46c95fee3bcde43c142d6899d9246
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224588
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/gc/alg.go | 144 +++++++++++++++++++++++++------------
- 1 file changed, 99 insertions(+), 45 deletions(-)
+ doc/go1.15.html                     |    14 +
+ lib/time/update.bash                |     2 +
+ src/go/build/deps_test.go           |     2 +
+ src/time/embed.go                   |    12 +
+ src/time/tzdata/generate_zipdata.go |    83 +
+ src/time/tzdata/tzdata.go           |   107 +
+ src/time/tzdata/tzdata_test.go      |    95 +
+ src/time/tzdata/zipdata.go          | 13048 ++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_read.go           |    23 +
+ 9 files changed, 13386 insertions(+)

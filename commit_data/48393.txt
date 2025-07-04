@@ -1,30 +1,29 @@
-commit 5fd0ed7aaf39f783ea6f505a3f2ac7d9da7cb03b
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Jun 7 14:24:45 2021 +0800
+commit b9b2bed8933a467dcc48eedeec83dfea7ff3148a
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Wed May 12 20:41:26 2021 -0700
 
-    cmd/compile: set conversions to unsafe.Pointer as an escaping operation when -asan is enabled
+    syscall: some containers may fail syscall.TestSetuidEtc
     
-    When ASan is enabled, treat conversions to unsafe.Pointer as
-    an escaping operation. In this way, all pointer operations on
-    the stack objects will become operations on the escaped heap
-    objects. As we've already supported ASan detection of error
-    memory accesses to heap objects. With this trick, we can use
-    -asan option to report errors on bad stack operations.
+    The test previously had the hardcoded assumption that /proc/self/status
+    files had "Groups:" lines containing numerical IDs in ascending order.
+    Because of the possibility of non-monotonic ordering of GIDs in user
+    namespaces, this assumption was not universally true for all
+    /proc/self/gid_map setups.
     
-    Add test cases.
+    To ensure this test can pass in those setups, sanity check failed
+    "Groups:" line matches with a string sorted version of the expected
+    values. (For the test cases here, numerical and string sorted order
+    are guaranteed to match.)
     
-    Updates #44853.
+    Fixes #46145
     
-    CustomizedGitHooks: yes
-    Change-Id: I4e7fe46a3ce01f0d219e6a67dc50f4aff7d2ad87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325629
-    Trust: Fannie Zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia060e80b123604bc394a15c02582fc406f944d36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319591
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- misc/cgo/testsanitizers/asan_test.go               |  3 +++
- .../testsanitizers/testdata/asan_unsafe_fail1.go   | 27 +++++++++++++++++++++
- .../testsanitizers/testdata/asan_unsafe_fail2.go   | 28 ++++++++++++++++++++++
- .../testsanitizers/testdata/asan_unsafe_fail3.go   | 21 ++++++++++++++++
- src/cmd/compile/internal/escape/expr.go            |  6 ++---
- src/cmd/compile/internal/ir/expr.go                |  6 +++++
- 6 files changed, 88 insertions(+), 3 deletions(-)
+ misc/cgo/test/issue1435.go        | 21 +++++++++++++++++----
+ src/syscall/syscall_linux_test.go | 21 +++++++++++++++++----
+ 2 files changed, 34 insertions(+), 8 deletions(-)

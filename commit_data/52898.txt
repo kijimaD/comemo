@@ -1,20 +1,18 @@
-commit 068d7b1052d788303c1edcbd0119d3e0895845ac
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 4 08:33:09 2023 -0400
+commit fb75c2da91b9cccf05ec6baad2636325c5d96751
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 9 17:30:05 2022 -0400
 
-    internal/bisect: copy from golang.org/x/tools/bisect
+    cmd/dist, cmd/internal/metadata: don't install metadata binary
     
-    We don't want std to depend on x/tools, so just as we
-    did with txtar, copy the bisect package into internal
-    rather than using a require + vendor.
+    It is only needed by cmd/dist, no need to build and install the
+    binary.
     
-    Change-Id: Id775254f7c765a9244ba6eaf041c13e6e5c5e9f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492595
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I6aba6b81496406077a0efba255c35020cff9d351
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411534
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/internal/bisect/bisect.go      | 503 +++++++++++++++++++++++++++++++++++++
- src/internal/bisect/bisect_test.go |  35 +++
- 2 files changed, 538 insertions(+)
+ src/cmd/dist/test.go              | 2 +-
+ src/cmd/internal/metadata/main.go | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

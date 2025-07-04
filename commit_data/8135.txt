@@ -1,12 +1,12 @@
-commit 90d8c8a09f985947e9c08be9564d68f1a343576f
+commit 0c6df25df123364a5f2e96c175a90ab46cb16970
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 17 14:16:26 2011 -0400
+Date:   Sun Apr 17 14:15:51 2011 -0400
 
-    runtime: fix arm5 softfloat
+    codereview: add 'hg undo' command
     
-    R=dfc, ken2, rsc
+    R=adg, r
     CC=golang-dev
-    https://golang.org/cl/4446043
+    https://golang.org/cl/4423045
 
- src/pkg/runtime/arm/softfloat.c | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ lib/codereview/codereview.py | 168 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 143 insertions(+), 25 deletions(-)

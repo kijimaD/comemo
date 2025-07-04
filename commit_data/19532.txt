@@ -1,13 +1,16 @@
-commit 32d8b9ffb8a83dc0d82a1a7474f47ed9bc200b7e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 12 20:12:50 2014 -0400
+commit ce39b34f36c5cd2655a4b1eba80c7e3b2610f021
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 17:01:13 2014 -0700
 
-    lib/codereview: fix doc/go1.*.txt exception
+    time: change formatting of microseconds duration to SI modifier
+    'u' is not micro, µ (U+00B5) is.
     
-    LGTM=r
-    R=r
+    LGTM=gri, bradfitz
+    R=golang-codereviews, bradfitz, gri
     CC=golang-codereviews
-    https://golang.org/cl/108950046
+    https://golang.org/cl/105030046
 
- lib/codereview/codereview.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/time/example_test.go |  4 ++--
+ src/pkg/time/time.go         | 19 +++++++++----------
+ src/pkg/time/time_test.go    |  2 +-
+ 3 files changed, 12 insertions(+), 13 deletions(-)

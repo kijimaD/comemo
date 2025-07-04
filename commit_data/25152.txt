@@ -1,23 +1,16 @@
-commit 1ea31c7baf070adf1f2b8e970c011256890b4b9f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 3 17:43:10 2015 -0800
+commit 02d2db18a79ad2b143fe6501dba22feae5260778
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 1 03:08:18 2015 -0700
 
-    net/http: convert TestSetsRemoteAddr to use clientServerTest
+    archive/tar: make Reader.Read errors persistent
     
-    This is an example of converting an old HTTP/1-only test to test
-    against both HTTP/1 and HTTP/2.
+    If the stream is in an inconsistent state, it does not make sense
+    that Reader.Read can be called and possibly succeed.
     
-    Please send more of these!
-    
-    Also, for comparing the http.Transport's responses between HTTP/1 and
-    HTTP/2, see clientserver_test.go's h12Compare type and tests using
-    h12Compare. Sometimes that's the more appropriate option.
-    
-    Change-Id: Iea24d844481efd5849173b60e15dcc561a32b88f
-    Reviewed-on: https://go-review.googlesource.com/17409
-    Reviewed-by: Burcu Dogan <jbd@google.com>
+    Change-Id: I9d1c5a1300b2c2b45232188aa7999e350809dcf2
+    Reviewed-on: https://go-review.googlesource.com/15177
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/serve_test.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/archive/tar/reader.go | 4 ++++
+ 1 file changed, 4 insertions(+)

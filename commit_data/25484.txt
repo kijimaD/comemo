@@ -1,12 +1,19 @@
-commit ebf1f0fcbe7127fc6a96b57ac41d886ae36aaa66
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 20:55:59 2016 -0500
+commit 6326786ce7273ee65b2cdcf8ec47752b77ede293
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 3 07:14:22 2015 -0800
 
-    net: document ":port" syntax in Dial, Listen, ListenPacket
+    misc/cgo/testsanitizers: fix test of whether compiler option works
     
-    Change-Id: Ideb4bd9ffb1b5f1aef7d94ff791a262f54a650d5
-    Reviewed-on: https://go-review.googlesource.com/18344
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    On older versions of GCC we need to pass a file name before GCC will
+    report an unrecognized option.
+    
+    Fixes #13065.
+    
+    Change-Id: I7ed34c01a006966a446059025f7d10235c649072
+    Reviewed-on: https://go-review.googlesource.com/16589
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/dial.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ misc/cgo/testsanitizers/test.bash | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

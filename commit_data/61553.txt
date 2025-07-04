@@ -1,0 +1,18 @@
+commit 36b5b053beaa649795a85dfe025f93a2e34c952b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 21 20:03:16 2024 +0000
+
+    internal/sync: use normal comparison for keys in HashTrieMap
+    
+    There's are unnecessary calls to the key's equal function -- we can just
+    leverage the language here. Leave the values alone for now, we want to
+    relax that constraint.
+    
+    Change-Id: Iccfaef030a2a29b6a24a7da41e5e816b70091c7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594060
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/sync/hashtriemap.go | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)

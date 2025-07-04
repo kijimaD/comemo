@@ -1,19 +1,19 @@
-commit 2e773a3894fba7af744090d7d42968f4993018e2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 22 16:02:45 2022 -0700
+commit 3d667671ad767d66bf792c5a8d623cb829f6366a
+Author: korzhao <korzhao95@gmail.com>
+Date:   Wed Aug 25 16:01:49 2021 +0800
 
-    test: add test that causes gofrontend crash
+    cmd/compile: fix function contains no TParam in generic function
     
-    For #52846
+    Fixes #47948
     
-    Change-Id: I763f81def97b53277396c123c524f7b8193ea35e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413694
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I446a9548265d195ae4d88aff6b1361474d1b6214
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344910
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- test/fixedbugs/issue52846.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/compile/internal/typecheck/subr.go |  3 ++-
+ test/typeparam/issue47948.go               | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

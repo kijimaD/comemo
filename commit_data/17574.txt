@@ -1,18 +1,18 @@
-commit 81737a9a512cc0a52857d7c9d8137faa6ba7e5c1
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Sep 12 11:10:25 2013 +0900
+commit 1a6576db3468566ec89671c2c191e0b975833a7f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 20:29:45 2013 -0400
 
-    net: make TestDialFailPDLeak shorter
+    cmd/5l, cmd/6l, cmd/8l: refactor stack split code
     
-    Reduces a number of trials but it still can detect memory leak
-    when we make blunders in runtime-integarted network poller work,
-    like just forgetting to call runtime_pollClose in code paths.
+    Pull the stack split generation into its own function.
+    This will make an upcoming change to fix recover
+    easier to digest.
     
-    Also disables the test on windows/386.
-    
-    R=alex.brainman, r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/13022046
+    https://golang.org/cl/13611044
 
- src/pkg/net/dial_test.go | 27 ++++++++++++++++++++-------
- 1 file changed, 20 insertions(+), 7 deletions(-)
+ src/cmd/5l/noop.c | 277 +++++++++++++++---------------
+ src/cmd/6l/pass.c | 493 +++++++++++++++++++++++++++++-------------------------
+ src/cmd/8l/pass.c | 455 ++++++++++++++++++++++++++-----------------------
+ 3 files changed, 650 insertions(+), 575 deletions(-)

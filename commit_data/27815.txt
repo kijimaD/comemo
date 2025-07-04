@@ -1,22 +1,14 @@
-commit a9ed47735f2948d7391c8a663ededeb495f7753f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jun 1 10:15:02 2016 -0700
+commit 8f64336edc7c725abcbe564d21b3d2dc5ec250ec
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 14 09:57:43 2016 +0900
 
-    cmd/compile: move auto label gen variables to local function
+    net: make newLocalPacketListener handle network argument correcly
     
-    This still depends on Curfn, but it's progress.
-    
-    Updates #15756
-    
-    Change-Id: Ic32fe56f44fcfbc023e7668d4dee07f8b47bf3a4
-    Reviewed-on: https://go-review.googlesource.com/26661
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I41691134770d01805c19c0f84f8828b00b85de0c
+    Reviewed-on: https://go-review.googlesource.com/22058
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/inl.go         | 13 +++----------
- src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
- src/cmd/compile/internal/gc/subr.go        | 14 ++++++++++++++
- src/cmd/compile/internal/gc/swt.go         | 19 +++----------------
- src/cmd/compile/internal/gc/syntax.go      |  2 ++
- 5 files changed, 23 insertions(+), 27 deletions(-)
+ src/net/mockserver_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

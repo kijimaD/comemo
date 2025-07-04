@@ -1,12 +1,16 @@
-commit 289a1638aa2af9b0cd633480c426285a10861c42
+commit 99e45e49b7438bc45a6dd09fb2636dde74ef5d33
 Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Mar 1 17:52:05 2012 +1100
+Date:   Thu Mar 1 17:41:59 2012 +1100
 
-    html/template: encoding/json does more escaping now, so update the html/template test that uses it.
+    encoding/json: escape output from Marshalers.
     
-    R=golang-dev, r
+    Fixes #3127.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5714052
+    https://golang.org/cl/5707054
 
- src/pkg/html/template/escape_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/encoding/json/encode.go      |  2 +-
+ src/pkg/encoding/json/encode_test.go | 19 +++++++++++++++++++
+ src/pkg/encoding/json/indent.go      | 13 +++++++++++++
+ 3 files changed, 33 insertions(+), 1 deletion(-)

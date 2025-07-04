@@ -1,14 +1,16 @@
-commit bd72d2c650d0b7b668a8b3de58e60b8b61278956
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Sep 29 12:23:43 2014 -0700
+commit 048692e5de12c89b80761a9532c86eff526af640
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 20:41:00 2014 -0400
 
-    go/build: add go1.4 tag.
+    runtime: fix Windows SysUsed
     
-    LGTM=bradfitz
-    R=bradfitz
+    Same fix as for SysUnused.
+    Fixes #8038.
+    
+    LGTM=iant, alex.brainman
+    R=golang-codereviews, iant, alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/138000044
+    https://golang.org/cl/147820043
 
- src/go/build/build.go | 6 +++---
- src/go/build/doc.go   | 1 +
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/runtime/mem_windows.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

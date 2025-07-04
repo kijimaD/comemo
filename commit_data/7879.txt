@@ -1,24 +1,14 @@
-commit f0cf7d296c94536e7ddd9622cc9770c94b11b932
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 25 16:31:10 2011 -0700
+commit 4cb660aad8c70c4c71f0020ac7a9bb17155b76ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 15:28:53 2011 -0700
 
-    testing: shorten some tests.
-    These are the top runners.  More to come.
-    Also print two digits of timing info under -test.v.
+    test: match gccgo error messages for bug081.go.
+    
+    bug081.go:9:9: error: expected type
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4317044
+    https://golang.org/cl/4280071
 
- src/pkg/bytes/buffer_test.go           | 12 ++++++++++--
- src/pkg/bytes/bytes_test.go            |  5 ++++-
- src/pkg/crypto/openpgp/s2k/s2k_test.go |  3 +++
- src/pkg/crypto/rand/rand_test.go       |  6 +++++-
- src/pkg/crypto/rsa/pkcs1v15_test.go    |  6 +++++-
- src/pkg/crypto/rsa/rsa_test.go         |  9 ++++++++-
- src/pkg/sort/sort_test.go              |  9 ++++++++-
- src/pkg/strings/strings_test.go        | 10 +++++++---
- src/pkg/sync/atomic/atomic_test.go     | 22 ++++++++++++----------
- src/pkg/sync/rwmutex_test.go           | 24 ++++++++++++++----------
- src/pkg/testing/testing.go             |  2 +-
- 11 files changed, 77 insertions(+), 31 deletions(-)
+ test/fixedbugs/bug081.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

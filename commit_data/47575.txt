@@ -1,20 +1,20 @@
-commit 81031300a7139cfb59f704bcbb97e333590aacd0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Nov 21 16:19:26 2021 -0800
+commit a95454b6f31a982f064d262987199fba19f085e9
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Mon Mar 29 15:10:50 2021 +0800
 
-    misc/cgo/testcshared: skip TestGo2C2Go on Windows
+    runtime: init plan9 hashkey by time
     
-    For #27019
-    Fixes #49457
+    Maphash requires non-zero integer for initial hashkey
     
-    Change-Id: I398abb7b555196ced34a6dd04b68195bf8bbdd38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365994
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #45090
+    
+    Change-Id: Ie567f648c19e81cddc8e72a1c64809fbf52df188
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303969
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Patrik Nyblom <pnyb@google.com>
+    Reviewed-by: Richard Miller <millerresearch@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/os_plan9.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

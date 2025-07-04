@@ -1,22 +1,42 @@
-commit 1858ea5d857f3a874bef131b7e1bc162d05b3366
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Jun 8 19:47:31 2022 +0200
+commit 69d8fbec7ab74b3b0f8b689a9a251bdf621936aa
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Aug 13 15:52:12 2021 -0400
 
-    syscall: remove unused setgroups on linux/loong64
+    cmd/compile/internal/types2: return an error from Instantiate
     
-    Setgroups in syscall_linux.go already wraps the setgroups(2) syscall
-    with correct POSIX semantics (ref. CL 210639).
+    Change Instantiate to be a function (not a method) and return an error.
+    Introduce an ArgumentError type to report information about which type
+    argument led to an error during verification.
     
-    Change-Id: I961cd7c7fce1d70d23bf13cc82cad17854bbf40e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411214
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This resolves a few concerns with the current API:
+     - The Checker method set was previously just Files. It is somewhat odd
+       to add an additional method for instantiation. Passing the checker as
+       an argument seems cleaner.
+     - pos, posList, and verify were bound together. In cases where no
+       verification is required, the call site was somewhat cluttered.
+     - Callers will likely want to access structured information about why
+       type information is invalid, and also may not have access to position
+       information. Returning an argument index solves both these problems;
+       if callers want to associate errors with an argument position, they
+       can do this via the resulting index.
+    
+    We may want to make the first argument an opaque environment rather than
+    a Checker.
+    
+    Change-Id: I3bc56d205c13d832b538401a4c91d3917c041225
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342152
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/syscall/syscall_linux_loong64.go  |  1 -
- src/syscall/zsyscall_linux_loong64.go | 10 ----------
- 2 files changed, 11 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go   |   8 +-
+ src/cmd/compile/internal/noder/reader2.go      |   3 +-
+ src/cmd/compile/internal/types2/api.go         |  12 ++
+ src/cmd/compile/internal/types2/api_test.go    |  39 ++++-
+ src/cmd/compile/internal/types2/call.go        |   4 +-
+ src/cmd/compile/internal/types2/instantiate.go | 225 ++++++++++++++-----------
+ src/cmd/compile/internal/types2/named.go       |  32 ++--
+ src/cmd/compile/internal/types2/subst.go       |  11 +-
+ src/cmd/compile/internal/types2/typexpr.go     |   2 +-
+ 9 files changed, 207 insertions(+), 129 deletions(-)

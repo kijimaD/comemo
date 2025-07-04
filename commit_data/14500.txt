@@ -1,14 +1,15 @@
-commit d729be730f34a087245721c5e490bf70b1425432
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 26 21:21:07 2012 -0800
+commit 178c8578d5794aee6b111c6831e9a04e8a9d51ae
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Nov 26 16:02:08 2012 -0800
 
-    CONTRIBUTORS: Add Jonathan Hseu (Google CLA)
+    os/user: update stub documentation
     
-    Part of merging goprotobuf's A+C into Go's.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6844096
+    https://golang.org/cl/6844088
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/os/user/lookup.go         | 22 ++++++++++++++++++++++
+ src/pkg/os/user/lookup_stubs.go   |  6 +++---
+ src/pkg/os/user/lookup_unix.go    | 19 +++++++------------
+ src/pkg/os/user/lookup_windows.go |  9 +++------
+ 4 files changed, 35 insertions(+), 21 deletions(-)

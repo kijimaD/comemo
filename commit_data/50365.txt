@@ -1,18 +1,61 @@
-commit ccf82d53233234e563c0d394cb5a3b6da888e3d6
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Wed Sep 7 01:16:14 2022 +0800
+commit d419a80bc76cf18d321f9bf37c2deb2b8c0a1415
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Oct 15 19:22:10 2021 +0000
 
-    net: fix a typo in BenchmarkSendFile
+    runtime: retype mheap.pagesInUse as atomic.Uint64
     
-    Change-Id: Ic463bd6d52e7d1d50d2dbd2122b4d514e0b4af60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428755
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    [git-generate]
+    cd src/runtime
+    mv export_test.go export.go
+    GOROOT=$(dirname $(dirname $PWD)) rf '
+      add mheap.pagesInUse \
+    // Proportional sweep \
+    // \
+    // These parameters represent a linear function from gcController.heapLive \
+    // to page sweep count. The proportional sweep system works to \
+    // stay in the black by keeping the current page sweep count \
+    // above this line at the current gcController.heapLive. \
+    // \
+    // The line has slope sweepPagesPerByte and passes through a \
+    // basis point at (sweepHeapLiveBasis, pagesSweptBasis). At \
+    // any given time, the system is at (gcController.heapLive, \
+    // pagesSwept) in this space. \
+    // \
+    // It is important that the line pass through a point we \
+    // control rather than simply starting at a 0,0 origin \
+    // because that lets us adjust sweep pacing at any time while \
+    // accounting for current progress. If we could only adjust \
+    // the slope, it would create a discontinuity in debt if any \
+    // progress has already been made. \
+    pagesInUse_ atomic.Uint64 // pages of spans in stats mSpanInUse
+      ex {
+        import "runtime/internal/atomic"
+    
+        var t mheap
+        var v, w uint64
+        var d int64
+    
+        t.pagesInUse -> t.pagesInUse_.Load()
+        t.pagesInUse = v -> t.pagesInUse_.Store(v)
+        atomic.Load64(&t.pagesInUse) -> t.pagesInUse_.Load()
+        atomic.LoadAcq64(&t.pagesInUse) -> t.pagesInUse_.LoadAcquire()
+        atomic.Store64(&t.pagesInUse, v) -> t.pagesInUse_.Store(v)
+        atomic.StoreRel64(&t.pagesInUse, v) -> t.pagesInUse_.StoreRelease(v)
+        atomic.Cas64(&t.pagesInUse, v, w) -> t.pagesInUse_.CompareAndSwap(v, w)
+        atomic.Xchg64(&t.pagesInUse, v) -> t.pagesInUse_.Swap(v)
+        atomic.Xadd64(&t.pagesInUse, d) -> t.pagesInUse_.Add(d)
+      }
+      rm mheap.pagesInUse
+      mv mheap.pagesInUse_ mheap.pagesInUse
+    '
+    mv export.go export_test.go
+    
+    Change-Id: I495d188683dba0778518563c46755b5ad43be298
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356549
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/sendfile_linux_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/export_test.go |  2 +-
+ src/runtime/mgcpacer.go    |  2 +-
+ src/runtime/mheap.go       | 18 +++++++++---------
+ 3 files changed, 11 insertions(+), 11 deletions(-)

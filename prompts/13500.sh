@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 13500: fda29b6a4204d8658b3c1f763ac775afcc6cac00
+# Index 13500: 24ae7e686d51954b8befaaaef27f55a245d0050e
 
 echo "🚀 Generating explanation for commit 13500..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 13500
-- **コミットハッシュ**: fda29b6a4204d8658b3c1f763ac775afcc6cac00
-- **GitHub URL**: https://github.com/golang/go/commit/fda29b6a4204d8658b3c1f763ac775afcc6cac00
+- **コミットハッシュ**: 24ae7e686d51954b8befaaaef27f55a245d0050e
+- **GitHub URL**: https://github.com/golang/go/commit/24ae7e686d51954b8befaaaef27f55a245d0050e
 
 ### 章構成
 

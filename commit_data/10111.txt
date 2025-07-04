@@ -1,12 +1,12 @@
-commit 704bf7791b835cce29052d17d35995df9ecad40e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Oct 26 22:22:33 2011 +1100
+commit 8b92066e31e127f7193c29e716af39a06ec0b82a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Oct 26 16:16:46 2011 +0900
 
-    .hgignore: ignore src/pkg/exp/ebnflint/ebnflint
+    gc: fix [568]g -V crash
     
-    R=golang-dev, adg
+    R=lvd
     CC=golang-dev
-    https://golang.org/cl/5294060
+    https://golang.org/cl/5314060
 
- .hgignore | 2 +-
+ src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

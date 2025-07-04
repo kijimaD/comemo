@@ -1,12 +1,208 @@
-commit 8fa8ebf834d2027cc598d68f46e0855b94ad63a1
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Dec 16 15:52:30 2011 +1100
+commit 20090df70fa018b1ac0fe15434c0dbd44151bb93
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 23:51:04 2011 -0500
 
-    go/build: make sure syslist.go is gofmted
+    go: implement test command
     
-    R=golang-dev, mikioh.mikioh
+    Gotest tries to build things, for which it invokes make,
+    and it was too hard to coordinate go invoking gotest
+    invoking go to build the test binary, so put all the code
+    here instead.  Gotest will be deleted once we switch.
+    
+    The only code that really made sense to copy verbatim
+    was the flag parsing.
+    
+    This remains a work in progress.  There are still plenty
+    of things to clean up and make better, but this is a good
+    checkpoint.  It can run all the tests in the tree (except
+    runtime, which it can't build yet).
+    
+    $ go test all -short
+    ok      archive/tar
+    ok      archive/zip
+    ok      bufio
+    ?       builtin [no test files]
+    ok      bytes
+    ok      compress/bzip2
+    ok      compress/flate
+    ok      compress/gzip
+    ok      compress/lzw
+    ok      compress/zlib
+    ok      container/heap
+    ok      container/list
+    ok      container/ring
+    ?       crypto [no test files]
+    ok      crypto/aes
+    ok      crypto/bcrypt
+    ok      crypto/blowfish
+    ok      crypto/cast5
+    ok      crypto/cipher
+    ok      crypto/des
+    ok      crypto/dsa
+    ok      crypto/ecdsa
+    ok      crypto/elliptic
+    ok      crypto/hmac
+    ok      crypto/md4
+    ok      crypto/md5
+    ok      crypto/ocsp
+    ok      crypto/openpgp
+    ok      crypto/openpgp/armor
+    ok      crypto/openpgp/elgamal
+    ?       crypto/openpgp/error [no test files]
+    ok      crypto/openpgp/packet
+    ok      crypto/openpgp/s2k
+    ok      crypto/rand
+    ok      crypto/rc4
+    ok      crypto/ripemd160
+    ok      crypto/rsa
+    ok      crypto/sha1
+    ok      crypto/sha256
+    ok      crypto/sha512
+    ok      crypto/subtle
+    ok      crypto/tls
+    ok      crypto/twofish
+    ok      crypto/x509
+    ?       crypto/x509/pkix [no test files]
+    ok      crypto/xtea
+    ok      debug/dwarf
+    ok      debug/elf
+    ok      debug/gosym
+    ok      debug/macho
+    ok      debug/pe
+    ok      encoding/ascii85
+    ok      encoding/asn1
+    ok      encoding/base32
+    ok      encoding/base64
+    ok      encoding/binary
+    ok      encoding/csv
+    ok      encoding/git85
+    ok      encoding/gob
+    ok      encoding/hex
+    ok      encoding/json
+    ok      encoding/pem
+    ok      encoding/xml
+    ok      errors
+    ok      exp/ebnf
+    ?       exp/ebnflint [no test files]
+    ok      exp/gotype
+    ok      exp/norm
+    ok      exp/spdy
+    ok      exp/sql
+    ok      exp/sql/driver
+    ok      exp/ssh
+    ok      exp/types
+    ok      expvar
+    ok      flag
+    ok      fmt
+    ok      go/ast
+    ok      go/build
+    ok      go/doc
+    ok      go/parser
+    ok      go/printer
+    ok      go/scanner
+    ok      go/token
+    ?       hash [no test files]
+    ok      hash/adler32
+    ok      hash/crc32
+    ok      hash/crc64
+    ok      hash/fnv
+    ok      html
+    ok      html/template
+    ok      image
+    ?       image/bmp [no test files]
+    ?       image/color [no test files]
+    ok      image/draw
+    ?       image/gif [no test files]
+    ok      image/jpeg
+    ok      image/png
+    ok      image/tiff
+    ok      image/ycbcr
+    ok      index/suffixarray
+    ok      io
+    ok      io/ioutil
+    ok      log
+    ok      log/syslog
+    ok      math
+    ok      math/big
+    ok      math/cmplx
+    ok      math/rand
+    ok      mime
+    ok      mime/multipart
+    ok      net
+    ?       net/dict [no test files]
+    ok      net/http
+    ok      net/http/cgi
+    ok      net/http/fcgi
+    ?       net/http/httptest [no test files]
+    ok      net/http/httputil
+    ?       net/http/pprof [no test files]
+    ok      net/mail
+    ok      net/rpc
+    ok      net/rpc/jsonrpc
+    ok      net/smtp
+    ok      net/textproto
+    ok      net/url
+    ok      old/netchan
+    ok      old/regexp
+    ok      old/template
+    ok      os
+    ok      os/exec
+    ok      os/signal
+    ok      os/user
+    ok      patch
+    ok      path
+    ok      path/filepath
+    ok      reflect
+    ok      regexp
+    ok      regexp/syntax
+    # cd /Users/rsc/g/go/src/pkg/runtime; 6g -o /var/folders/mw/qfnx8hhd1_s9mm9wtbng0hw80000gn/T/go-build874847916/runtime_test/_obj/_go_.6 -p runtime_test -I /var/folders/mw/qfnx8hhd1_s9mm9wtbng0hw80000gn/T/go-build874847916 append_test.go chan_test.go closure_test.go gc_test.go mfinal_test.go proc_test.go sema_test.go softfloat64_test.go symtab_test.go
+    proc_test.go:87: undefined: runtime.Entersyscall
+    proc_test.go:88: undefined: runtime.Exitsyscall
+    proc_test.go:111: undefined: runtime.Entersyscall
+    proc_test.go:116: undefined: runtime.Exitsyscall
+    softfloat64_test.go:79: undefined: Fadd64
+    softfloat64_test.go:80: undefined: Fsub64
+    softfloat64_test.go:82: undefined: Fmul64
+    softfloat64_test.go:83: undefined: Fdiv64
+    softfloat64_test.go:94: undefined: F64to32
+    softfloat64_test.go:99: undefined: F32to64
+    softfloat64_test.go:99: too many errors
+    
+    exit status 1
+    FAIL    runtime [build failed]
+    ?       runtime/cgo [no test files]
+    ok      runtime/debug
+    ok      runtime/pprof
+    ok      sort
+    ok      strconv
+    ok      strings
+    ok      sync
+    ok      sync/atomic
+    ?       syscall [no test files]
+    ?       testing [no test files]
+    ?       testing/iotest [no test files]
+    ok      testing/quick
+    ok      testing/script
+    ok      text/scanner
+    ok      text/tabwriter
+    ok      text/template
+    ok      text/template/parse
+    ok      time
+    ok      unicode
+    ok      unicode/utf16
+    ok      unicode/utf8
+    ?       unsafe [no test files]
+    ok      websocket
+    $
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5490051
+    https://golang.org/cl/5495055
 
- src/pkg/go/build/Makefile | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/Makefile    |   1 +
+ src/cmd/go/build.go    |  57 ++++---
+ src/cmd/go/main.go     |  14 +-
+ src/cmd/go/pkg.go      |   1 +
+ src/cmd/go/test.go     | 411 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/testflag.go | 168 ++++++++++++++++++++
+ 6 files changed, 622 insertions(+), 30 deletions(-)

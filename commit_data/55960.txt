@@ -1,18 +1,26 @@
-commit 4605dfaf76cd5a3cc4edceeeefa7b10406192af1
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Fri Mar 15 08:12:33 2024 +0000
+commit 1844b541664525a0298603154915e74ca742e406
+Author: Sameer Ajmani <sameer@google.com>
+Date:   Tue Mar 28 17:44:18 2023 -0400
 
-    cmd/compile: fix typo in comment
+    context: add WithoutCancel
     
-    Change-Id: Iec9ed110c4d5a417bd9de0434147665fd3633899
-    GitHub-Last-Rev: d2154f9ea12bc1fbb8f7c4feae2060e2534fa5d2
-    GitHub-Pull-Request: golang/go#66332
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571876
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    WithoutCancel returns a copy of parent that is not canceled when parent is canceled.
+    The returned context returns no Deadline or Err, and its Done channel is nil.
+    Calling Cause on the returned context returns nil.
+    
+    API changes:
+    +pkg context, func WithoutCancel(Context) Context
+    
+    Fixes #40221
+    
+    Change-Id: Ide29631c08881176a2c2a58409fed9ca6072e65d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479918
+    Run-TryBot: Sameer Ajmani <sameer@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/inline/inl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next/40221.txt          |  1 +
+ src/context/context.go      | 41 ++++++++++++++++++++++++++++++++++++++
+ src/context/context_test.go | 48 +++++++++++++++++++++++++++++++++++++++++++++
+ src/context/x_test.go       |  1 +
+ 4 files changed, 91 insertions(+)

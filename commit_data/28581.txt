@@ -1,14 +1,17 @@
-commit 518cc7f3079bbd5ad141efb1e16c5a6eae52b831
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 29 11:00:47 2016 -0700
+commit 3ba31558d1bca8ae6d2f03209b4cae55381175b3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 6 10:23:49 2016 +1000
 
-    cmd/internal/obj/arm: cleanup some unnecessary temps and conversions
+    net/http: send StatusOK on empty body with TimeoutHandler
     
-    Change-Id: I573278c9aee80e62463b2542774dabeec7c3b098
-    Reviewed-on: https://go-review.googlesource.com/29969
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #15948
+    
+    Change-Id: Idd79859b3e98d61cd4e3ef9caa5d3b2524fd026a
+    Reviewed-on: https://go-review.googlesource.com/23810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/arm/asm5.go | 37 +++++++++++++++----------------------
- 1 file changed, 15 insertions(+), 22 deletions(-)
+ src/net/http/serve_test.go | 20 ++++++++++++++++++++
+ src/net/http/server.go     |  3 +++
+ 2 files changed, 23 insertions(+)

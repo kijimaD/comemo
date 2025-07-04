@@ -1,43 +1,27 @@
-commit bda9f85e5cb57d64e9ff8ef39f0d5222c5ceeea0
-Author: Jakob Ackermann <das7pad@outlook.com>
-Date:   Tue Jan 7 22:33:05 2025 +0000
+commit d29980cdc4a8776257b1ca0d03549da205b39d3e
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Jan 18 19:34:48 2024 -0500
 
-    net/http: allocate CloseNotifier channel lazily
+    doc/initial: initial contents of release notes
     
-    The CloseNotifier interface is deprecated. We can defer allocating the
-    backing channel until the first use of CloseNotifier.
+    Add files to doc/initial that set up the overall structure
+    of the release notes document.
     
-    goos: linux
-    goarch: amd64
-    pkg: net/http
-    cpu: Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz
-                       │   before    │               after                │
-                       │   sec/op    │   sec/op     vs base               │
-    Server-8             160.8µ ± 2%   160.1µ ± 1%       ~ (p=0.353 n=10)
-    CloseNotifier/h1-8   222.1µ ± 4%   226.4µ ± 7%       ~ (p=0.143 n=10)
-    geomean              189.0µ        190.4µ       +0.75%
+    For #64169.
     
-                       │    before    │                after                │
-                       │     B/op     │     B/op      vs base               │
-    Server-8             2.292Ki ± 0%   2.199Ki ± 0%  -4.07% (p=0.000 n=10)
-    CloseNotifier/h1-8   3.224Ki ± 0%   3.241Ki ± 0%  +0.51% (p=0.000 n=10)
-    geomean              2.718Ki        2.669Ki       -1.80%
-    
-                       │   before   │                after                │
-                       │ allocs/op  │ allocs/op   vs base                 │
-    Server-8             21.00 ± 0%   20.00 ± 0%  -4.76% (p=0.000 n=10)
-    CloseNotifier/h1-8   50.00 ± 0%   50.00 ± 0%       ~ (p=1.000 n=10) ¹
-    geomean              32.40        31.62       -2.41%
-    ¹ all samples are equal
-    
-    Change-Id: I3f35d56b8356fb660589b7708a023e4480f32067
-    GitHub-Last-Rev: c75696b9b8498ae03a4ad9527b9b7c8337415456
-    GitHub-Pull-Request: golang/go#71163
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640598
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: Ifbf330e554e1fa20d47c72cc309d5cd26048a323
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556817
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/net/http/server.go | 37 ++++++++++++++++++++++++++++---------
- 1 file changed, 28 insertions(+), 9 deletions(-)
+ doc/initial/1-intro.md                     | 12 ++++++++++++
+ doc/initial/2-language.md                  |  3 +++
+ doc/initial/3-tools.md                     |  6 ++++++
+ doc/initial/4-runtime.md                   |  1 +
+ doc/initial/5-toolchain.md                 |  7 +++++++
+ doc/initial/6-stdlib/0-heading.md          |  2 ++
+ doc/initial/6-stdlib/99-minor/0-heading.md |  3 +++
+ doc/initial/6-stdlib/99-minor/README       |  1 +
+ doc/initial/7-ports.md                     |  2 ++
+ 9 files changed, 37 insertions(+)

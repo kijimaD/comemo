@@ -1,27 +1,21 @@
-commit bcd82125f85c7c552493e863fa1bb14e6c444557
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Mar 18 00:53:07 2023 +0700
+commit 3cb10d14b7671ceee374d90ae0d4c3d024838f8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 09:02:53 2022 -0400
 
-    cmd/compile: re-compile instantiated generic methods in linkshared mode
+    [dev.boringcrypto] crypto/internal/boring: avoid allocation in big.Int conversion
     
-    For G[T] that was seen and compiled in imported package, it is not added
-    to typecheck.Target.Decls, prevent wasting compile time re-creating
-    DUPOKS symbols. However, the linker do not support a type symbol
-    referencing a method symbol across DSO boundary. That causes unreachable
-    sym error when building under -linkshared mode.
+    The conversion via byte slices is inefficient; we can convert via word slices
+    and avoid the copy entirely.
     
-    To fix it, always re-compile generic methods in linkshared mode.
+    For #51940.
     
-    Fixes #58966
-    
-    Change-Id: I894b417cfe8234ae1fe809cc975889345df22cef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477375
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I06f747e0acffffae427d9706d43bdacf146c027d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395875
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- misc/cgo/testshared/shared_test.go              |  7 ++++++-
- misc/cgo/testshared/testdata/issue58966/main.go | 15 +++++++++++++++
- src/cmd/compile/internal/noder/unified.go       |  6 +++++-
- 3 files changed, 26 insertions(+), 2 deletions(-)
+ src/crypto/internal/boring/boring.go               |  26 +++++++++++++++------
+ src/crypto/internal/boring/goboringcrypto.h        |   2 ++
+ .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 10864336 -> 10864368 bytes
+ 3 files changed, 21 insertions(+), 7 deletions(-)

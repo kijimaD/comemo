@@ -1,28 +1,22 @@
-commit 2beb173e9858c966a1db351883cfdccc8cdca583
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 30 15:28:11 2017 -0400
+commit 51ba2bb81923298f08b8ec6d50d0c579b4b63ef3
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Jul 11 18:57:54 2017 +0900
 
-    all: respect $GO_GCFLAGS during run.bash
+    runtime/cgo: make code robust
     
-    If the go install doesn't use the same flags as the main build
-    it can overwrite the installed standard library, leading to
-    flakiness and slow future tests.
+    According to http://pubs.opengroup.org/onlinepubs/009695399/functions/pthread_key_create.html,
+    pthread_key_create return an error number which is greater than or equal
+    to 0. I don't know the scenario that pthread_setspecific would fail, but
+    also don't know the future. Add some error handlings just in case.
     
-    Force uses of 'go install' etc to propagate $GO_GCFLAGS
-    or disable them entirely, to avoid problems.
-    
-    As I understand it, the main place this happens is the ssacheck builder.
-    If there are other uses that need to run some of the now-disabled
-    tests we can reenable fixed tests in followup CLs.
-    
-    Change-Id: Ib860a253539f402f8a96a3c00ec34f0bbf137c9a
-    Reviewed-on: https://go-review.googlesource.com/74470
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I0774b79ef658d67e300f4a9aab1f2e3879acc7ee
+    Reviewed-on: https://go-review.googlesource.com/54811
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go                 |  7 ++++++-
- src/cmd/go/go_test.go                |  7 +++++++
- src/cmd/internal/goobj/goobj_test.go |  2 +-
- src/internal/testenv/testenv.go      | 10 ++++++++++
- src/runtime/crash_test.go            |  4 ++--
- test/run.go                          | 20 ++++++++++++++------
- 6 files changed, 40 insertions(+), 10 deletions(-)
+ src/runtime/cgo/gcc_android_386.c   | 7 +++++--
+ src/runtime/cgo/gcc_android_amd64.c | 7 +++++--
+ src/runtime/cgo/gcc_darwin_386.c    | 7 +++++--
+ src/runtime/cgo/gcc_darwin_amd64.c  | 7 +++++--
+ 4 files changed, 20 insertions(+), 8 deletions(-)

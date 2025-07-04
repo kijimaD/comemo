@@ -1,12 +1,20 @@
-commit 4b4bb53bf33d77bf3e66ddb670bcc2501139eb2a
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Jun 21 17:17:22 2017 +0200
+commit 88d4ab82d5f89f1421a39d9342bbd1c1e2ff08b0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 21 22:07:23 2017 -0700
 
-    sync: make clear that WaitGroup.Done decrements by one
+    cmd/internal/obj: eliminate unnecessary ctxt.Cursym assignment
     
-    Change-Id: Ief076151739147378f8ca35cd09aabb59c3c9a52
-    Reviewed-on: https://go-review.googlesource.com/46350
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    None of the following code uses it.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Ieeaaca8ba31e5c345c0c8a758d520b24be88e173
+    Reviewed-on: https://go-review.googlesource.com/38444
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/sync/waitgroup.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/pass.go | 2 --
+ 1 file changed, 2 deletions(-)

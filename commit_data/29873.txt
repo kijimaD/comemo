@@ -1,16 +1,15 @@
-commit d2512aff877a91e8cf8fa97602297f17e5b5d3f2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 21 13:50:28 2016 -0800
+commit 5567b878915f7c2f1e7ee3898125c2cd2b7fe287
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 14 11:27:11 2016 -0700
 
-    misc/cgo/test: limit issue18146 attempts based on RLIMIT_NPROC
+    spec: fix examples for predeclared function complex
     
-    Fixes #18381.
+    Fixes #17398.
     
-    Change-Id: I0a476cd7f6182c8d4646628477c56c133d5671ee
-    Reviewed-on: https://go-review.googlesource.com/34667
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iac7899031c1bfbadc4f84e5b374eaf1f01dff8c8
+    Reviewed-on: https://go-review.googlesource.com/31190
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/test/issue18146.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

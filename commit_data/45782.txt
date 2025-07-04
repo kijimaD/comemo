@@ -1,33 +1,19 @@
-commit e6dda19888180c5159460486d30c0412e4980748
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Jun 7 14:29:43 2021 -0400
+commit a14e7bf6d42d9a8b0d698c0a47422c12e38b3f6c
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Tue Nov 17 18:28:38 2020 -0500
 
-    net/url: reject query values with semicolons
+    go/ast: document invalid comment end positions with CRLF line endings
     
-    Semicolons are no longer valid separators, so
-    net/url.ParseQuery will now return an error
-    if any part of the query contains a semicolon.
+    We've decided that issues like golang/go#41197 are unfixable, so
+    instead, document the bug.
     
-    net/http.(*Request).ParseMultipartForm has been
-    changed to fall through and continue parsing
-    even if the call to (*Request).ParseForm fails.
+    Fixes golang/go#41197
     
-    This change also includes a few minor refactors
-    to existing tests.
-    
-    Fixes #25192
-    
-    Change-Id: Iba3f108950fb99b9288e402c41fe71ca3a2ababd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325697
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I5649027f6e2445eec765516f2f642db0d601ea20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270938
+    Trust: Rebecca Stambler <rstambler@golang.org>
+    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/request.go      |  12 +++--
- src/net/http/request_test.go |  31 +++++++++++-
- src/net/http/server.go       |   5 ++
- src/net/url/example_test.go  |   4 +-
- src/net/url/url.go           |  13 +++--
- src/net/url/url_test.go      | 116 ++++++++++++++++++++++++++++++++++---------
- 6 files changed, 145 insertions(+), 36 deletions(-)
+ src/go/ast/ast.go | 5 +++++
+ 1 file changed, 5 insertions(+)

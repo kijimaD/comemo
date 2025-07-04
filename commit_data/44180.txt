@@ -1,22 +1,55 @@
-commit ff82cc971aabd113f3b79afb054e287c0d5c5c00
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Mon Jan 18 15:23:16 2021 +0100
+commit 6097f7cf7a9a9bf877f6f49112ffcc2d0f0e7e75
+Merge: 8e4ab9cb4c c847589ad0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 21 14:08:32 2020 -0400
 
-    os: force consistent mtime before running fstest on directory on Windows
+    [dev.link] all: merge branch 'master' into dev.link
     
-    FindFileNext sometimes returns a different mtime than looking at the
-    file directly, because the MFT on NTFS is written to lazily. In order to
-    keep these in sync, we use GetFileInformationByHandle to get the actual
-    mtime, and then write it back to the file explicitly.
-    
-    Fixes #42637.
-    
-    Change-Id: I774016d3ac55d0dc9b0f9c1b681516c33ba0d28a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285720
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I85b653b621ad8cb2ef27886210ea2c4b7409b60d
 
- src/os/os_test.go | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ doc/go1.15.html                              | 103 ++++++++++++++++++++++-----
+ doc/install-source.html                      |   2 +-
+ src/cmd/compile/internal/gc/pgen.go          |  25 ++++++-
+ src/cmd/dist/build.go                        |  11 ---
+ src/cmd/dist/buildruntime.go                 |   2 -
+ src/cmd/go.mod                               |   2 +-
+ src/cmd/go.sum                               |   4 +-
+ src/cmd/go/alldocs.go                        |   3 -
+ src/cmd/go/internal/cfg/cfg.go               |   3 -
+ src/cmd/go/internal/help/helpdoc.go          |   3 -
+ src/cmd/go/internal/modfetch/proxy.go        |  10 ++-
+ src/cmd/go/internal/work/exec.go             |  14 +++-
+ src/cmd/go/note_test.go                      |   2 +-
+ src/cmd/go/testdata/script/issue36000.txt    |   6 ++
+ src/cmd/go/testdata/script/mod_gonoproxy.txt |  10 ++-
+ src/cmd/internal/obj/objfile.go              |   8 +++
+ src/cmd/internal/objabi/util.go              |  11 ++-
+ src/cmd/link/internal/arm/asm.go             |   6 +-
+ src/cmd/link/internal/ld/fallocate_test.go   |  50 +++++++++++++
+ src/cmd/link/internal/ld/outbuf_darwin.go    |  17 +++--
+ src/cmd/link/internal/ld/pcln.go             |   2 +-
+ src/cmd/link/internal/loader/loader.go       |  14 +++-
+ src/cmd/link/internal/ppc64/asm.go           |  10 ++-
+ src/cmd/link/link_test.go                    |  19 ++++-
+ src/cmd/vendor/modules.txt                   |   2 +-
+ src/crypto/tls/handshake_client_test.go      |  23 +++++-
+ src/crypto/tls/handshake_server.go           |  21 +++---
+ src/crypto/tls/ticket.go                     |   1 -
+ src/crypto/x509/root_unix_test.go            |   5 +-
+ src/internal/cfg/cfg.go                      |   1 -
+ src/math/big/link_test.go                    |   7 +-
+ src/os/os_test.go                            |  31 ++++++++
+ src/os/readfrom_linux_test.go                |   5 +-
+ src/runtime/lockrank.go                      |  41 ++++++-----
+ src/runtime/mheap.go                         |  12 +++-
+ src/runtime/mranges.go                       |  14 +++-
+ src/runtime/os_plan9.go                      |   4 +-
+ src/runtime/proc.go                          |  14 ++++
+ src/runtime/runtime-gdb_test.go              |  12 +---
+ src/runtime/runtime2.go                      |  20 ++++--
+ src/runtime/testdata/testprogcgo/eintr.go    |  31 ++++----
+ src/runtime/trace.go                         |  12 ++++
+ src/syscall/syscall_windows.go               |  20 ++++++
+ src/testing/testing.go                       |  15 ++--
+ src/testing/testing_test.go                  |   8 ++-
+ 45 files changed, 485 insertions(+), 151 deletions(-)

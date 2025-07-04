@@ -1,20 +1,16 @@
-commit be0d84e335a8c1b1ee420c771d7e511a79eeffd2
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Nov 30 18:26:51 2012 +1100
+commit c3c107f67c86e9e0bf03f831be4f9417c75463a4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Nov 30 10:27:43 2012 +0400
 
-    net: fix data races on deadline vars
+    cmd/gc: racewalk: collect stack traces in sync and sync/atomic
+    W/o this change stack traces do not show from where sync.Once()
+    or atomic.XXX was called.
+    This change add funcenter/exit instrumentation to sync/sync.atomic
+    packages.
     
-    Fixes #4434.
-    
-    R=mikioh.mikioh, bradfitz, dvyukov, alex.brainman
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6855110
+    https://golang.org/cl/6854112
 
- src/pkg/net/fd_posix_test.go    |  57 ++++++++++++++++++++
- src/pkg/net/fd_unix.go          | 114 +++++++++++++++++++++-------------------
- src/pkg/net/fd_windows.go       |  48 +++++++++++++----
- src/pkg/net/sendfile_freebsd.go |   2 +-
- src/pkg/net/sendfile_linux.go   |   2 +-
- src/pkg/net/sock_posix.go       |   6 +--
- src/pkg/net/sockopt_posix.go    |  21 +++-----
- 7 files changed, 167 insertions(+), 83 deletions(-)
+ src/cmd/gc/racewalk.c | 38 +++++++++++++++++++++++++++-----------
+ 1 file changed, 27 insertions(+), 11 deletions(-)

@@ -1,19 +1,23 @@
-commit 1b269463a58c2537bfa7b08ede4134001860254f
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Jun 18 16:19:18 2015 +0200
+commit 08ba7dbdfdf0a2824ee122a6214e0263431a6ff0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 11 20:49:32 2015 -0700
 
-    cmd/trace: gracefully handle empty profiles
+    syscall: mkerrors.sh: don't define _FILE_OFFSET_BITS if __LP64__
     
-    Return a meaningful message when a profile is empty.
-    Also rename "IO blocking" to "Network blocking",
-    currently only network blocking is captured.
+    If __LP64__ is defined then the type "long" is 64-bits, and there is
+    no need to explicitly request _FILE_OFFSET_BITS == 64.  This changes
+    the definitions of F_GETLK, F_SETLK, and F_SETLKW on PPC to the values
+    that the kernel requires.  The values used in C when _FILE_OFFSET_BITS
+    == 64 are corrected by the glibc fcntl function before making the
+    system call.
     
-    Fixes #11098
+    With this change, regenerate ppc64le files on Ubuntu trusty.
     
-    Change-Id: Ib6f1292b8ade4805756fcb6696ba1fca8f9f39a9
-    Reviewed-on: https://go-review.googlesource.com/11243
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8dddbd8a6bae877efff818f5c5dd06291ade3238
+    Reviewed-on: https://go-review.googlesource.com/9962
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/trace/main.go  | 2 +-
- src/cmd/trace/pprof.go | 4 ++++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/syscall/mkerrors.sh              | 2 ++
+ src/syscall/zerrors_linux_ppc64le.go | 4 ++--
+ src/syscall/ztypes_linux_ppc64le.go  | 2 +-
+ 3 files changed, 5 insertions(+), 3 deletions(-)

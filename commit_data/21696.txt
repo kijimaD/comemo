@@ -1,20 +1,19 @@
-commit bceb18e4989aee4971fa1de6bb9f5ba7410d5219
-Author: Austin Clements <austin@google.com>
-Date:   Mon Feb 23 14:33:56 2015 -0500
+commit 813e97b7867a2dd56249f5e2f19b102479b5e633
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed Jan 28 15:57:46 2015 -0500
 
-    runtime: eliminate unnecessary assumption in heapBitsForObject
+    runtime: set minimum heap size to 4Mbytes
     
-    The slow path of heapBitsForObjects somewhat subtly assumes that the
-    pointer will not point to the first word of the object and will round
-    the pointer wrong if this assumption is violated.  This assumption is
-    safe because the fast path should always take care of this case, but
-    there's no benefit to making this assumption, it makes the code more
-    difficult to experiment with than necessary, and it's trivial to
-    eliminate.
+    Set the minimum heap size to 4Mbytes except when the hash
+    table code wants to force a GC. In an unrelated change when a
+    mutator is asked to assist the GC by marking pointer workbufs
+    it will keep working until the requested number of pointers
+    are processed even if it means asking for additional workbufs.
     
-    Change-Id: Iedd336f7d529a27d3abeb83e77dfb32a285ea73a
-    Reviewed-on: https://go-review.googlesource.com/5636
+    Change-Id: I661cfc0a7f2efcf6286b5d37d73e593d9ecd04d5
+    Reviewed-on: https://go-review.googlesource.com/3392
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mbitmap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go | 32 +++++++++++++++++++++++++++-----
+ 1 file changed, 27 insertions(+), 5 deletions(-)

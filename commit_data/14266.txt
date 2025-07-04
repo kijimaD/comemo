@@ -1,38 +1,13 @@
-commit de6bf20496e31c8126f9df9e2b051d87cca15357
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Nov 1 11:46:06 2012 +1100
+commit 3ead7fb5dceedceeb978e05f9c742d0b4b5a3f67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 31 15:52:15 2012 -0700
 
-    image/png: degrade gracefully for palette index values that aren't
-    defined by the PLTE chunk. Such pixels decode to opaque black,
-    which matches what libpng does.
+    A+C: adding Dan Callahan (individual CLA)
     
-    Fixes #4319.
-    
-    On my reading, the PNG spec isn't clear whether palette index values
-    outside of those defined by the PLTE chunk is an error, and if not,
-    what to do.
-    
-    Libpng 1.5.3 falls back to opaque black. png_set_PLTE says:
-    
-    /* Changed in libpng-1.2.1 to allocate PNG_MAX_PALETTE_LENGTH instead
-     * of num_palette entries, in case of an invalid PNG file that has
-     * too-large sample values.
-     */
-    png_ptr->palette = (png_colorp)png_calloc(png_ptr,
-            PNG_MAX_PALETTE_LENGTH * png_sizeof(png_color));
-    
-    ImageMagick 6.5.7 returns an error:
-    
-    $ convert -version
-    Version: ImageMagick 6.5.7-8 2012-08-17 Q16 http://www.imagemagick.org
-    Copyright: Copyright (C) 1999-2009 ImageMagick Studio LLC
-    Features: OpenMP
-    $ convert packetloss.png x.bmp
-    convert: Invalid colormap index `packetloss.png' @ image.c/SyncImage/3849.
-    
-    R=r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6822065
+    https://golang.org/cl/6815062
 
- src/pkg/image/png/reader.go | 34 ++++++++++++++++++++--------------
- 1 file changed, 20 insertions(+), 14 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,22 @@
+commit 03cb8d408e0372693f165b63dff1410c47d9cd1b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Mar 20 00:09:52 2025 +1100
+
+    cmd/compile/internal/ssagen: use an alias for math/bits.OnesCount
+    
+    Currently, only amd64 has an intrinsic for math/bits.OnesCount, which
+    generates the same code as math/bits.OnesCount64. Replace this with
+    an alias that maps math/bits.OnesCount to math/bits.OnesCount64 on
+    64 bit platforms.
+    
+    Change-Id: Ifa12a2173a201aacd52c3c22b9a948be6e314405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659215
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 5 ++---
+ src/cmd/compile/internal/ssagen/intrinsics_test.go | 6 ++++++
+ 2 files changed, 8 insertions(+), 3 deletions(-)

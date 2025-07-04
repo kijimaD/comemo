@@ -1,15 +1,22 @@
-commit 277a7b22f1131ea2a2fb98be9d7378c0f4ab5834
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Mar 28 12:37:14 2014 +1100
+commit 5f5e280e14efde7c576c282fc7ee3a2c734eb8c5
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Mar 27 17:35:07 2014 -0400
 
-    runtime: do not crash when GetQueuedCompletionStatusEx is missing
+    misc/emacs: do not highlight built-in function if not followed by '('
     
-    Fixes #7635
+    Name of built-in function is not reserved word in Go, and you can
+    use it as variable name. "new" is often used as local variable, for
+    instance.
     
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
+    This patch is to apply font-lock-builtin-face only when built-in
+    function name is followed by '(', so that it doesn't highlight
+    non-function variable that happen to have the same name as built-in
+    function.
+    
+    LGTM=dominik.honnef
+    R=golang-codereviews, dominik.honnef, adonovan
     CC=golang-codereviews
-    https://golang.org/cl/80390043
+    https://golang.org/cl/79260043
 
- src/pkg/runtime/os_windows.c | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

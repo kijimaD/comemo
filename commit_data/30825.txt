@@ -1,18 +1,54 @@
-commit 39e22f04231511f2448897e3c392e98cdbf7abea
+commit cfd17f51c87765fbd2b9c32e54722a32975bedf2
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 23 16:55:31 2017 -0700
+Date:   Wed Dec 7 18:14:35 2016 -0800
 
-    cmd/compile: pass in importpkg to importer rather than rely on global
+    [dev.inline] cmd/compile/internal/ssa: rename various fields from Line to Pos
     
-    First step towards removing global var importpkg.
+    This is a mostly mechanical rename followed by manual fixes where necessary.
     
-    Change-Id: Ifdda7c295e5720a7ff2da9baea17f03f190d48fa
-    Reviewed-on: https://go-review.googlesource.com/38594
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie5c670b133db978f15dc03e50dc2da0c80fc8842
+    Reviewed-on: https://go-review.googlesource.com/34137
+    Reviewed-by: David Lazar <lazard@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 78 +++++++++++++++++-----------------
- src/cmd/compile/internal/gc/export.go  |  2 +-
- src/cmd/compile/internal/gc/main.go    |  2 +-
- 3 files changed, 42 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |    8 +-
+ src/cmd/compile/internal/arm/ssa.go            |    8 +-
+ src/cmd/compile/internal/arm64/ssa.go          |    8 +-
+ src/cmd/compile/internal/gc/phi.go             |    4 +-
+ src/cmd/compile/internal/gc/ssa.go             |   76 +-
+ src/cmd/compile/internal/mips/ssa.go           |    8 +-
+ src/cmd/compile/internal/mips64/ssa.go         |    8 +-
+ src/cmd/compile/internal/ppc64/ssa.go          |    8 +-
+ src/cmd/compile/internal/s390x/ssa.go          |    8 +-
+ src/cmd/compile/internal/ssa/block.go          |    4 +-
+ src/cmd/compile/internal/ssa/checkbce.go       |    2 +-
+ src/cmd/compile/internal/ssa/critical.go       |    8 +-
+ src/cmd/compile/internal/ssa/decompose.go      |   78 +-
+ src/cmd/compile/internal/ssa/func.go           |    8 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |    4 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |    2 +-
+ src/cmd/compile/internal/ssa/likelyadjust.go   |    6 +-
+ src/cmd/compile/internal/ssa/loopbce.go        |   10 +-
+ src/cmd/compile/internal/ssa/nilcheck.go       |    8 +-
+ src/cmd/compile/internal/ssa/phielim.go        |    2 +-
+ src/cmd/compile/internal/ssa/phiopt.go         |   10 +-
+ src/cmd/compile/internal/ssa/print.go          |    2 +-
+ src/cmd/compile/internal/ssa/prove.go          |   24 +-
+ src/cmd/compile/internal/ssa/regalloc.go       |   50 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |    2 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     |  456 ++++-----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  774 +++++++--------
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  812 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 1064 ++++++++++-----------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  824 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 1202 ++++++++++++------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  886 ++++++++---------
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 1122 +++++++++++-----------
+ src/cmd/compile/internal/ssa/rewritedec.go     |   58 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  692 +++++++-------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  486 +++++-----
+ src/cmd/compile/internal/ssa/schedule.go       |    4 +-
+ src/cmd/compile/internal/ssa/shortcircuit.go   |    4 +-
+ src/cmd/compile/internal/ssa/value.go          |    8 +-
+ src/cmd/compile/internal/ssa/writebarrier.go   |   10 +-
+ src/cmd/compile/internal/x86/ssa.go            |    8 +-
+ 41 files changed, 4383 insertions(+), 4383 deletions(-)

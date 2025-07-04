@@ -1,12 +1,16 @@
-commit d8c6bf916e9afe3c53bfe781d2d42933d5c9626e
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Wed Oct 21 15:51:02 2015 +1100
+commit cfd8dfaa10ab387c6b9c9e620aadab5852a4c76e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 4 21:59:15 2015 -0700
 
-    cmd/compile: remove a stray word in the go:nosplit documentation
+    [dev.ssa] cmd/compile/internal/ssa: more checks on ssa structure
     
-    Change-Id: I7a85c0ad8aba2d50032c8faa58c83fb327f360cf
-    Reviewed-on: https://go-review.googlesource.com/16140
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Make sure all referenced Blocks and Values are really there.
+    Fix deadcode to generate SSA graphs that pass this new test.
+    
+    Change-Id: Ib002ce20e33490eb8c919bd189d209f769d61517
+    Reviewed-on: https://go-review.googlesource.com/13147
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/check.go    | 29 ++++++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/deadcode.go | 16 ++++++++++++++--
+ 2 files changed, 40 insertions(+), 5 deletions(-)

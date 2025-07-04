@@ -1,22 +1,20 @@
-commit 6116a47800b4e2aa477702b415752995a3156b26
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Wed Apr 5 06:13:17 2023 -0400
+commit 499e334a28c63c15e0b1add8172fd48b3c19e1ce
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 12 15:46:59 2022 -0700
 
-    log/slog: don't call SetDefault in examples
+    cmd/compile/internal/staticdata: remove use of `""` in embed linker symbols
     
-    Replace the default Logger in some examples with a locally constructed
-    Logger.
+    Not strictly necessary for CL 393715, but this is necessary if we want
+    to remove the logic from cmd/internal/obj for substituting `""` in
+    linker symbol names.
     
-    Calling SetDefault changes global state that could affect other tests.
-    Although we could use a defer to restore the state, that clutters
-    the example and would not work if tests were run concurrently.
+    Updates #51734.
     
-    Change-Id: Ib2595c57f8e6c3e0b39b982f682ba287c2ae249d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482475
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Ib13cb12fa3973389ca0c1c9a9209e00c30dc9431
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406058
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/log/slog/example_test.go      |  4 +---
- src/log/slog/example_wrap_test.go | 14 +++++---------
- 2 files changed, 6 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/staticdata/embed.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

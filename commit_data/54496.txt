@@ -1,23 +1,22 @@
-commit 0f1227c507c62b635a3b4b85f5b7a967df72b59f
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Sep 7 09:27:50 2023 -0700
+commit 55eaae452cf69df768b2aaf6045db22d6c1a4029
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 21 13:58:06 2022 -0400
 
-    context: avoid key collisions in test afterfunc map
+    os/exec: add the Cancel and WaitDelay fields
     
-    The afterFuncContext type, used only in tests, contains a
-    set of registered afterfuncs indexed by an arbitrary unique key.
+    Fixes #50436.
     
-    That key is currently a *struct{}. Unfortunately, all
-    *struct{} pointers are equal to each other, so all registered
-    funcs share the same key. Fortunately, the tests using this
-    type never register more than one afterfunc.
-    
-    Change the key to a *byte.
-    
-    Change-Id: Icadf7d6f258e328f6e3375846d29ce0f98b60924
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526655
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I9dff8caa317a04b7b2b605f810b8f12ef8ca485d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401835
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/context/afterfunc_test.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ api/next/50436.txt               |   3 +
+ src/os/exec/exec.go              | 274 ++++++++++++++++---
+ src/os/exec/exec_other_test.go   |  14 +
+ src/os/exec/exec_test.go         | 563 +++++++++++++++++++++++++++++++++++++++
+ src/os/exec/exec_unix_test.go    |  17 ++
+ src/os/exec/exec_windows_test.go |   5 +
+ 6 files changed, 846 insertions(+), 30 deletions(-)

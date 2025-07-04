@@ -1,23 +1,36 @@
-commit 31700b83b5d9bdc2ddc474fd72b809a7b585d6da
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Fri Dec 8 08:19:32 2017 +0000
+commit b6cf58d5b82898a2c92d50aead07163d5bc3c184
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 22 16:15:11 2017 -0500
 
-    cmd/internal/obj/arm64: add assembler support for load with register offset
+    net: fix LookupTXT of long records on Windows
     
-    The patch adds support for LDR(register offset) instruction.
-    And add the test cases and negative tests.
+    The response to a TXT lookup is a sequence of RRs,
+    each of which contains a sequence of string fragments.
     
-    Change-Id: I5b32c6a5065afc4571116d4896f7ebec3c0416d3
-    Reviewed-on: https://go-review.googlesource.com/87955
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    The correct handling of the response is to do:
+    
+        for each rr {
+            list = append(list, strings.Join(rr.fragments, ""))
+        }
+    
+    (like in at dnsRR_TXT.Walk, used on most platforms).
+    
+    The Windows code incorrectly does:
+    
+        for each rr {
+            list = append(list, rr.fragments...)
+        }
+    
+    This CL fixes it to concatenate fragments, as it must.
+    
+    Fixes #21472.
+    
+    Change-Id: I78cce96f172e5e90da9a212b0343457f6d5f92e8
+    Reviewed-on: https://go-review.googlesource.com/79555
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/arch/arm64.go             |  88 ++++++++++++----
- src/cmd/asm/internal/asm/parse.go              |  50 ++++++----
- src/cmd/asm/internal/asm/testdata/arm64.s      |   8 +-
- src/cmd/asm/internal/asm/testdata/arm64error.s |  13 ++-
- src/cmd/internal/obj/arm64/a.out.go            |   2 +
- src/cmd/internal/obj/arm64/asm7.go             | 133 ++++++++++++++++++-------
- src/cmd/internal/obj/arm64/doc.go              |  22 ++--
- src/cmd/internal/obj/arm64/list7.go            |   3 +
- src/cmd/internal/obj/util.go                   |  19 +++-
- 9 files changed, 251 insertions(+), 87 deletions(-)
+ src/net/lookup_test.go    | 21 +++++++++++++++++++++
+ src/net/lookup_windows.go |  5 +++--
+ 2 files changed, 24 insertions(+), 2 deletions(-)

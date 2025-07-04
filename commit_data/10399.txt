@@ -1,12 +1,13 @@
-commit 276473cd72d47c5566f1dafeee6c45ff688cac74
+commit 552a556a400a5d8f6d2d233b442b00539a761cab
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 15 11:02:04 2011 -0500
+Date:   Tue Nov 15 10:58:19 2011 -0500
 
-    strconv: add Ftoa benchmarks
+    encoding/json: add marshal/unmarshal benchmark
     
     R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5373096
+    https://golang.org/cl/5387041
 
- src/pkg/strconv/ftoa_test.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/pkg/encoding/json/bench_test.go         | 157 ++++++++++++++++++++++++++++
+ src/pkg/encoding/json/testdata/code.json.gz | Bin 0 -> 120432 bytes
+ 2 files changed, 157 insertions(+)

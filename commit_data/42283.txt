@@ -1,17 +1,28 @@
-commit 0f47c12a29e6277c8139e8d4f5a45272e437fe6e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Apr 28 00:41:02 2020 +0700
+commit 94e9a5e19b831504eca2b7202b78d1a48c4be547
+Author: Roberto Clapis <robclap8@gmail.com>
+Date:   Mon Nov 18 10:05:07 2019 +0100
 
-    cmd/compile: do not emit code for discardable blank fields
+    text/template: harden JSEscape to also escape ampersand and equal
     
-    Fixes #38690
+    Ampersand and equal are not dangerous in a JS/JSString context
+    but they might cause issues if interpolated in HTML attributes.
     
-    Change-Id: I3544daf617fddc0f89636265c113001178d16b0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230121
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This change makes it harder to introduce XSS by misusing
+    escaping.
+    
+    Thanks to t1ddl3r <t1ddl3r@gmail.com> for reporting this common
+    misuse scenario.
+    
+    Fixes #35665
+    
+    Change-Id: Ice6416477bba4cb2ba2fe2cfdc20e027957255c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207637
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Mike Samuel <mikesamuel@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/gc/sinit.go |  3 ++
- test/fixedbugs/issue38690.go         | 65 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 68 insertions(+)
+ src/html/template/example_test.go | 6 +++---
+ src/text/template/exec_test.go    | 2 ++
+ src/text/template/funcs.go        | 8 +++++++-
+ 3 files changed, 12 insertions(+), 4 deletions(-)

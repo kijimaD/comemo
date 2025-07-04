@@ -1,21 +1,22 @@
-commit 81475ca256df3fdd281c0e656b4e743caacbc4e0
-Author: Diogo Pinela <diogoid7400@gmail.com>
-Date:   Sun Oct 28 17:29:29 2018 +0000
+commit 4ba55273713bebfbfe0bed9ce196e845c0c69567
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 2 16:45:49 2018 -0700
 
-    os: ensure tests pass even if GOROOT is read-only
+    cmd/vet: make vetx output deterministic
     
-    We achieve this by always running all tests that create files in a
-    fresh temporary directory, rather than just on darwin/{arm,arm64}.
-    As a bonus, this lets us simplify the cleanup code for these tests
-    and assume their working directory starts out empty.
+    The vetx output file is a build output, and as such should be
+    deterministic. This CL changes it to not depend on map iteration order.
     
-    Updates #28387
+    This avoids a pointless GODEBUG=gocacheverify=1 failure.
     
-    Change-Id: I952007ae390a2451c9a368da26c7f9f5af64b2ba
-    Reviewed-on: https://go-review.googlesource.com/c/145283
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #25666
+    
+    Change-Id: Ic132bad134cb10938275f883c2c68432cb7c4409
+    Reviewed-on: https://go-review.googlesource.com/121941
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/os_test.go | 41 +----------------------------------------
- 1 file changed, 1 insertion(+), 40 deletions(-)
+ src/cmd/vet/main.go  | 26 ++++++++++++++++++++++----
+ src/cmd/vet/print.go | 37 +++++++++++++++++++++++++++++++++----
+ 2 files changed, 55 insertions(+), 8 deletions(-)

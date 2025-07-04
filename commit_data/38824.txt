@@ -1,21 +1,18 @@
-commit 97252f620ff8718ca9f7fef0ddebef16c6993612
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 19 11:53:33 2019 -0400
+commit aab0b704d88b7dad10c767ad941619d59887203c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 8 09:46:24 2018 -0500
 
-    runtime: suppress thread event prints in gdb test
+    cmd/go/internal/load: remove redundant assignment to BinDir
     
-    Pass "set print thread-events off" to gdb to suppress thread
-    event prints, like "[New Thread 0xe7b83b40 (LWP 18609)]". We
-    don't check them, and the extra output may confuse our other
-    checks, in particular, checkCleanBacktrace.
+    This assignment became a no-op in CL 36196, where both it and the
+    preceding assignment were changed to cfg.GOROOTbin (from gorootBin and
+    gobin respectively).
     
-    Hopefully fixes #31569.
-    
-    Change-Id: I6549e1280da7afa1d2e38da2b2fa7cc18c2f0373
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172980
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If74969c4cc3ffc5d8394ff9d8e8bcec9e0a4e3b0
+    Reviewed-on: https://go-review.googlesource.com/c/151561
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/runtime-gdb_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/load/pkg.go | 3 ---
+ 1 file changed, 3 deletions(-)

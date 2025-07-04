@@ -1,15 +1,19 @@
-commit 80a87a99cccc730980aae0b7b10c6e645869f755
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Jan 6 16:56:06 2013 -0800
+commit f36a53cd5dc9826e58ff069e1cadcad54add275e
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Mon Jan 7 11:15:53 2013 +1100
 
-    spec: Use "non-negative" instead of "positive"
+    cmd/gofmt, bufio, image: Consistency and error handling.
     
-    Replacing division-by-power-of-2 with right-shift is valid for
-    zero too.
+    cmd/gofmt: Add error handling for ioutil.WriteFile.
+    bufio: Consistency, rename e to err.
+    image: Consistency, fix comment for asReader.
     
-    R=gri
+    R=golang-dev, dave, minux.ma, adg
     CC=golang-dev
-    https://golang.org/cl/7027049
+    https://golang.org/cl/7029056
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gofmt/gofmt_test.go |  4 +++-
+ src/pkg/bufio/bufio.go      | 22 +++++++++++-----------
+ src/pkg/bufio/bufio_test.go | 28 ++++++++++++++--------------
+ src/pkg/image/format.go     |  2 +-
+ 4 files changed, 29 insertions(+), 27 deletions(-)

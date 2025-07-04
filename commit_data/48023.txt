@@ -1,23 +1,29 @@
-commit b2dc66c64db933120c34d2223e670e8594543bd9
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Nov 1 10:03:36 2021 -0700
+commit d4aa72002e76c09f81a8fd82f37781f5126c9cbe
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Apr 16 15:15:17 2021 -0500
 
-    internal/fuzz: centralize corpus entry addition
+    cmd/asm: fix RLDCR const1,reg,const2,reg on ppc64
     
-    Adds an addCorpusEntry method to coordinator which manages checking for
-    duplicate entries, writing entries to the cache directory, and adding
-    entries to the corpus. Also moves readCache to be a method on the
-    coordinator.
+    The extended opcode field (XO) is generated incorrectly. OPVCC
+    assumes an X-form like layout for the XO field. MD-form insns
+    also have an XO field, but it is both smaller and in a different
+    bit position.
     
-    Fixes #50606
+    This hasn't been noticed since const1 == 0 matches as a register
+    argument instead of a constant, thus it is unlikely anyone has
+    attempted to assemble this instruction with a non-zero shift
+    argument.
     
-    Change-Id: Id6721384a2ad1cfb4c5471cf0cd0a7510d250a6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360394
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Likewise, update all other MD-form instructions using OPVCC
+    to use the new OPMD function.
+    
+    Change-Id: Id81fa2727fb701431911a05492c2038415ad0a4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310851
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
 
- src/internal/fuzz/fuzz.go | 81 +++++++++++++++++++++++++----------------------
- 1 file changed, 44 insertions(+), 37 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  2 ++
+ src/cmd/internal/obj/ppc64/asm9.go        | 33 ++++++++++++++++++-------------
+ 2 files changed, 21 insertions(+), 14 deletions(-)

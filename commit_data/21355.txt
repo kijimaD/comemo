@@ -1,36 +1,13 @@
-commit 205ae07cd3c39dbb17948e3c957a785212a8c5d1
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Jan 22 17:56:12 2015 +0300
+commit 20dce04742c144f25d351bd83ce952002eef5cff
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 23 15:33:51 2014 +1100
 
-    cmd/gc: don't copy []byte during string concatenation
+    runtime: remove thunk_windows.s
     
-    Consider the following code:
-    
-    s := "(" + string(byteSlice) + ")"
-    
-    Currently we allocate a new string during []byte->string conversion,
-    and pass it to concatstrings. String allocation is unnecessary in
-    this case, because concatstrings does memorize the strings for later use.
-    This change uses slicebytetostringtmp to construct temp string directly
-    from []byte buffer and passes it to concatstrings.
-    
-    I've found few such cases in std lib:
-    
-            s += string(msg[off:off+c]) + "."
-            buf.WriteString("Sec-WebSocket-Accept: " + string(c.accept) + "\r\n")
-            bw.WriteString("Sec-WebSocket-Key: " + string(nonce) + "\r\n")
-            err = xml.Unmarshal([]byte("<Top>"+string(data)+"</Top>"), &logStruct)
-            d.err = d.syntaxError("invalid XML name: " + string(b))
-            return m, ProtocolError("malformed MIME header line: " + string(kv))
-    
-    But there are much more in our internal code base.
-    
-    Change-Id: I42f401f317131237ddd0cb9786b0940213af16fb
-    Reviewed-on: https://go-review.googlesource.com/3163
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I171298e7942093e9cc82e3a0c4fcbb5b10298816
+    Reviewed-on: https://go-review.googlesource.com/1998
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/gc/order.c         | 29 ++++++++++++++++++++++++++++-
- src/runtime/malloc_test.go | 17 +++++++++++++++++
- src/runtime/string.go      |  3 ++-
- 3 files changed, 47 insertions(+), 2 deletions(-)
+ src/runtime/syscall_windows.go |  8 ++++++++
+ src/runtime/thunk_windows.s    | 31 -------------------------------
+ 2 files changed, 8 insertions(+), 31 deletions(-)

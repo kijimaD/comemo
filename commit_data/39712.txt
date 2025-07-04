@@ -1,71 +1,18 @@
-commit d0eaec79f95c2ad04d58e42c8e7cb123200cdfd5
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Aug 28 13:34:16 2019 -0400
+commit b130764043f2106929a2e6f75ced8edfd2a542ea
+Author: Patrick Barker <barkerp@vmware.com>
+Date:   Thu Mar 14 02:51:02 2019 +0000
 
-    CONTRIBUTORS: second round of updates for Go 1.13
+    printer: check if specs exist before accessing them in genDecl printer
     
-    This update has been automatically generated using the updatecontrib
-    command:
+    Checks that specs exist before attempting to access the first element in genDecl printer.
     
-            cd gotip
-            go run golang.org/x/build/cmd/updatecontrib
-    
-    With minor manual changes based on publicly available information
-    to canonicalize letter case for a few names.
-    
-    Actions taken (relative to CONTRIBUTORS at origin/master):
-    
-            Added Albert Teoh <albert.teoh@gmail.com>
-            Added Allen Li <ayatane@google.com>
-            Added Anderson Queiroz <contato@andersonq.eti.br>
-            Added Andrew Todd <andrew.todd@wework.com>
-            Added Artem Kolin <artemkaxboy@gmail.com>
-            Added Bharath Thiruveedula <tbharath91@gmail.com>
-            Added Christian Muehlhaeuser <muesli@gmail.com>
-            Added Darren McCleary <darren.rmc@gmail.com>
-            Added David Finkel <david.finkel@gmail.com>
-            Added Eddie Scholtz <escholtz@google.com>
-            Added GitHub User tatsumack (4510569) <tatsu.mack@gmail.com>
-            Added GitHub User utkarsh-extc (53217283) <53217283+utkarsh-extc@users.noreply.github.com>
-            Added GitHub User yuanhh (1298735) <yuan415030@gmail.com>
-            Added Illya Yalovyy <yalovoy@gmail.com>
-            Added James Eady <jmeady@google.com>
-            Added Jan Steinke <jan.steinke@gmail.com>
-            Added Javier Revillas <jrevillas@massivedynamic.io>
-            Added Jordi Martin <jordimartin@gmail.com>
-            Added Jorge Araya <jorgejavieran@yahoo.com.mx>
-            Added Kelly Heller <pestophagous@gmail.com>
-            Added Kevin Gillette <extemporalgenome@gmail.com>
-            Added Mark Glines <mark@glines.org>
-            Added Nao Yonashiro <owan.orisano@gmail.com>
-            Added Pascal Dierich <pascal@pascaldierich.com>
-            Added Pure White <wu.purewhite@gmail.com>
-            Added Sam Arnold <sarnold64@bloomberg.net>
-            Added Sander van Harmelen <sander@vanharmelen.nl>
-            Added Sergei Zagurskii <gvozdoder@gmail.com>
-            Added Shivani Singhal <shivani.singhal2804@gmail.com>
-            Added Stefan Baebler <sbaebler@outbrain.com>
-            Added Tianon Gravi <admwiggin@gmail.com>
-            Added Toshihiro Shiino <shiino.toshihiro@gmail.com>
-            Added Wagner Riffel <wgrriffel@gmail.com>
-            Used GitHub User tatsumack (4510569) form for tatsumack <tatsu.mack@gmail.com> https://github.com/golang/website/commit/7eeb7ef [website]
-            Used GitHub User utkarsh-extc (53217283) form for utkarsh-extc <53217283+utkarsh-extc@users.noreply.github.com> https://github.com/golang/sys/commit/51ab0e2 [sys]
-            Used GitHub User yuanhh (1298735) form for yuanhh <yuan415030@gmail.com> https://github.com/golang/crypto/commit/60c769a [crypto]
-            Used GitHub name "Akhil Indurti" for smasher164 <aindurti@gmail.com> https://github.com/golang/go/commit/5ca44dc403 [build exp go sys]
-            Used GitHub name "Artem Kolin" for artemkaxboy <artemkaxboy@gmail.com> https://github.com/golang/go/commit/e881604d1c [go]
-            Used GitHub name "Ivan Markin" for nogoegst <nogoegst@users.noreply.github.com> https://github.com/golang/go/commit/a1addf15df [go]
-            Used GitHub name "Keiji Yoshida" for yosssi <yoshida.keiji.84@gmail.com> https://github.com/golang/lint/commit/ac6833c [lint]
-            Used GitHub name "Michalis Kargakis" for kargakis <mkargaki@redhat.com> https://github.com/golang/go/commit/e243d242d7 [go]
-            Used GitHub name "Roberto Clapis" for Roberto <empijei@users.noreply.github.com> https://github.com/golang/go/commit/963776e689 [go]
-            Used GitHub name "Robin Eklind" for mewmew <rnd0x00@gmail.com> https://github.com/golang/go/commit/b8620afb8d [blog go proposal.git]
-    
-    Updates #12042
-    
-    Change-Id: I1b21a18138849c537048558dd4324a823ba12a14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192099
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I3619bcabf6fec64c88b7a10cdb7be355e9e40559
+    GitHub-Last-Rev: 54cf699c969cb88cfd269f847a2bb4f25916be94
+    GitHub-Pull-Request: golang/go#30823
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167390
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- CONTRIBUTORS | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ src/go/printer/nodes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

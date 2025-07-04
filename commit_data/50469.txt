@@ -1,17 +1,20 @@
-commit 585c438615cf1e840afc270d7632ee836ced1de8
-Author: jiepeng <jiepengthegreat@126.com>
-Date:   Wed Sep 7 02:59:46 2022 +0000
+commit 79ff663754f4238bd1fe2e56f460c2f603c71b80
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 27 14:11:33 2021 -0700
 
-    cmd/go/internal/vcs: replace [A-Za-z0-9_] with \w in regexps
+    constraints: remove Slice/Map/Chan
     
-    Change-Id: Ibcc7dbb528585b019ff1b743792a52f43a4c2233
-    GitHub-Last-Rev: e907fb00e3202ce394750542084569058b7d960e
-    GitHub-Pull-Request: golang/go#54882
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428535
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Now that we permit arbitrary types as constraints, we no longer need them.
+    
+    For #48424
+    
+    Change-Id: I15fef26a563988074650cb0801895b002c44148a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359258
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/vcs/vcs.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/constraints/constraints.go      | 15 ---------
+ src/constraints/constraints_test.go | 62 +++++++------------------------------
+ test/typeparam/issue48609.go        |  4 +--
+ 3 files changed, 13 insertions(+), 68 deletions(-)

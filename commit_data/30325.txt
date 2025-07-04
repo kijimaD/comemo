@@ -1,42 +1,34 @@
-commit f37428d8b7e06edc4be472695db677f82c9564c5
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Sat Feb 18 15:07:13 2017 -0800
+commit f2d05389da562fd58143995195b5f6f844eb89e1
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 31 17:37:05 2016 -0400
 
-    cmd/go/internal/envcmd: report PKG_CONFIG after the CGO group
+    runtime: perform write barriers on direct channel receive
     
-    Before the change, `go env` reports PKG_CONFIG in between the
-    CGO env group:
+    Currently we have write barriers for direct channel sends, where the
+    receiver is blocked and the sender is writing directly to the
+    receiver's stack; but not for direct channel receives, where the
+    sender is blocked and the receiver is reading directly from the
+    sender's stack.
     
-        GOARCH="amd64"
-        GOBIN=""
-        GOEXE=""
-        GOHOSTARCH="amd64"
-        GOHOSTOS="darwin"
-        GOOS="darwin"
-        GOPATH="/Users/jbd"
-        GORACE=""
-        GOROOT="/Users/jbd/go"
-        GOTOOLDIR="/Users/jbd/go/pkg/tool/darwin_amd64"
-        GCCGO="gccgo"
-        CC="clang"
-        GOGCCFLAGS="-fPIC -m64 -pthread -fno-caret-diagnostics -Qunused-arguments -fmessage-length=0 -fdebug-prefix-map=/var/folders/lq/qcn67khn4_1b41_g48x3zchh005d21/T/go-build184491598=/tmp/go-build -gno-record-gcc-switches -fno-common"
-        CXX="clang++"
-        CGO_ENABLED="1"
-        PKG_CONFIG="pkg-config"
-        CGO_CFLAGS="-g -O2"
-        CGO_CPPFLAGS=""
-        CGO_CXXFLAGS="-g -O2"
-        CGO_FFLAGS="-g -O2"
-        CGO_LDFLAGS="-g -O2"
+    This was okay with the old write barrier because either 1) the
+    receiver would write the received pointer into the heap (causing it to
+    be shaded), 2) the pointer would still be on the receiver's stack at
+    mark termination and we would rescan it, or 3) the receiver dropped
+    the pointer so it wasn't necessarily reachable anyway.
     
-    The change makes PKG_CONFIG to be reported as the final item,
-    and not breaking the CGO_* group apart.
+    This is not okay with the write barrier because it lets a grey stack
+    send a white pointer to a black stack and then remove it from its own
+    stack. If the grey stack was the sole grey-protector of this pointer,
+    this hides the object from the garbage collector.
     
-    Change-Id: I1e7ed6bdec83009ff118f85c9f0f7b78a67fdd76
-    Reviewed-on: https://go-review.googlesource.com/37228
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fix this by making direct receives perform a stack-to-stack write
+    barrier just like direct sends do.
+    
+    Fixes #17694.
+    
+    Change-Id: I1a4cb904e4138d2ac22f96a3e986635534a5ae41
+    Reviewed-on: https://go-review.googlesource.com/32450
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/go/internal/envcmd/env.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/chan.go | 33 +++++++++++++++++++++------------
+ 1 file changed, 21 insertions(+), 12 deletions(-)

@@ -1,20 +1,26 @@
-commit afb5fca25a6f59e9045317727f6899a58471d5f0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Sep 13 13:22:42 2020 +0700
+commit 4d6c171a1b355fe209a630e299a419a0cdb04253
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 11:30:52 2020 -0500
 
-    test: fix flaky test for issue24491
+    cmd/go: convert more tests to the script framework
     
-    runtime.GC() doesn't guarantee the finalizer has run, so use a channel
-    instead to make sure finalizer was run in call to "after()".
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Fixes #41361
+    Updates #36320
+    Updates #17751
     
-    Change-Id: I69c801e29aea49757ea72c52e8db13239de19ddc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254401
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I394844da1ffc0dcde7f5862c41ed8efa7c5ca088
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214429
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- test/fixedbugs/issue24491b.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/go/go_test.go                              | 99 ----------------------
+ src/cmd/go/testdata/rundir/sub/sub.go              |  1 -
+ src/cmd/go/testdata/rundir/x.go                    |  1 -
+ src/cmd/go/testdata/script/build_tags_no_comma.txt |  4 +
+ src/cmd/go/testdata/script/gccgo_link_c.txt        | 16 ++++
+ .../go/testdata/script/get_vcs_error_message.txt   |  8 ++
+ .../script/install_msan_and_race_require_cgo.txt   | 18 ++++
+ .../go/testdata/script/install_shadow_gopath.txt   | 19 +++++
+ src/cmd/go/testdata/script/run_dirs.txt            | 11 +++
+ 9 files changed, 76 insertions(+), 101 deletions(-)

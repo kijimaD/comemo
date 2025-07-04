@@ -1,24 +1,20 @@
-commit 070139a130bfd914e05dba7245a33e25b5e96399
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Aug 15 19:23:51 2023 +0800
+commit 58f6022eee95f43b4e0dc640b012bb3f574898f1
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Dec 20 11:25:38 2022 -0500
 
-    cmd/compile,cmd/internal,runtime: change registers on loong64 to avoid regABI arguments
+    syscall: don't use faccessat2 on android
     
-    Update #40724
+    The Android seccomp policy does not allow faccessat2, so attempting to
+    use it results in a SIGSYS. Avoid it and go straight to the fallback.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: Ic7e2e7fb4c1d3670e6abbfb817aa6e4e654e08d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521777
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
+    Fixes #57393.
+    
+    Change-Id: I8d4e12a6f46cea5642d3b5b5a02c682529882f29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458495
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Changkun Ou <mail@changkun.de>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  8 +--
- src/cmd/compile/internal/ssa/opGen.go           | 12 ++--
- src/cmd/internal/obj/loong64/obj.go             | 68 +++++++++++------------
- src/runtime/asm_loong64.s                       | 74 ++++++++++++-------------
- 4 files changed, 81 insertions(+), 81 deletions(-)
+ src/syscall/syscall_linux.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

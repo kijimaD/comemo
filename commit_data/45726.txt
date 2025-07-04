@@ -1,29 +1,25 @@
-commit 1607c2817241bd141af9331a3e6c3148e5cd5d8b
-Author: Rob Findley <rfindley@google.com>
-Date:   Fri May 28 11:58:05 2021 -0400
+commit 1642cd78b540a9e489d076c819fe0220eb859183
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 9 21:27:35 2020 -0500
 
-    go/types: unexport the GoVersion configuration option for Go 1.17
+    cmd/go: update test_race_install expected output for CL 266368
     
-    The GoVersion field was added to types.Config as part of the work on
-    type parameters. Specifically, it was added to be consistent with
-    cmd/compile/internal/types2, which requires such an option.
+    test_race_install checks that 'go test -i -race …' does not rebuild
+    already installed packages, by also passing '-v' and verifying that no
+    package names are printed to stderr.
     
-    This configuration option is useful, but is also non-trivial and did not
-    go through the proposal process. Unexport it for Go 1.17; we can create
-    a proposal to export it for Go 1.18.
+    CL 266368 added a deprecation message for the '-i' flag that caused
+    the stderr output to be non-empty, although it still does not print
+    any package names.
     
-    Fixes #46296
+    Updates #41696
     
-    Change-Id: Id82d8a7096887dcfc404c4d6d8da9c761b316609
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323430
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I13e10e49b7c33139be9b13f24cb393c9f58fd85d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268581
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/types/api.go         | 4 ++--
- src/go/types/check.go       | 4 ++--
- src/go/types/check_test.go  | 2 +-
- src/go/types/stdlib_test.go | 3 ++-
- src/go/types/types_test.go  | 6 ++++++
- 5 files changed, 13 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/test_race_install.txt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

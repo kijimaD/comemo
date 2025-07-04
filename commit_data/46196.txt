@@ -1,28 +1,20 @@
-commit a9377183d0f3ccd49631e2d927d55d91f2ab5ec6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 26 19:18:57 2021 -0700
+commit 6e3cc5c56fa532df1f7690ee4955a1751b1ccbce
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Dec 11 16:24:26 2020 -0500
 
-    cmd/compile/internal/types: unexport New and NewBasic
+    go/types: report invalid ... in conversions
     
-    Now that the universe is fully initialized within package types, we
-    can stop exporting New and NewBasic, which are only needed for that
-    purpose. So this CL renames "New" to "newType" and "NewBasic" to
-    "newBasic".
+    This is a port of CL 277072 from the dev.typeparams branch.
     
-    This CL also moves the initialization of Types[TBLANK] and Types[TNIL]
-    from typecheck.InitUniverse to types.InitTypes, which I missed in an
-    earlier CL. And a use of "New(TSTRING)" in test/abiutils_test.go,
-    which should just be "Types[TSTRING]" anyway.
+    Fixes #43124
     
-    Change-Id: I1d83f93e27b88be289d4f3f6c16357a20f570460
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345487
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1424c396dc1ea984ec85b8f31a4d43353bf7e4fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277352
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/test/abiutils_test.go |  2 +-
- src/cmd/compile/internal/typecheck/universe.go |  3 --
- src/cmd/compile/internal/types/type.go         | 52 +++++++++++++-------------
- src/cmd/compile/internal/types/universe.go     |  7 +++-
- 4 files changed, 32 insertions(+), 32 deletions(-)
+ src/go/types/call.go                  |  4 ++++
+ src/go/types/fixedbugs/issue43124.src | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+)

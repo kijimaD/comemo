@@ -1,19 +1,25 @@
-commit 454d1b0e8b85e9a194e36d5374a6d88babaa407b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 30 12:48:47 2014 -0400
+commit db56d4d5eb14454e0d4b5c46d0dc89af11fbbf9d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 22 11:46:02 2014 -0700
 
-    cmd/gc: fix call order in array literal of slice literal of make chan
+    text/template: allow comparison functions to work between any integers
+    Previously, signed and unsigned integers could not be compared, but
+    this has problems with things like comparing 'x' with a byte in a string.
+    Since signed and unsigned integers have a well-defined ordering,
+    even though their types are different, and since we already allow
+    comparison regardless of the size of the integers, why not allow it
+    regardless of the sign?
     
-    Fixes #8761.
+    Integers only, a fine place to draw the line.
     
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=golang-codereviews, r
-    https://golang.org/cl/144530045
+    Fixes #7489.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/149780043
 
- src/cmd/gc/order.c          |  14 +++++-
- test/fixedbugs/bug491.go    | 110 ++++++++++++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue8761.go |  26 +++++++++++
- test/live.go                |  20 ++++----
- test/live2.go               |  10 ++--
- 5 files changed, 162 insertions(+), 18 deletions(-)
+ src/text/template/doc.go       |  9 +++--
+ src/text/template/exec_test.go | 66 +++++++++++++++++++++++---------
+ src/text/template/funcs.go     | 86 +++++++++++++++++++++++++-----------------
+ 3 files changed, 105 insertions(+), 56 deletions(-)

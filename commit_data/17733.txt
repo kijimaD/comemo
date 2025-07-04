@@ -1,12 +1,17 @@
-commit 45b830ed319ee1d82ff9d41c35d6145ab7ecbb82
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Oct 3 13:32:07 2013 +1000
+commit e0867738fc3df8fcf5ff4392e29901c87ffed115
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 2 21:42:23 2013 -0400
 
-    misc/vim: Autocompletion for :Godoc command
+    cmd/go: document relative imports
     
-    R=golang-dev, dsymonds
+    Fixes #3524.
+    
+    R=golang-dev, iant, r
     CC=golang-dev
-    https://golang.org/cl/14259043
+    https://golang.org/cl/14296043
 
- misc/vim/autoload/go/complete.vim | 22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/go/doc.go  | 152 ++++++++++++++++++++++++++++++++---------------------
+ src/cmd/go/get.go  |   2 +-
+ src/cmd/go/help.go |  42 ++++++++++++---
+ src/cmd/go/main.go |   2 +-
+ 4 files changed, 129 insertions(+), 69 deletions(-)

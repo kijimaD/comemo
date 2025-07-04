@@ -1,17 +1,14 @@
-commit 0cd0c3e8ca224ee605cc5e8a9a2274296c30fd36
+commit b51ad9cf457744d9e2feb6ada239a1078ba4540a
 Author: Rob Pike <r@golang.org>
-Date:   Sun Sep 23 10:44:56 2012 +1000
+Date:   Sun Sep 23 05:03:43 2012 +1000
 
-    effective_go: s/usr/home/ in example
-    When I was a lad (and well past), users were in /usr;
-    now they're somewhere else, I'm told.
-    Kids today.
+    spec: a couple of minor tweaks to the wording of the import section
+    - remove ambiguous 'it'
+    - use a lower-case PackageName in the example
     
-    Fixes #4122.
-    
-    R=golang-dev, dsymonds, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6552060
+    https://golang.org/cl/6552057
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

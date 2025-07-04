@@ -1,15 +1,12 @@
-commit 06862617c13614f6af96c27b9e648b2002b6dd60
+commit f0e82dd493d2addfb13b6a08d0814f28f2183f75
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 13 12:17:18 2011 -0400
+Date:   Thu Oct 13 12:17:08 2011 -0400
 
-    build: fix for new return restriction
+    go/types: clean up after test
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5257057
+    https://golang.org/cl/5245057
 
- src/pkg/crypto/openpgp/s2k/s2k.go |  4 ++--
- src/pkg/exp/gui/x11/auth.go       | 12 +++++++-----
- src/pkg/exp/gui/x11/conn.go       | 25 ++++++++++++++-----------
- src/pkg/net/textproto/reader.go   |  2 +-
- 4 files changed, 24 insertions(+), 19 deletions(-)
+ src/pkg/go/types/Makefile | 2 ++
+ 1 file changed, 2 insertions(+)

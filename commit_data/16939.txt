@@ -1,21 +1,15 @@
-commit 221af5c12fe9769b723b8af2f000ed5f39a5dbb3
+commit 609d742e791eebceddaeae419b3b909594f4e404
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 31 15:00:08 2013 +1000
+Date:   Wed Jul 31 14:09:19 2013 +1000
 
-    fmt: treat \r\n as \n in Scan
-    When scanning input and "white space" is permitted, a carriage return
-    followed immediately by a newline (\r\n) is treated exactly the same
-    as a plain newline (\n). I hope this makes it work better on Windows.
+    fmt: remove "Scan:" prefix from error messages
+    The prefix was not uniformly applied and is probably better left off anyway.
     
-    We do it everywhere, not just on Windows, since why not?
-    
-    Fixes #5391.
+    Fixes #4944.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/12142043
+    https://golang.org/cl/12140043
 
- src/pkg/fmt/doc.go       | 4 ++++
- src/pkg/fmt/scan.go      | 3 +++
- src/pkg/fmt/scan_test.go | 4 ++++
- 3 files changed, 11 insertions(+)
+ src/pkg/fmt/scan.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

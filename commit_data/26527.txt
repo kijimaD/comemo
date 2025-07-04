@@ -1,25 +1,16 @@
-commit 135109d241da1427461fdb19656a976b3e9c7b22
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 25 15:34:55 2016 -0700
+commit 8de7563acd813e742bcf7db0a6ab19203dbf6b28
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 2 10:10:27 2016 -0500
 
-    cmd/compile: reduce slice header allocation when parsing := assignments
+    cmd/go: avoid use of git -C, which does not exist in RHEL 7
     
-    The colas function allocates 2 slice headers in each call (via Nodes.Set)
-    only to throw away those slice headers in the common case where both the
-    lhs and rhs in "lhs := rhs" have length 1.
+    Tested manually with "go test -run TestGetSubmodules".
     
-    Avoid the Nodes.Set calls in those cases. For make.bash, this eliminates
-    ~63,000 slice header allocations.
+    Fixes #14194.
     
-    Also: Minor cleanups in colasdefn.
-    
-    Change-Id: Ib114a67c3adeb8821868bd71a5e0f5e2e19fcd4f
-    Reviewed-on: https://go-review.googlesource.com/21170
+    Change-Id: I4f563b2b8a38f3040d7631f74a7908ab65e0860b
+    Reviewed-on: https://go-review.googlesource.com/19154
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/alg.go    |  4 +--
- src/cmd/compile/internal/gc/dcl.go    | 48 +++++++++++++++--------------------
- src/cmd/compile/internal/gc/parser.go |  2 +-
- 3 files changed, 24 insertions(+), 30 deletions(-)
+ src/cmd/go/vcs.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

@@ -1,24 +1,23 @@
-commit f47fab938eb19e383258b3501560b46d2e47158a
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Mar 17 17:54:41 2021 -0700
+commit 865d72f962fffbba326067e803ca30193b63bd3a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 21 12:23:47 2020 -0500
 
-    cmd/compile: remove unneeded calls to typecheck in noder2
+    cmd/go: add baseline test cases for non-lazy module loading
     
-    Remove unneeded calls to typecheck in noder2 associated with g.use() and
-    g.obj(). These routines are already setting the types2-derived type
-    correctly for ONAME nodes, and there is no typechecker1-related
-    transformations related to ONAME nodes, other than making sure that
-    newly created closure variables have their type set.
+    For #36460
+    For #40799
     
-    Tested through normal -G=3 testing in all.bash (all of go/tests).
-    
-    Change-Id: I1b790ab9948959685fca3a768401458201833671
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303029
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: Id55934cc4d66743a4087b4c2644b6c3b95e7d2ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222341
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/noder/expr.go   |  7 ++-----
- src/cmd/compile/internal/noder/object.go | 20 ++++++++++++++++----
- 2 files changed, 18 insertions(+), 9 deletions(-)
+ src/cmd/go/testdata/script/mod_all.txt             | 296 +++++++++++++++++++++
+ .../go/testdata/script/mod_lazy_import_allmod.txt  | 155 +++++++++++
+ .../testdata/script/mod_lazy_import_test_dep.txt   | 159 +++++++++++
+ src/cmd/go/testdata/script/mod_lazy_new_import.txt |  89 +++++++
+ src/cmd/go/testdata/script/mod_lazy_test_all.txt   | 125 +++++++++
+ .../go/testdata/script/mod_lazy_test_horizon.txt   | 115 ++++++++
+ .../testdata/script/mod_lazy_test_of_test_dep.txt  | 118 ++++++++
+ src/cmd/go/testdata/script/mod_notall.txt          |  98 +++++++
+ 8 files changed, 1155 insertions(+)

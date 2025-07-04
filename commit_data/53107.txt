@@ -1,41 +1,25 @@
-commit ebfd80ba6f231f80484d5fedca5b60e1f166644e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 21 15:32:52 2022 -0500
+commit ac68c6c683409f98250d34ad282b9e1b0c9095ef
+Author: Julie Qiu <julieqiu@google.com>
+Date:   Thu Jun 23 23:18:56 2022 +0000
 
-    cmd/go: propagate Context arguments through modfetch methods
+    path/filepath: fix stack exhaustion in Glob
     
-    For #56886.
-    For #38714.
+    A limit is added to the number of path separators allowed by an input to
+    Glob, to prevent stack exhaustion issues.
     
-    Change-Id: I15c4a8673407d3423d7e203d645c6d0fb780d192
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452456
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Thanks to Juho Nurminen of Mattermost who reported the issue.
+    
+    Fixes CVE-2022-30632
+    Fixes #53416
+    
+    Change-Id: I1b9fd4faa85411a05dbc91dceae1c0c8eb021f07
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1498176
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417066
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/cfg/cfg.go                     |  21 +++
- src/cmd/go/internal/load/pkg.go                    |   8 +-
- src/cmd/go/internal/modcmd/download.go             |   8 +-
- src/cmd/go/internal/modcmd/edit.go                 |   2 +-
- src/cmd/go/internal/modcmd/verify.go               |   8 +-
- src/cmd/go/internal/modfetch/cache.go              | 148 +++++++++++----------
- src/cmd/go/internal/modfetch/cache_test.go         |   5 +-
- src/cmd/go/internal/modfetch/codehost/codehost.go  |  51 +++----
- src/cmd/go/internal/modfetch/codehost/git.go       | 125 ++++++++---------
- src/cmd/go/internal/modfetch/codehost/git_test.go  |  81 ++++++++---
- src/cmd/go/internal/modfetch/codehost/svn.go       |   7 +-
- src/cmd/go/internal/modfetch/codehost/vcs.go       |  95 ++++++-------
- src/cmd/go/internal/modfetch/coderepo.go           |  81 +++++------
- src/cmd/go/internal/modfetch/coderepo_test.go      |  27 ++--
- src/cmd/go/internal/modfetch/fetch.go              |  36 ++---
- src/cmd/go/internal/modfetch/proxy.go              |  43 +++---
- src/cmd/go/internal/modfetch/repo.go               |  69 +++++-----
- .../internal/modfetch/zip_sum_test/zip_sum_test.go |   6 +-
- src/cmd/go/internal/modload/build.go               |   4 +-
- src/cmd/go/internal/modload/init.go                |   8 +-
- src/cmd/go/internal/modload/load.go                |   6 +-
- src/cmd/go/internal/modload/modfile.go             |   2 +-
- src/cmd/go/internal/modload/mvs.go                 |   4 +-
- src/cmd/go/internal/modload/query.go               |  56 ++++----
- 24 files changed, 500 insertions(+), 401 deletions(-)
+ src/path/filepath/match.go      | 12 +++++++++++-
+ src/path/filepath/match_test.go | 10 ++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

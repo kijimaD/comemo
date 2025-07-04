@@ -1,43 +1,29 @@
-commit e3ef8d18102d923a1dbd499ce5ae21ee70e13638
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 31 15:22:14 2023 -0400
+commit cbd931c9c2705e0e3a44c3b299ac2bd3369f5eb5
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Sep 22 13:35:08 2022 +0100
 
-    net: deflake TestDialTimeout on windows
+    encoding/gob: prevent a decoder state overflow
     
-    The time granularity on windows is large enough that setting even an
-    implausibly small timeout still gives ConnectEx enough time to succeed
-    before the timeout expires. That causes TestDialTimeout to sometimes
-    flake, because it expects to be able to provoke a timeout using some
-    nonzero duration.
+    When decoding a struct, if a positive delta is large enough to overflow
+    when added to fieldnum, we would panic due to the resulting negative index.
     
-    This change takes a two-pronged approach to address the problem:
+    Instead, catch this problem and produce an error like we do with
+    negative delta integers. If fieldnum ends up being negative or smaller
+    than state.fieldnum, the addition overflowed.
     
-    1. We can set a deadline on the FD more aggressively. (If the Context
-    has already expired, or the deadline is already known, we can go ahead
-    and set it on the fd without waiting for a background goroutine to get
-    around to it.)
+    While here, remove an unnecessary break after an error call,
+    since those error functions cause a panic.
     
-    2. We can reintroduce a test hook to ensure that Dial takes a
-    measurable amount of time before it completes, so that setting an
-    implausibly short deadline sets that deadline in the past instead of
-    the future.
+    Fixes #55337.
     
-    Together, these reduce the flake rate on a windows-amd64-longtest
-    gomote from around 1-in-10 to less than 1-in-2000.
-    
-    For #62377.
-    
-    Change-Id: I03975c32f61fffa9f6f84efb3c474a01ac5a0d1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524936
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I7a0e4f43e5c81a703e79c1597e3bb3714cc832c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432715
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/net/dial.go         |  1 +
- src/net/fd_windows.go   | 48 ++++++++++++++++++++++++++++++------------------
- src/net/hook.go         |  6 ++++++
- src/net/timeout_test.go | 15 +++++++++++++++
- 4 files changed, 52 insertions(+), 18 deletions(-)
+ src/encoding/gob/decode.go       |  5 ++---
+ src/encoding/gob/encoder_test.go | 13 +++++++++++++
+ 2 files changed, 15 insertions(+), 3 deletions(-)

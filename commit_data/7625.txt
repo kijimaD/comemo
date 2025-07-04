@@ -1,12 +1,12 @@
-commit 21f3080d0f223e0797add8eb5c10970a6ea7f24c
+commit 967a2b38cdcb0a9510bb5affaef12d31b48d2fff
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 3 16:52:56 2011 -0800
+Date:   Thu Mar 3 15:24:28 2011 -0800
 
-    gofmt: exclude test file that is not legal Go
+    go spec: minor clarification of scope rule for functions
     
-    R=r, r2
+    R=rsc, iant, r, r2
     CC=golang-dev
-    https://golang.org/cl/4252053
+    https://golang.org/cl/4256050
 
- src/cmd/gofmt/test.sh | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

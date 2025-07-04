@@ -1,26 +1,53 @@
-commit bd71dee2b4c0a44f9c32e9eb23d990b54ce06bae
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Mar 10 12:16:33 2022 -0800
+commit 6ffb027483a86d6081989a63bb2af6a69028b46a
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Apr 20 16:11:13 2021 -0400
 
-    internal/fuzz: don't use dirty coverage maps during minimization
+    [dev.fuzz] internal/fuzz: use coverage instrumentation while fuzzing
     
-    When minimizing a value, if the value cannot be minimized (i.e. it is
-    the final value is the same value as was sent for minimization) return
-    the initial coverage map, rather than the coverageSnapshot, which is
-    actually the coverage map for the final minimization step and may not
-    accurately reflect whether the input actually expands the coverage set
-    or not.
+    This change updates the go command behavior when
+    fuzzing to instrument the binary for code coverage,
+    and uses this coverage in the fuzzing engine to
+    determine if an input is interesting.
     
-    Updates #48326
+    Unfortunately, we can't store and use the coverage
+    data for a given run of `go test` and re-use it
+    the next time we fuzz, since the edges could have
+    changed between builds. Instead, every entry in
+    the seed corpus and the on-disk corpus is run
+    by the workers before fuzzing begins, so that the
+    coordinator can get the baseline coverage for what
+    the fuzzing engine has already found (or what
+    the developers have already provided).
     
-    Change-Id: I01f0eebe5841e808b6799647d2e5fe3aa45cd2e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391614
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Users should run `go clean -fuzzcache` before
+    using this change, to clear out any existing
+    "interesting" values that were in the cache.
+    Previously, every single non-crashing input was
+    written to the on-disk corpus. Now, only inputs
+    that actually expand coverage are written.
+    
+    This change includes a small hack in
+    cmd/go/internal/load/pkg.go which ensures that the Gcflags
+    that were explicitly set in cmd/go/internal/test/test.go
+    don't get cleared out.
+    
+    Tests will be added in a follow-up change, since
+    they will be a bit more involved.
+    
+    Change-Id: Ie659222d44475c6d68fa4a35d37c37cab3619d71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312009
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- .../script/test_fuzz_minimize_dirty_cov.txt        | 84 ++++++++++++++++++++++
- src/internal/fuzz/worker.go                        | 13 +++-
- 2 files changed, 96 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go                   |   9 ++
+ src/cmd/go/internal/test/test.go                  |   9 ++
+ src/cmd/go/internal/work/init.go                  |   8 ++
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt |   1 +
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt  |  38 ++---
+ src/internal/fuzz/coverage.go                     |  19 +++
+ src/internal/fuzz/fuzz.go                         | 162 +++++++++++++++++-----
+ src/internal/fuzz/mutator.go                      |   2 +-
+ src/internal/fuzz/worker.go                       |  86 ++++++++----
+ 9 files changed, 254 insertions(+), 80 deletions(-)

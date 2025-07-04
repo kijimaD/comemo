@@ -1,21 +1,35 @@
-commit 6303c34d7f16eab5824a586f1ac30ec8921e7602
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Dec 30 13:16:28 2019 -0800
+commit 47232f0d929bd7ca44aeea23ad3f1806dfa55c5e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Nov 7 22:40:50 2019 -0500
 
-    cmd/compile: remove dead values after flagalloc
+    cmd/internal/obj/arm64: make function epilogue async-signal safe
     
-    Fix a longstanding TODO.
+    When the frame size is large, we generate
     
-    Provides widespread, minor improvements.
-    Negligible compiler cost.
+    MOVD.P  0xf0(SP), LR
+    ADD     $(framesize-0xf0), SP
     
-    Because the freeze nears, put in a safety flag to easily disable.
+    This is problematic: after the first instruction, we have a
+    partial frame of size (framesize-0xf0). If we try to unwind the
+    stack at this point, we'll try to read the LR from the stack at
+    0(SP) (the new SP) as the frame size is not 0. But this slot does
+    not contain a valid LR.
     
-    Change-Id: I338812181ab6d806fecf22afd3c3502e2c94f7a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229600
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fix this by not changing SP in two instructions. Instead,
+    generate
+    
+    MOVD    (SP), LR
+    ADD     $framesize, SP
+    
+    This affects not only async preemption but also profiling. So we
+    change the generated instructions, instead of marking unsafe
+    point.
+    
+    Change-Id: I4e78c62d50ffc4acff70ccfbfec16a5ccae17f24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206057
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/flagalloc.go | 61 ++++++++++++++++++++++++++++++-
- 1 file changed, 59 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/arm64/obj7.go | 31 ++++++++++++++++++-------------
+ 1 file changed, 18 insertions(+), 13 deletions(-)

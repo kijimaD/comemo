@@ -1,21 +1,22 @@
-commit 1e450aa2f208046aab0628e024a70c5193559fe7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 23 20:35:37 2019 +0000
+commit aa4fc0e73654c0a8741d970bfca47c25125633cf
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Sep 10 15:07:09 2018 -0400
 
-    net/http: update bundled http2
+    cmd/link,compress/zip,image/png: use binary.{Big,Little}Endian methods
     
-    Updates bundled http2 to x/net git rev ed066c81e7 for:
+    Use the binary.{Big,Little}Endian integer encoding methods rather than
+    variations found in local implementations. The functions in
+    the binary package have been tested to ensure they inline correctly and
+    don't add unnecessary bounds checking.
     
-        http2: Revert a closed stream cannot receive data
-        https://golang.org/cl/153977
-    
-    Updates golang/go#28204
-    
-    Change-Id: I0a489e4e8a581a107970199f64f0fa9281982efe
-    Reviewed-on: https://go-review.googlesource.com/c/159179
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie10111ca6edb7c11e8e5e21c58a5748ae99b7f87
+    Reviewed-on: https://go-review.googlesource.com/134375
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/net/http/h2_bundle.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/cmd/link/internal/ld/lib.go    | 20 --------------------
+ src/cmd/link/internal/ppc64/asm.go | 12 ++++++------
+ src/compress/zlib/writer.go        | 12 +++---------
+ src/image/png/writer.go            | 17 +++++------------
+ 4 files changed, 14 insertions(+), 47 deletions(-)

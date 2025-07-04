@@ -1,0 +1,15 @@
+commit da64b60c7eea880ccdeda2dfdf1b9af9a4a6fcc7
+Author: changwang ma <machangwang.cn@gmail.com>
+Date:   Fri Oct 25 23:46:35 2024 +0800
+
+    runtime: fix typo in comment
+    
+    Change-Id: I85f518e36c18f4f0eda8b167750b43cd8c48ecff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622675
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/mheap.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

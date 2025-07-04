@@ -1,12 +1,15 @@
-commit 6a5a527173b0b8c10a3ddbfe75ddbef1f9ae342b
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 4 12:43:52 2011 -0800
+commit 236f9638b41e94d8e21044df54f2281c52904d7f
+Author: Patrick Gavlin <pgavlin@gmail.com>
+Date:   Tue Jan 4 13:42:50 2011 -0500
 
-    regexp: implement early out for failed anchored search.
+    encoding/binary: reject types with implementation-dependent sizes
+    
+    Fixes #1201.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3813045
+    https://golang.org/cl/3787044
 
- src/pkg/regexp/regexp.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/pkg/encoding/binary/binary.go      |  4 ++++
+ src/pkg/encoding/binary/binary_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

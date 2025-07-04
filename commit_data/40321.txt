@@ -1,33 +1,16 @@
-commit 33425ab8dbb03c355b2263b8250a1829e260d66f
-Author: smasher164 <aindurti@gmail.com>
-Date:   Wed Aug 29 20:57:33 2018 -0400
+commit bd384d42c11d5b3ec36dbc325ec8d350ea1f1b82
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri May 3 13:21:49 2019 +0200
 
-    cmd/compile: introduce generic ssa intrinsic for fused-multiply-add
+    misc/ios: don't refer to iostest.bash
     
-    In order to make math.FMA a compiler intrinsic for ISAs like ARM64,
-    PPC64[le], and S390X, a generic 3-argument opcode "Fma" is provided and
-    rewritten as
+    iostest.bash might not live much longer, and all.bash is much
+    less confusing and more explicit.
     
-        ARM64: (Fma x y z) -> (FMADDD z x y)
-        PPC64: (Fma x y z) -> (FMADD x y z)
-        S390X: (Fma x y z) -> (FMADD z x y)
-    
-    Updates #25819.
-    
-    Change-Id: Ie5bc628311e6feeb28ddf9adaa6e702c8c291efa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/131959
-    Run-TryBot: Akhil Indurti <aindurti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If42e8716bbbb02aa3f817dceaabb1aa8076aae1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175178
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             |  5 +++++
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  1 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  1 +
- src/cmd/compile/internal/ssa/gen/S390X.rules   |  1 +
- src/cmd/compile/internal/ssa/gen/genericOps.go | 14 ++++++++++++++
- src/cmd/compile/internal/ssa/opGen.go          |  6 ++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 17 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 17 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 17 +++++++++++++++++
- test/codegen/math.go                           |  8 ++++++++
- 10 files changed, 87 insertions(+)
+ misc/ios/README | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,12 +1,21 @@
-commit 872f5ffa095c483a506a639f1960f6778328d83e
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Sat Dec 28 20:33:05 2013 +1100
+commit 5499034a7143d631e31b108b0c14c86c2345d458
+Author: Martin Olsson <martin@minimum.se>
+Date:   Fri Dec 27 08:59:02 2013 -0800
 
-    bytes: add test for Contains
+    all: fix a few spelling errors in source comments
     
-    R=golang-codereviews, dave
+    R=golang-codereviews, dave, iant
     CC=golang-codereviews
-    https://golang.org/cl/46140043
+    https://golang.org/cl/45750044
 
- src/pkg/bytes/bytes_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/gc/fmt.c            | 2 +-
+ src/cmd/gc/go.h             | 4 ++--
+ src/cmd/gc/subr.c           | 2 +-
+ src/cmd/nm/doc.go           | 2 +-
+ src/liblink/asm5.c          | 2 +-
+ src/pkg/database/sql/sql.go | 2 +-
+ src/pkg/sort/sort.go        | 4 ++--
+ test/divmod.go              | 2 +-
+ test/fixedbugs/bug476.go    | 2 +-
+ test/run.go                 | 2 +-
+ 10 files changed, 12 insertions(+), 12 deletions(-)

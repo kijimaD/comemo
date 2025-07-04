@@ -1,18 +1,22 @@
-commit dcd10375bc48d0389919b573485d2730445650fd
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 15 16:49:50 2022 -0400
+commit e30a09013b24853cbe6d3d3a919e639df0bdf41c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 8 15:59:11 2021 -0700
 
-    runtime: convert gcController.idleMarkTime to atomic type
+    cmd/compile: extrapolate $GOROOT in unified IR
     
-    For #53821.
+    This ensures that diagnostics for files within $GOROOT continue to be
+    reported using their full filepath, rather than the abbreviated
+    filepath. Notably, this is necessary for test/run.go, which has tests
+    that expect to see the full filepath.
     
-    Change-Id: I2f2b462908096dacb97fba9973798036ea1d9b68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417783
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #48247.
+    
+    Change-Id: I440e2c6dd6109ca059d81cee49e476bba805d703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348670
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/align_runtime_test.go |  1 -
- src/runtime/mgc.go                |  2 +-
- src/runtime/mgcpacer.go           | 13 ++++++-------
- 3 files changed, 7 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)

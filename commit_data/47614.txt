@@ -1,20 +1,26 @@
-commit b2a5a3771f5efdb499da215298c7bcc2f493b4f1
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 24 10:35:21 2021 -0500
+commit 5f646f0a984d43a2e9e99a1338145a862fef425e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 31 20:02:26 2021 -0400
 
-    cmd/dist: add buildtag parsing test
+    cmd/compile: fix parameter offset calculation
     
-    Forgot to 'git add' this test written as part of CL 359314.
+    For struct like { { a int64; b int16 }; c int32 }, on 64-bit
+    machines the offset of c is 16, as the inner struct takes 16
+    bytes because we round up type size to its alignment. Update the
+    abi package's offset calculation to include this.
     
-    For #41184.
+    We only need to do this for struct type, because for all other
+    types its size is naturally aligned.
     
-    Change-Id: I2ebd48fd62a2053c8b16e5a8c48c1e11d1b86d5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366894
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    TODO: add a test.
+    
+    Change-Id: I0c661768cb1ed3cb409b20a88b7e23e059f8e3e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306449
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/dist/buildtag_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/go_test.go         |  6 +++---
- 2 files changed, 46 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go | 1 +
+ 1 file changed, 1 insertion(+)

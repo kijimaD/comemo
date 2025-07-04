@@ -1,13 +1,14 @@
-commit 3ddd2eaebc6bfb3ef05612a354cbd4273378d18b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 12 17:13:46 2013 -0800
+commit e8a1de720fb47987b69c15ec7c002c85f90bf9be
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 13 09:31:49 2013 +1100
 
-    test: disable large type/stack frame tests for gccgo
+    doc: add Go 1.2 to release history page
     
-    R=golang-dev, rsc
+    Fixes #6939.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/40370052
+    https://golang.org/cl/41540043
 
- test/fixedbugs/bug385_32.go | 2 +-
- test/fixedbugs/bug385_64.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/devel/release.html | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

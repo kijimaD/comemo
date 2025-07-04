@@ -1,14 +1,33 @@
-commit b4538d7aaa1a600dc1d3724f9aecb5c8039e1324
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue May 10 07:43:17 2016 +0000
+commit 7162c4d05c1fed9db517c92b9a5232243ec453a2
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Fri Feb 12 00:37:52 2016 -0500
 
-    Revert "os: enable TestGetppid on Plan 9"
+    database/sql/driver: remove string exclusion
     
-    This reverts commit a677724edfc465193d2f79ee48d2c06defbc916b.
+    The exclusion of string from IsScanValue prevents driver authors from
+    writing their drivers in such a way that would allow users to
+    distinguish between strings and byte arrays returned from a database.
+    Such drivers are possible today, but require their authors to deviate
+    from the guidance provided by the standard library.
     
-    Change-Id: I6a54ac26a6deca5b2a39ec9f899469a88b543d3d
-    Reviewed-on: https://go-review.googlesource.com/22980
+    This exclusion has been in place since the birth of this package in
+    https://github.com/golang/go/commit/357f2cb1a385f4d1418e48856f9abe0cce,
+    but the fakedb implementation shipped in the same commit violates the
+    exclusion!
+    
+    Strictly speaking this is a breaking change, but it increases the set
+    of permissible Scan types, and should not cause breakage in practice.
+    
+    No test changes are necessary because fakedb already exercises this.
+    
+    Fixes #6497.
+    
+    Change-Id: I69dbd3a59d90464bcae8c852d7ec6c97bfd120f8
+    Reviewed-on: https://go-review.googlesource.com/19439
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/os_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/database/sql/driver/driver.go |  6 +-----
+ src/database/sql/driver/types.go  | 19 ++++++-------------
+ 2 files changed, 7 insertions(+), 18 deletions(-)

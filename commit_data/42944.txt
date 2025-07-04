@@ -1,17 +1,20 @@
-commit 07d19b2597af253ed78ef43ba6e7a49db9a8f4ba
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 10 13:21:41 2020 +0700
+commit 9c600949861fad2990fc7f661c4aa70fade24b0a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 22 20:05:12 2020 -0800
 
-    all: check GOROOT_BOOTSTRAP executable before bootsrappping
+    cmd/compile: merge const into storeidx on amd64
     
-    Otherwise we’d still be writing that we're building cmd/dist
-    even if GOROOT_BOOTSTRAP we’re wrongly set.
+    file    before    after     Δ       %
+    compile 20652264  20639976  -12288  -0.059%
+    trace   11673532  11669436  -4096   -0.035%
+    total   116019840 116003456 -16384  -0.014%
     
-    Change-Id: I940e18c3cebae5664f85babc9919e9eb215d5093
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253877
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Id0522e08f10e77c885fba1d0d9b65f8981a647ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220693
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/make.bash | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   9 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 168 +++++++++++++++++++++++++++
+ 2 files changed, 177 insertions(+)

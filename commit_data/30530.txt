@@ -1,25 +1,18 @@
-commit c2eb06193f70475650a85a0e279f865181c1cece
-Author: Kevin Burke <kev@inburke.com>
-Date:   Wed Mar 1 10:31:57 2017 -0800
+commit eb4e17b73b4ad486f9e9b0ea0fe2a6050ceb54fc
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Nov 8 13:59:25 2016 -0500
 
-    os/user: add non-cgo versions of Lookup, LookupId
+    cmd/link: use plugin path in visibility analysis
     
-    If you cross compile for a Unix target and call user.Lookup("root")
-    or user.LookupId("0"), we'll try to read the answer out of
-    /etc/passwd instead of returning an "unimplemented" error.
+    CL 32355 switched from using the output file as a
+    plugin prefix to the full package path. The linker dead code analysis
+    was not updated.
     
-    The equivalent cgo function calls getpwuid_r in glibc, which
-    may reach out to the NSS database or allow callers to register
-    extensions. The pure Go implementation only reads from /etc/passwd.
+    Updates #17821
     
-    Change-Id: I56a302d634b15ba5097f9f0d6a758c68e486ba6d
-    Reviewed-on: https://go-review.googlesource.com/37664
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I13fc45e0264b425d28524ec54c829e2c3e895b0b
+    Reviewed-on: https://go-review.googlesource.com/32916
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/user/lookup_stubs.go     |   9 ---
- src/os/user/lookup_unix.go      | 162 ++++++++++++++++++++++++++++++++--------
- src/os/user/lookup_unix_test.go | 159 +++++++++++++++++++++++++++++++++++++++
- src/os/user/user_test.go        |   3 +
- 4 files changed, 292 insertions(+), 41 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

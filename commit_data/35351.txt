@@ -1,23 +1,19 @@
-commit 0f2d4d00088486297d013fce6235ad0ac01f033e
-Author: Gustav Westling <zegl@westling.xyz>
-Date:   Wed May 9 21:02:14 2018 +0000
+commit 670494827c42d4ac64a52dfa909cf6048308e133
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 16 17:00:51 2018 -0800
 
-    encoding/base32: handle surplus padding consistently
+    cmd/compile/internal/syntax: better error recovery after missing type
     
-    This changes decoder.Read to always return io.ErrUnexpectedEOF if the input
-    contains surplus padding or unexpected content. Previously the error could
-    be io.EOF or io.ErrUnexpectedEOF depending on how the input was chunked.
+    R=go1.11.
     
-    Fixes #25296
+    This is just a copy of the fix for #23434:
+    https://go-review.googlesource.com/c/go/+/87898.
     
-    Change-Id: I07c36c35e6c83e795c3991bfe45647a35aa58aa4
-    GitHub-Last-Rev: 818dfda90b0edf9fc415da4579c5810268c1cdba
-    GitHub-Pull-Request: golang/go#25319
-    Reviewed-on: https://go-review.googlesource.com/112516
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Test pending test harness for the syntax package.
+    
+    Change-Id: I52409aebe13ec784ddd7e41190a81c7e126bdd0c
+    Reviewed-on: https://go-review.googlesource.com/87901
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/base32/base32.go      |  5 +++
- src/encoding/base32/base32_test.go | 80 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 85 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

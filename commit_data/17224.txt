@@ -1,18 +1,18 @@
-commit c92287686d3735050dc36a7eaa93ae1824732500
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 14 13:56:01 2013 +0400
+commit 72636eb50662eae1bac651b1fbe4b68f4b4efe0d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 00:34:18 2013 -0400
 
-    runtime: improve block profiler support for channels
-    1. Handle select statements.
-    2. Handle chan close.
-    3. Show top frame in debug mode (chansend/chanrecv/selectgo).
-    Fixes #6049.
+    cmd/5g: fix temp-merging on ARM
     
-    R=golang-dev, daniel.morsing, rsc
+    mkvar was taking care of the "LeftAddr" case,
+    effectively hiding it from the temp-merging optimization.
+    
+    Move it into prog.c.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/12694050
+    https://golang.org/cl/12884045
 
- src/pkg/runtime/chan.c              |  22 +++++++
- src/pkg/runtime/pprof/pprof.go      |   2 +-
- src/pkg/runtime/pprof/pprof_test.go | 124 +++++++++++++++++++++++++++++-------
- 3 files changed, 124 insertions(+), 24 deletions(-)
+ src/cmd/5g/prog.c |  5 +++++
+ src/cmd/5g/reg.c  | 12 +++++-------
+ 2 files changed, 10 insertions(+), 7 deletions(-)

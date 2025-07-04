@@ -1,15 +1,49 @@
-commit c6f7c176a3a46ff87d72c4b744bbadf02df1890e
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 25 11:35:55 2014 -0700
+commit 1806a5732b373e5a9048765db533bcb33952a067
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 18 21:13:11 2014 -0400
 
-    cmd/go: add GOOS and GOARCH to generate
-    Fixes test failure in build, probably a good idea anyway.
+    cmd/gc, runtime: refactor interface inlining decision into compiler
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/131210043
+    We need to change the interface value representation for
+    concurrent garbage collection, so that there is no ambiguity
+    about whether the data word holds a pointer or scalar.
+    
+    This CL does NOT make any representation changes.
+    
+    Instead, it removes representation assumptions from
+    various pieces of code throughout the tree.
+    The isdirectiface function in cmd/gc/subr.c is now
+    the only place that decides that policy.
+    The policy propagates out from there in the reflect
+    metadata, as a new flag in the internal kind value.
+    
+    A follow-up CL will change the representation by
+    changing the isdirectiface function. If that CL causes
+    problems, it will be easy to roll back.
+    
+    Update #8405.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/129090043
 
- src/cmd/go/generate.go      | 17 ++++++++++++++++-
- src/cmd/go/generate_test.go |  3 +++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/gc/go.h                      |  1 +
+ src/cmd/gc/reflect.c                 |  4 +-
+ src/cmd/gc/subr.c                    | 39 +++++++++++++++++++
+ src/cmd/gc/walk.c                    |  7 +---
+ src/pkg/database/sql/convert_test.go | 37 +++++++++++-------
+ src/pkg/reflect/all_test.go          |  3 ++
+ src/pkg/reflect/type.go              | 21 +++++++---
+ src/pkg/reflect/value.go             | 74 ++++++++++++++++++++++++------------
+ src/pkg/runtime/alg.go               |  8 ++--
+ src/pkg/runtime/heapdump.c           |  4 +-
+ src/pkg/runtime/iface.go             | 12 +++---
+ src/pkg/runtime/malloc.c             |  8 ++--
+ src/pkg/runtime/malloc.go            |  9 -----
+ src/pkg/runtime/mgc0.c               |  6 +--
+ src/pkg/runtime/stack.c              |  4 +-
+ src/pkg/runtime/typekind.go          | 44 +++++++++++++++++++++
+ src/pkg/runtime/typekind.h           |  3 +-
+ test/live.go                         | 51 +++++++++++++------------
+ 18 files changed, 230 insertions(+), 105 deletions(-)

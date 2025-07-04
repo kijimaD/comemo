@@ -1,19 +1,21 @@
-commit 8b766e5d09bc4bf2e4fc365111b60a400b144f83
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 8 02:20:26 2018 -0800
+commit 94471f6324d25e2562c9125aeeeb2af6f2a51fd4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 13:30:09 2017 -0400
 
-    cmd/compile: remove state.exitCode
+    runtime: shorten tests in all.bash
     
-    We're holding onto the function's complete AST anyway, so might as
-    well grab the exit code from there.
+    This cuts 23 seconds from all.bash on my MacBook Pro.
     
-    Passes toolstash-check.
-    
-    Change-Id: I851b5dfdb53f991e9cd9488d25d0d2abc2a8379f
-    Reviewed-on: https://go-review.googlesource.com/99417
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibc4d7c01660b9e9ebd088dd55ba993f0d7ec6aa3
+    Reviewed-on: https://go-review.googlesource.com/73991
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/cmd/dist/test.go                         |  4 ++--
+ src/runtime/crash_test.go                    | 11 +++++++++++
+ src/runtime/map_test.go                      |  2 +-
+ src/runtime/memmove_test.go                  |  9 +++++++++
+ src/runtime/mfinal_test.go                   |  4 ++++
+ src/runtime/runtime_test.go                  |  3 +++
+ src/runtime/testdata/testprogcgo/callback.go |  6 +++++-
+ src/runtime/testdata/testprogcgo/cgo.go      |  6 +++++-
+ 8 files changed, 40 insertions(+), 5 deletions(-)

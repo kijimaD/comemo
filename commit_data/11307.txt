@@ -1,17 +1,14 @@
-commit e56dc0ad37b2c736668b6069d3f39a3b5f309e87
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 20 23:35:28 2012 -0500
+commit c4b16a3864102b45cc50188cee416133c165a460
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Fri Jan 20 23:35:18 2012 -0500
 
-    cmd/go: every test imports regexp
+    compress/flate: make lazy matching work.
     
-    This fixes the bug Rob ran into when editing package bytes.
-    Regexp imports regexp/syntax, which imports bytes, and
-    regexp/syntax was not being properly recompiled during a
-    test of a change to package bytes.
-    
-    R=golang-dev, r
+    R=rsc, imkrasin
     CC=golang-dev
-    https://golang.org/cl/5555065
+    https://golang.org/cl/5554066
 
- src/cmd/go/test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/compress/flate/deflate.go                  |   38 +-
+ src/pkg/compress/flate/deflate_test.go             |   44 +-
+ .../compress/testdata/Mark.Twain-Tom.Sawyer.txt    | 8858 ++++++++++++++++++++
+ 3 files changed, 8916 insertions(+), 24 deletions(-)

@@ -1,13 +1,15 @@
-commit fda29b6a4204d8658b3c1f763ac775afcc6cac00
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 26 11:47:29 2012 -0700
+commit 24ae7e686d51954b8befaaaef27f55a245d0050e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 25 14:14:37 2012 -0700
 
-    A+C: added Andrew Wilkins (individual contributor)
+    cgo: fix declarations in _cgo_export.c
     
-    R=rsc, minux.ma, iant
+    Declare crosscall2.  Declare the functions passed to it as
+    returning void, rather than relying on implicit return type.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6447050
+    https://golang.org/cl/6432060
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/cgo/out.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,24 +1,33 @@
-commit afd7c15c7f2d5ffd7e5f6234d76cc6698f86c06e
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 25 13:42:19 2023 -0700
+commit e7422b05915759a8e4a8f38382ffd4d38d4fa2ea
+Author: Dan Peterson <danp@danp.net>
+Date:   Sun Nov 6 17:03:00 2022 -0400
 
-    cmd/compile: use cache in front of convI2I
+    net: adjust build tags for darwin libc calls
     
-    This is the last of the getitab users to receive a cache.
-    We should now no longer see getitab (and callees) in profiles.
-    Hopefully.
+    Support for direct libc calls was added in CL 446178 but the build
+    tags weren't quite activating it when cgo was not enabled. Adjust them
+    and add a new supporting file for darwin.
     
-    Change-Id: I2ed72b9943095bbe8067c805da7f08e00706c98c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531055
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This should use the new direct libc calls with both CGO_ENABLED=0 and
+    CGO_ENABLED=1 when building for darwin.
+    
+    Updates #12524
+    
+    Change-Id: Ieee4b298dee13f389ed3a63c0a4a3a18c9180163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448020
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Dan Peterson <danp@danp.net>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- .../compile/internal/typecheck/_builtin/runtime.go |   3 -
- src/cmd/compile/internal/typecheck/builtin.go      | 452 ++++++++++-----------
- src/cmd/compile/internal/walk/convert.go           |  64 +--
- src/cmd/compile/internal/walk/expr.go              |  35 +-
- src/runtime/iface.go                               |   9 -
- test/codegen/switch.go                             |  10 +
- 6 files changed, 294 insertions(+), 279 deletions(-)
+ src/net/cgo_bsd.go          | 2 +-
+ src/net/cgo_darwin.go       | 9 +++++++++
+ src/net/cgo_stub.go         | 2 +-
+ src/net/cgo_unix.go         | 2 +-
+ src/net/cgo_unix_syscall.go | 2 +-
+ src/net/cgo_unix_test.go    | 2 +-
+ src/net/netgo.go            | 4 ++--
+ src/net/netgo_unix_test.go  | 2 +-
+ 8 files changed, 17 insertions(+), 8 deletions(-)

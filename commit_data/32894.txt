@@ -1,12 +1,20 @@
-commit 33c06b1d46522d7a0f34e0662ecb4c4eba6ffd3c
-Author: Kevin Burke <kev@inburke.com>
-Date:   Fri Sep 29 10:01:56 2017 -0700
+commit b488073d514d06269eab561104c0dc5ff606c4ba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 25 22:20:27 2017 -0700
 
-    cmd/compile: fix spelling mistake
+    go/build: make -I/-L options in cgo flags absolute
     
-    Change-Id: Id900636ee58a39aaa3dc1c601cb83706d3e2fbe8
-    Reviewed-on: https://go-review.googlesource.com/67190
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #20266.
+    
+    Change-Id: I51383820880e3d3566ef3d70650a0863756003ba
+    Reviewed-on: https://go-review.googlesource.com/44291
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/nilcheck.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/test/cgo_test.go             |  1 +
+ misc/cgo/test/issue20266.go           | 21 ++++++++++++++++++++
+ misc/cgo/test/issue20266/issue20266.h |  9 +++++++++
+ src/cmd/go/go_test.go                 |  7 ++++---
+ src/go/build/build.go                 | 37 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 72 insertions(+), 3 deletions(-)

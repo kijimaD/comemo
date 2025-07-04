@@ -1,17 +1,13 @@
-commit e932c2035f01f76f614750af022d2f3975146191
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed May 29 11:49:45 2013 +0400
+commit 28c64e300663a34067d09f2e6536cd72e6e0bf01
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 29 13:49:31 2013 +1000
 
-    runtime: make notetsleep() return false if timeout happens
-    This is needed for preemptive scheduler, because during
-    stoptheworld we want to wait with timeout and re-preempt
-    M's on timeout.
+    A+C: add Katrina Owen (individual CLA)
     
-    R=golang-dev, remyoudompheng, iant
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/9375043
+    https://golang.org/cl/9853043
 
- src/pkg/runtime/lock_futex.c |  7 ++++---
- src/pkg/runtime/lock_sema.c  | 12 ++++++------
- src/pkg/runtime/runtime.h    |  2 +-
- 3 files changed, 11 insertions(+), 10 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

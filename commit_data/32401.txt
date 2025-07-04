@@ -1,21 +1,38 @@
-commit 06a78b57377ce63c7fca968af5056a3dec0a06bb
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Aug 16 23:36:58 2017 +0200
+commit c87520c5981ecdeaa99e7ba636a6088f900c0c75
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 21 18:44:34 2017 -0700
 
-    cmd/compile: pass stack allocated bucket to makemap inside hmap
+    cmd: remove IntSize and Widthint
     
-    name         old time/op    new time/op    delta
-    NewEmptyMap    53.2ns ± 7%    48.0ns ± 5%  -9.77%  (p=0.000 n=20+20)
-    NewSmallMap     111ns ± 1%     106ns ± 2%  -3.78%  (p=0.000 n=20+19)
+    Use PtrSize and Widthptr instead. CL prepared mostly with sed and
+    uniq.
     
-    Change-Id: I979d21ab16eae9f6893873becca517db57e054b5
-    Reviewed-on: https://go-review.googlesource.com/56290
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Passes toolstash-check -all.
+    
+    Fixes #19954.
+    
+    Change-Id: I09371bd7128672885cb8bc4e7f534ad56a88d755
+    Reviewed-on: https://go-review.googlesource.com/40506
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/builtin.go         |  2 +-
- src/cmd/compile/internal/gc/builtin/runtime.go |  2 +-
- src/cmd/compile/internal/gc/walk.go            | 49 +++++++++++++++++---------
- src/runtime/hashmap.go                         | 35 +++++++++---------
- 4 files changed, 51 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/gc/go.go           |  2 --
+ src/cmd/compile/internal/gc/main.go         |  1 -
+ src/cmd/compile/internal/gc/obj.go          |  2 +-
+ src/cmd/compile/internal/gc/reflect.go      |  4 ++--
+ src/cmd/compile/internal/gc/sinit.go        | 12 +++++-----
+ src/cmd/compile/internal/gc/ssa.go          | 36 ++++++++++++++---------------
+ src/cmd/compile/internal/gc/universe.go     | 12 +++++-----
+ src/cmd/compile/internal/ssa/config.go      | 14 ++---------
+ src/cmd/compile/internal/ssa/decompose.go   | 12 +++++-----
+ src/cmd/compile/internal/ssa/export_test.go |  2 +-
+ src/cmd/compile/internal/ssa/opt.go         |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go     |  2 +-
+ src/cmd/internal/sys/arch.go                | 17 ++++----------
+ src/cmd/link/internal/ld/data.go            |  2 +-
+ src/cmd/link/internal/ld/decodesym.go       | 12 +++++-----
+ src/cmd/link/internal/ld/symtab.go          |  6 ++---
+ 16 files changed, 58 insertions(+), 80 deletions(-)

@@ -1,19 +1,15 @@
-commit 5789b28525cc7565aacc0394824bc58f92fd97e6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 5 16:04:17 2015 -0500
+commit 1ac65f82adf00f6af925a266b9c8282325b3c39f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 15:20:13 2015 -0500
 
-    runtime: start GC background sweep eagerly
+    runtime: eliminate b == 0 special case from scanblock
     
-    Starting it lazily causes a memory allocation (for the goroutine) during GC.
+    We no longer ever call scanblock with b == 0.
     
-    First use of channels for runtime implementation.
-    
-    Change-Id: I9cd24dcadbbf0ee5070ee6d0ed7ea415504f316c
-    Reviewed-on: https://go-review.googlesource.com/6960
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I9b01da39595e0cc251668c24d58748d88f5f0792
+    Reviewed-on: https://go-review.googlesource.com/4782
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgc.go      | 15 +++++++++++----
- src/runtime/mgcsweep.go |  8 +++++++-
- src/runtime/proc.go     |  2 +-
- 3 files changed, 19 insertions(+), 6 deletions(-)
+ src/runtime/mgc.go | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

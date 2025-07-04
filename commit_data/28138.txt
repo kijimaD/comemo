@@ -1,18 +1,16 @@
-commit be23e98e06b1e1c65de19d460537c4df21ebf555
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 29 13:29:46 2016 -0700
+commit 38cfaa5f0ac1e8b9c7528649f01e4b0edcd4a788
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 17:29:28 2016 -0500
 
-    reflect: cleanup wording for type identity/equality
+    net/http: expand documentation of Server.MaxHeaderBytes
     
-    Use terms like "equal" and "identical types" to match the Go spec,
-    rather than inventing a new explanation. See also discussion on
-    golang.org/cl/27170.
+    Clarify that it includes the RFC 7230 "request-line".
     
-    Updates #16348.
+    Fixes #15494
     
-    Change-Id: I0fe0bd01c0d1da3c8937a579c2ba44cf1eb16b71
-    Reviewed-on: https://go-review.googlesource.com/28054
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9cc5dd5f2d85ebf903229539208cec4da5c38d04
+    Reviewed-on: https://go-review.googlesource.com/22656
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/reflect/type.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/net/http/server.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

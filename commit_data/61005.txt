@@ -1,0 +1,25 @@
+commit 6600a871ef7376b151cb7e4073c4095209f112ca
+Author: sunnymilk <shaojunyang@google.com>
+Date:   Tue Aug 27 17:23:10 2024 -0400
+
+    testing: implement testing.B.Loop
+    
+    Initial implementation for testing.B.Loop,
+    right now the calculation of b.N are still done in the old fasion way,
+    as of now b.Loop is merely an alias for the old loop over b.N.
+    
+    For #61515.
+    
+    Change-Id: If211d0acc5f0c33df530096dceafe0b947ab0c8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608798
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Run-TryBot: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ api/next/61515.txt                          |  1 +
+ doc/next/6-stdlib/99-minor/testing/61515.md |  1 +
+ src/testing/benchmark.go                    | 13 +++++++++++++
+ src/testing/benchmark_test.go               | 16 ++++++++++++++++
+ 4 files changed, 31 insertions(+)

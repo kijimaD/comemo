@@ -1,15 +1,15 @@
-commit f0a31b5fc2e64ad1c597a5efc72749ab77058b87
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Thu Sep 6 13:16:02 2012 +0900
+commit 481e5c6ad05fa6e43f4df10a372a775486ec14c2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 6 10:47:25 2012 +1000
 
-    exp/locale/collate/build: moved some of the code to the appropriate file, as
-    promised in CL 13985.
+    cmd/gc: re-order some OFOO constants. Rename ORRC to ORROTC to be
+    consistent with OLROT. Delete unused OBAD, OLRC.
     
-    R=r
+    R=rsc, dave
     CC=golang-dev
-    https://golang.org/cl/6503071
+    https://golang.org/cl/6489082
 
- src/pkg/exp/locale/collate/build/builder.go | 176 +---------------------------
- src/pkg/exp/locale/collate/build/colelem.go |  80 +++++++++++++
- src/pkg/exp/locale/collate/build/order.go   |  79 ++++++++++++-
- 3 files changed, 163 insertions(+), 172 deletions(-)
+ src/cmd/6g/ggen.c  |  2 +-
+ src/cmd/6g/gsubr.c | 16 ++++++++--------
+ src/cmd/gc/go.h    | 25 +++++++++++--------------
+ 3 files changed, 20 insertions(+), 23 deletions(-)

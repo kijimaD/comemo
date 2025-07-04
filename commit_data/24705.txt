@@ -1,37 +1,19 @@
-commit bf606094ee0671cdd776aea43aabb842b6c1e3af
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Nov 3 12:19:15 2015 +0100
+commit 7ebaa43754872d4da1f58e8fbd2d2db077af5f0f
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Aug 24 18:30:53 2015 -0500
 
-    runtime: fix finalization and profiling of tiny allocations
+    encoding/gob: remove always false comparison
     
-    Handling of special records for tiny allocations has two problems:
-    1. Once we queue a finalizer we mark the object. As the result any
-       subsequent finalizers for the same object will not be queued
-       during this GC cycle. If we have 16 finalizers setup (the worst case),
-       finalization will take 16 GC cycles. This is what caused misbehave
-       of tinyfin.go. The actual flakiness was caused by the fact that fing
-       is asynchronous and don't always run before the check.
-    2. If a tiny block has both finalizer and profile specials,
-       it is possible that we both queue finalizer, preserve the object live
-       and free the profile record. As the result heap profile can be skewed.
+    This is not a functional change. nr is a uint64 and can never be less
+    than zero, remove the no-op comparison.
     
-    Fix both issues by analyzing all special records for a single object at once.
+    Fixes #11279
     
-    Also, make tinyfin test stricter and remove reliance on real time.
-    
-    Also, add a test for the problem 2. Currently heap profile missed about
-    a half of live memory.
-    
-    Fixes #13100
-    
-    Change-Id: I9ae4dc1c44893724138a4565ca5cae29f2e97544
-    Reviewed-on: https://go-review.googlesource.com/16591
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Iebb36cc8fe97428b503e65d01b5e67d2b2bc7369
+    Reviewed-on: https://go-review.googlesource.com/13876
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgcsweep.go | 46 +++++++++++++++++++++++-------
- src/runtime/mheap.go    |  5 +---
- test/finprofiled.go     | 74 +++++++++++++++++++++++++++++++++++++++++++++++++
- test/tinyfin.go         | 56 ++++++++++++++++++++-----------------
- 4 files changed, 142 insertions(+), 39 deletions(-)
+ src/encoding/gob/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

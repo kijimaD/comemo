@@ -1,38 +1,18 @@
-commit 7045e6f6c458908e1d5082381b3506a65059eac3
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon May 22 07:42:42 2017 +0200
+commit a680a85ea7f3876c78d093fbb2690db6ca8eda8b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 6 13:04:34 2017 -0700
 
-    runtime: remove unused prefetch functions
+    cmd/compile/internal/gc: simplify export info
     
-    The only non test user of the assembler prefetch functions is the
-    heapBits.prefetch function which is itself unused.
+    Followup to previous typenod CL. Changes export data format, but only
+    the compiler-specific section, so no version bump.
     
-    The runtime prefetch functions have no functionality on most platforms
-    and are not inlineable since they are written in assembler. The function
-    call overhead eliminates the performance gains that could be achieved with
-    prefetching and would degrade performance for platforms where the functions
-    are no-ops.
-    
-    If prefetch functions are needed back again later they can be improved
-    by avoiding the function call overhead and implementing them as intrinsics.
-    
-    Change-Id: I52c553cf3607ffe09f0441c6e7a0a818cb21117d
-    Reviewed-on: https://go-review.googlesource.com/44370
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I0c21737141f3d257366b29b2a9211bc7217c39ee
+    Reviewed-on: https://go-review.googlesource.com/39797
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_386.s      | 13 -------------
- src/runtime/asm_amd64.s    | 20 --------------------
- src/runtime/asm_amd64p32.s | 21 ---------------------
- src/runtime/asm_arm.s      | 12 ------------
- src/runtime/asm_arm64.s    | 13 -------------
- src/runtime/asm_mips64x.s  | 12 ------------
- src/runtime/asm_mipsx.s    | 12 ------------
- src/runtime/asm_ppc64x.s   | 12 ------------
- src/runtime/asm_s390x.s    | 12 ------------
- src/runtime/mbitmap.go     |  5 -----
- src/runtime/runtime1.go    |  4 ----
- src/runtime/stubs.go       |  5 -----
- 12 files changed, 141 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 11 +----------
+ src/cmd/compile/internal/gc/bimport.go | 10 +---------
+ 2 files changed, 2 insertions(+), 19 deletions(-)

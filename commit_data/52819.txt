@@ -1,40 +1,51 @@
-commit 265d19ed526b6d6a01a20150918b362c1e6befba
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Tue Apr 25 14:48:00 2023 -0400
+commit 846f971daa03fda149a3d66a3fda6eb6a2a7484e
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun May 15 19:31:42 2022 -0400
 
-    runtime/trace: avoid frame pointer unwinding for events during cgocallbackg
+    go/types, types2: remove Named.once in favor of monotonic state
     
-    The current mp.incgocallback() logic allows for trace events to be
-    recorded using frame pointer unwinding during cgocallbackg when they
-    shouldn't be. Specifically, mp.incgo will be false during the
-    reentersyscall call at the end. It's possible to crash with tracing
-    enabled because of this, if C code which uses the frame pointer register
-    for other purposes calls into Go. This can be seen, for example, by
-    forcing testprogcgo/trace_unix.c to write a garbage value to RBP prior
-    to calling into Go.
+    Introduce a monotonic state variable to track the lifecycle of a named
+    type, replacing the existing sync.Once. Having a single guard for the
+    state of underlying and methods will allow for cleaning-up when the type
+    is fully expanded. In the future, this state may also be used for
+    detecting access to information such as underlying or methods before the
+    type is fully set-up, though that will require rethinking our
+    type-checking of invalid cyclic types.
     
-    We can drop the mp.incgo check, and instead conservatively avoid doing
-    frame pointer unwinding if there is any C on the stack. This is the case
-    if mp.ncgo > 0, or if mp.isextra is true (meaning we're coming from a
-    thread created by C). Rename incgocallback to reflect that we're
-    checking if there's any C on the stack. We can also move the ncgo
-    increment in cgocall closer to where the transition to C happens, which
-    lets us use frame pointer unwinding for the entersyscall event during
-    the first Go-to-C call on a stack, when there isn't yet any C on the
-    stack.
+    Also remove support for type-type inference. If we ever support this
+    feature in the future (inference of missing type arguments for named
+    type instances), it will likely involve additional machinery that does
+    not yet exist. Remove the current partial support to simplify our
+    internal APIs. In particular, this means that Named.resolver is only
+    used for lazy loading. As a result, we can revert the lazy loader
+    signature to its previous form.
     
-    Fixes #59830.
+    A lot of exposition is added for how Named types work. Along the way,
+    the terminology we use to describe them is refined.
     
-    Change-Id: If178a705a9d38d0d2fb19589a9e669cd982d32cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/488755
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
+    Some microbenchmarks are added that were useful in evaluating the
+    tradeoffs between synchronization mechanisms.
+    
+    Updates #52728
+    
+    Change-Id: I4e147360bc6e5d8cd4f37e32e86fece0530a6480
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404875
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/cgocall.go | 9 ++++++++-
- src/runtime/proc.go    | 4 ++--
- src/runtime/trace.go   | 4 ++--
- 3 files changed, 12 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go    |   2 +-
+ src/cmd/compile/internal/types2/decl.go        |   4 +-
+ src/cmd/compile/internal/types2/instantiate.go |   3 -
+ src/cmd/compile/internal/types2/named.go       | 289 ++++++++++++++++++-------
+ src/cmd/compile/internal/types2/named_test.go  |  75 +++++++
+ src/cmd/compile/internal/types2/object.go      |  14 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  48 +---
+ src/go/types/api_test.go                       |   2 +-
+ src/go/types/decl.go                           |   4 +-
+ src/go/types/instantiate.go                    |   3 -
+ src/go/types/named.go                          | 289 ++++++++++++++++++-------
+ src/go/types/named_test.go                     |  88 ++++++++
+ src/go/types/object.go                         |  14 +-
+ src/go/types/typexpr.go                        |  53 +----
+ 14 files changed, 609 insertions(+), 279 deletions(-)

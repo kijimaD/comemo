@@ -1,18 +1,13 @@
-commit 85f59b34291a9e16bf3a2e7db586cd824a121825
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 26 09:54:01 2014 -0800
+commit deaf89b8f1b62239cacfc9102b6ef27fb9a52951
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 26 08:28:26 2014 -0800
 
-    go/parser: report error if ParseExpr argument contains extra tokens
+    runtime: remove unnecessary cast in alg.goc
     
-    This partly addresses issue 6099 where a gofmt rewrite is behaving
-    unexpectedly because the provided rewrite term is not a valid expression
-    but is silently consumed anyway.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/68920044
+    https://golang.org/cl/68650045
 
- src/pkg/go/parser/interface.go   |  7 +++++++
- src/pkg/go/parser/parser_test.go | 15 +++++++++++----
- 2 files changed, 18 insertions(+), 4 deletions(-)
+ src/pkg/runtime/alg.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

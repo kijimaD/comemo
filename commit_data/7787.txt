@@ -1,19 +1,13 @@
-commit 7ea8cdaabd1efaa8b62a1ca2ee58abfeba0ef1b0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 16 14:25:59 2011 -0700
+commit de811cc04c30aa5f6a7d92a35817ed0c3e13ab6c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 16 10:38:03 2011 -0700
 
-    go/ast: merge CaseClause and TypeCaseClause
-    (per rsc's suggestion)
+    go/scanner: use filepath
     
-    R=rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4276057
+    https://golang.org/cl/4280048
 
- src/cmd/cgo/ast.go          | 16 ++++++------
- src/cmd/gofix/fix.go        |  5 +---
- src/pkg/exp/eval/stmt.go    | 13 ++++------
- src/pkg/go/ast/ast.go       | 32 ++++++------------------
- src/pkg/go/ast/walk.go      |  8 +-----
- src/pkg/go/parser/parser.go | 60 +++++++++++++--------------------------------
- src/pkg/go/printer/nodes.go | 14 ++---------
- 7 files changed, 43 insertions(+), 105 deletions(-)
+ src/pkg/go/scanner/scanner.go      |  2 +-
+ src/pkg/go/scanner/scanner_test.go | 30 +++++++++++++++---------------
+ 2 files changed, 16 insertions(+), 16 deletions(-)

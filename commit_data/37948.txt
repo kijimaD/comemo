@@ -1,18 +1,15 @@
-commit 5d9bc60893d66073ca82eecee7c9800321535f52
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Feb 5 15:29:02 2019 -0500
+commit 0670b28bf031c5f33ca9831ee894e67bcd79c64c
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Sat Sep 15 17:06:08 2018 +0900
 
-    crypto/tls: make TLS 1.3 opt-in
+    runtime: fix TODO comment filepath
     
-    Updates #30055
+    The cmd/compile/internal/ld/go.go file not exist, actually cmd/link/internal/ld/go.go.
+    Also, write line number is not good because it changes every commit of the file.
     
-    Change-Id: If68615c8e9daa4226125dcc6a6866f29f3cfeef1
-    Reviewed-on: https://go-review.googlesource.com/c/160997
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id2b9f2c9904390adb011dab357716ee8e2fe84fc
+    Reviewed-on: https://go-review.googlesource.com/135516
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.12.html            | 22 +++++++++++++++------
- src/crypto/tls/common.go   | 43 ++++++++++++++++++++++++++++++++++++++++
- src/crypto/tls/tls_test.go | 49 ++++++++++++++++++++++++++++++++++++++++------
- 3 files changed, 102 insertions(+), 12 deletions(-)
+ src/runtime/sys_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

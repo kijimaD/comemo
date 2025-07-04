@@ -1,20 +1,14 @@
-commit 4da6b36fbf2af314f62bc51576c7785a5631c016
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Wed Jan 30 09:01:31 2013 -0800
+commit 6adbc545f69a924fc5bd98eae14bda80c47d118b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 30 08:46:50 2013 -0800
 
-    runtime: local allocation in mprof.goc
+    cmd/dist: fix code example in README
     
-    Binary data in mprof.goc may prevent the garbage collector from freeing
-    memory blocks. This patch replaces all calls to runtime·mallocgc() with
-    calls to an allocator private to mprof.goc, thus making the private
-    memory invisible to the garbage collector. The addrhash variable is
-    moved outside of the .bss section.
+    Fixes #4729.
     
-    R=golang-dev, dvyukov, rsc, minux.ma
-    CC=dave, golang-dev, remyoudompheng
-    https://golang.org/cl/7135063
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7232060
 
- src/pkg/runtime/mprof.goc | 49 ++++++++++++++++++++++++++++++++++++++++++-----
- src/pkg/runtime/proc.c    |  1 +
- src/pkg/runtime/runtime.h |  1 +
- 3 files changed, 46 insertions(+), 5 deletions(-)
+ src/cmd/dist/README | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

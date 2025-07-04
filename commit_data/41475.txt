@@ -1,16 +1,23 @@
-commit 7bb33179cadf072403b2f1d8f8210c5ae414d135
-Author: Mark Rushakoff <mark.rushakoff@gmail.com>
-Date:   Thu Feb 27 05:21:22 2020 +0000
+commit 11b33686d308beb7f8c3c497acec6b410e52f3af
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 4 10:13:27 2019 +0200
 
-    net: fix typo in unexported variable name
+    syscall: add support for freebsd/arm64
     
-    Change-Id: Idf64716ef8cc3ceee2fc94462cba33ba60049f7b
-    GitHub-Last-Rev: ba550c5d136688e5aeaf3c9d4713b7f29bd17492
-    GitHub-Pull-Request: golang/go#36237
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212300
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Updates #24715
+    
+    Change-Id: Ie7cdac346fb024858441bfd4028bf09adab3c9d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198545
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/dnsclient_unix.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/syscall/asm_freebsd_arm64.s       |  128 +++
+ src/syscall/mkall.sh                  |    7 +
+ src/syscall/route_freebsd_64bit.go    |    2 +-
+ src/syscall/syscall_freebsd_arm64.go  |   47 +
+ src/syscall/zerrors_freebsd_arm64.go  | 1718 +++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_freebsd_arm64.go | 1420 +++++++++++++++++++++++++++
+ src/syscall/zsysnum_freebsd_arm64.go  |  396 ++++++++
+ src/syscall/ztypes_freebsd_arm64.go   |  572 +++++++++++
+ 8 files changed, 4289 insertions(+), 1 deletion(-)

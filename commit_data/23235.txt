@@ -1,26 +1,19 @@
-commit 1e48683708876a3ef1961f382943cbd2f88238af
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 3 15:11:05 2015 -0700
+commit a55b131393bfc2b0107806edd22c4dd704d96197
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 30 16:57:23 2015 -0700
 
-    src/cmd/compile/internal/gc: re-vendor math/big, manually adjust mparith3.go
+    cmd/dist, runtime: Make stack guard larger for non-optimized builds
     
-    The only unreviewed change is in mparith3.go.
+    Kind of a hack, but makes the non-optimized builds pass.
     
-    Change-Id: Iec0885e7688981cbaed04c152dc9b1c7032677e6
-    Reviewed-on: https://go-review.googlesource.com/10665
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Fixes #10079
+    
+    Change-Id: I26f41c546867f8f3f16d953dc043e784768f2aff
+    Reviewed-on: https://go-review.googlesource.com/9552
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/big/arith.go             |  21 +-
- src/cmd/compile/internal/big/bits_test.go         |  22 +-
- src/cmd/compile/internal/big/decimal.go           |  14 +-
- src/cmd/compile/internal/big/float.go             |  89 ++++---
- src/cmd/compile/internal/big/float_test.go        | 101 ++++----
- src/cmd/compile/internal/big/floatconv.go         | 248 +++++--------------
- src/cmd/compile/internal/big/floatconv_test.go    | 212 +++++++++++++++--
- src/cmd/compile/internal/big/floatexample_test.go |  14 +-
- src/cmd/compile/internal/big/ftoa.go              | 277 +++++++++++++++++++---
- src/cmd/compile/internal/big/nat.go               |   4 +-
- src/cmd/compile/internal/big/nat_test.go          |   6 +-
- src/cmd/compile/internal/gc/mparith3.go           |   2 +-
- 12 files changed, 631 insertions(+), 379 deletions(-)
+ src/cmd/dist/buildruntime.go  | 23 +++++++++++++++++++++--
+ src/cmd/internal/obj/stack.go |  2 +-
+ src/runtime/proc1.go          |  4 ++--
+ src/runtime/stack2.go         |  2 +-
+ 4 files changed, 25 insertions(+), 6 deletions(-)

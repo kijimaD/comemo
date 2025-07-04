@@ -1,46 +1,28 @@
-commit d0baac37e61648c2a9e9299553c863cf7b7eed61
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 28 16:20:44 2024 -0700
+commit 616193510f45c6c588af9cb022dfdee52400d0ca
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Jul 25 01:19:30 2023 +0000
 
-    syscall: always use prlimit for getrlimit/setrlimit on Linux
+    os/exec: avoid calling LookPath in cmd.Start for resolved paths
     
-    Linux added the prlimit system call in version 2.6.36.
-    As our minimum Linux kernel version is now 3.2,
-    simplify the various getrlimit/setlrimit implementations
-    to just always use prlimit.
+    Follow up on CL 511458, see https://go-review.googlesource.com/c/go/+/511458/2..4/src/cmd/go/main.go#b270 .
     
-    For #67001
+    For #36768.
     
-    Change-Id: I2512c21c947d0bc83f8f9077c143163fd8d83be3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609178
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Icc2a4dbb1219b1d69dd10a900478957b0e975847
+    
+    Change-Id: Icc2a4dbb1219b1d69dd10a900478957b0e975847
+    GitHub-Last-Rev: bac7e66496806d505270c5b90d53672d80a1ca29
+    GitHub-Pull-Request: golang/go#61517
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512155
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/syscall/exec_linux.go              |  2 +-
- src/syscall/syscall_linux.go           | 11 +++++
- src/syscall/syscall_linux_386.go       | 90 ----------------------------------
- src/syscall/syscall_linux_amd64.go     | 12 -----
- src/syscall/syscall_linux_arm.go       | 90 ----------------------------------
- src/syscall/syscall_linux_arm64.go     | 30 ------------
- src/syscall/syscall_linux_loong64.go   | 16 ------
- src/syscall/syscall_linux_mips64x.go   | 12 -----
- src/syscall/syscall_linux_mipsx.go     | 90 ----------------------------------
- src/syscall/syscall_linux_ppc64x.go    | 12 -----
- src/syscall/syscall_linux_riscv64.go   |  8 ---
- src/syscall/syscall_linux_s390x.go     |  8 ---
- src/syscall/zsyscall_linux_386.go      | 20 --------
- src/syscall/zsyscall_linux_amd64.go    | 20 --------
- src/syscall/zsyscall_linux_arm.go      | 20 --------
- src/syscall/zsyscall_linux_arm64.go    | 20 --------
- src/syscall/zsyscall_linux_mips.go     | 20 --------
- src/syscall/zsyscall_linux_mips64.go   | 20 --------
- src/syscall/zsyscall_linux_mips64le.go | 20 --------
- src/syscall/zsyscall_linux_mipsle.go   | 20 --------
- src/syscall/zsyscall_linux_ppc64.go    | 20 --------
- src/syscall/zsyscall_linux_ppc64le.go  | 20 --------
- src/syscall/zsyscall_linux_riscv64.go  | 20 --------
- src/syscall/zsyscall_linux_s390x.go    | 20 --------
- 24 files changed, 12 insertions(+), 609 deletions(-)
+ src/os/exec/exec.go       | 36 ++++--------------------------------
+ src/os/exec/lp_plan9.go   |  6 ++++++
+ src/os/exec/lp_unix.go    |  6 ++++++
+ src/os/exec/lp_wasm.go    |  6 ++++++
+ src/os/exec/lp_windows.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 65 insertions(+), 32 deletions(-)

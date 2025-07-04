@@ -1,12 +1,12 @@
-commit 555ca36c1d03c0cafa65dcc71a5b7a757e92c602
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Apr 26 11:28:35 2012 +1000
+commit d2e70054c9c530214d9945fabbb82b2a7433644d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 13:44:30 2012 -0700
 
-    time: doc fix.
+    codereview: look for new release branches
     
-    R=golang-dev, r
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/6127050
+    https://golang.org/cl/6127048
 
- src/pkg/time/time.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/codereview/codereview.py | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

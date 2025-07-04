@@ -1,22 +1,18 @@
-commit 25bc96dbd2448470da92e0f1393e5d5a82013c8c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Feb 20 12:49:03 2023 +0700
+commit 13147f744c4ed7900ef9b1c1ffb8bf674f06b052
+Author: John Bampton <jbampton@gmail.com>
+Date:   Tue May 17 19:29:03 2022 +0000
 
-    cmd/compile: remove typecheck.EvalConst
+    runtime: fix code span element
     
-    types2 has already done most of the constant folding parts. The only
-    case left is unsafe.{Alignoff,Offsetof,Sizeof} with variable size
-    argument, which is handled separately during typecheck.
-    
-    Change-Id: I8050b7613a16b19b91751726ac07253333177f73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469595
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I99c593573b3bec560ab3af49ac2f486ee442ee1c
+    GitHub-Last-Rev: e399ec50f9dde9229e05f801fd752694cc661822
+    GitHub-Pull-Request: golang/go#52946
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406837
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/typecheck/const.go     | 184 ------------------------
- src/cmd/compile/internal/typecheck/typecheck.go |   7 -
- 2 files changed, 191 deletions(-)
+ src/runtime/HACKING.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

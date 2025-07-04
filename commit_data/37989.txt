@@ -1,23 +1,17 @@
-commit cf155b00d18f855eaaf2a541190dba3ff7b7cf8a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 14 17:38:36 2019 -0500
+commit ae37f5a39721e5cd6177fec4a9c6e32a86c07376
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 19 15:55:36 2018 -0700
 
-    runtime: make tests that invoke 'go build' module-agnostic
+    cmd/compile: fix error message for &T{} literal mismatch
     
-    In module mode, building the current directory requires a go.mod file
-    (in order to determine the import path of the package).
+    See the change and comment in typecheck.go for a detailed explanation.
     
-    Change the tests to pass explicit file arguments instead, since those
-    can be built in module mode without defining a module.
+    Fixes #26855.
     
-    Updates #30228
-    
-    Change-Id: I680c658d1f79645f73ad4d1e88189ea50a4852e9
-    Reviewed-on: https://go-review.googlesource.com/c/162837
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I7867f948490fc0873b1bd849048cda6acbc36e76
+    Reviewed-on: https://go-review.googlesource.com/136395
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/crash_unix_test.go  |  2 +-
- src/runtime/runtime-gdb_test.go | 10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++++++
+ test/fixedbugs/issue26855.go             | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

@@ -1,26 +1,112 @@
-commit 144c96fac3ed1a5d4329238af1b98d3c09a6c438
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Mon Jun 17 19:19:56 2024 +0000
+commit c5ba9d2232695816a3bd55d360aa6ef7aa1f63ed
+Author: Derek Parker <parkerderek86@gmail.com>
+Date:   Mon May 8 21:28:43 2023 +0000
 
-    cmd/go: set GoVersion for files on the command line with vet
+    cmd/compile: prioritize non-CALL struct member comparisons
     
-    For: #65612
-    Fixes: #66092
+    This patch optimizes reflectdata.geneq to pick apart structs in array
+    equality and prioritize non-CALL comparisons over those which involve
+    a runtime function call. This is similar to how arrays of strings
+    operate currently. Instead of looping over the entire array of structs
+    once, if there are any comparisons which involve a runtime function
+    call we instead loop twice. The first loop is all simple, quick
+    comparisons. If no inequality is found in the first loop the second loop
+    calls runtime functions for larger memory comparison, which is more
+    expensive.
     
-    For now, we will align the behavior such that vet and the compiler agree
-    that gover.Local() will be used for command-line-files.
+    For the benchmarks added in this change:
     
-    We expect to change this to set the goversion as the containing module's go
-    version.
+    Old:
     
-    Change-Id: If7f2ea3a82e8e876716f18dacc021026de175a93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593156
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    ```
+    goos: linux
+    goarch: amd64
+    pkg: cmd/compile/internal/reflectdata
+    cpu: AMD Ryzen 9 3950X 16-Core Processor
+    BenchmarkEqArrayOfStructsEq
+    BenchmarkEqArrayOfStructsEq-32            797196              1497 ns/op
+    BenchmarkEqArrayOfStructsEq-32            758332              1581 ns/op
+    BenchmarkEqArrayOfStructsEq-32            764871              1599 ns/op
+    BenchmarkEqArrayOfStructsEq-32            760706              1558 ns/op
+    BenchmarkEqArrayOfStructsEq-32            763112              1476 ns/op
+    BenchmarkEqArrayOfStructsEq-32            747696              1547 ns/op
+    BenchmarkEqArrayOfStructsEq-32            756526              1562 ns/op
+    BenchmarkEqArrayOfStructsEq-32            768829              1486 ns/op
+    BenchmarkEqArrayOfStructsEq-32            764248              1477 ns/op
+    BenchmarkEqArrayOfStructsEq-32            752767              1545 ns/op
+    BenchmarkEqArrayOfStructsNotEq
+    BenchmarkEqArrayOfStructsNotEq-32         757194              1542 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32         748942              1552 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32         766687              1554 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32         732069              1541 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32         759163              1576 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32         796402              1629 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32         726610              1570 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32         735770              1584 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32         745255              1610 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32         743872              1591 ns/op
+    PASS
+    ok      cmd/compile/internal/reflectdata        35.446s
+    ```
+    
+    New:
+    
+    ```
+    goos: linux
+    goarch: amd64
+    pkg: cmd/compile/internal/reflectdata
+    cpu: AMD Ryzen 9 3950X 16-Core Processor
+    BenchmarkEqArrayOfStructsEq
+    BenchmarkEqArrayOfStructsEq-32            618379              1827 ns/op
+    BenchmarkEqArrayOfStructsEq-32            619368              1922 ns/op
+    BenchmarkEqArrayOfStructsEq-32            616023              1910 ns/op
+    BenchmarkEqArrayOfStructsEq-32            617575              1905 ns/op
+    BenchmarkEqArrayOfStructsEq-32            610399              1889 ns/op
+    BenchmarkEqArrayOfStructsEq-32            615378              1823 ns/op
+    BenchmarkEqArrayOfStructsEq-32            613732              1883 ns/op
+    BenchmarkEqArrayOfStructsEq-32            613924              1894 ns/op
+    BenchmarkEqArrayOfStructsEq-32            657799              1876 ns/op
+    BenchmarkEqArrayOfStructsEq-32            665580              1873 ns/op
+    BenchmarkEqArrayOfStructsNotEq
+    BenchmarkEqArrayOfStructsNotEq-32        1834915               627.4 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32        1806370               660.5 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32        1828075               625.5 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32        1819741               641.6 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32        1813128               632.3 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32        1865250               643.7 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32        1828617               632.8 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32        1862748               633.6 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32        1825432               638.7 ns/op
+    BenchmarkEqArrayOfStructsNotEq-32        1804382               628.8 ns/op
+    PASS
+    ok      cmd/compile/internal/reflectdata        36.571s
+    ```
+    
+    Benchstat comparison:
+    
+    ```
+    name                      old time/op  new time/op  delta
+    EqArrayOfStructsEq-32     1.53µs ± 4%  1.88µs ± 3%  +22.66%  (p=0.000 n=10+10)
+    EqArrayOfStructsNotEq-32  1.57µs ± 3%  0.64µs ± 4%  -59.59%  (p=0.000 n=10+10)
+    ```
+    
+    So, the equal case is a bit slower (unrolling the loop helps with that),
+    but the non-equal case is now much faster.
+    
+    Change-Id: I05d776456c79c48a3d6d74b18c45246e58ffbea6
+    GitHub-Last-Rev: f57ee07d053ec4269a6d7d9109c845d8c862cba1
+    GitHub-Pull-Request: golang/go#59409
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481895
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/go/internal/work/exec.go               |  1 +
- src/cmd/go/internal/work/gc.go                 |  5 ++-
- src/cmd/go/testdata/script/run_vers.txt        | 10 ++++++
- src/cmd/go/testdata/script/vet_commandline.txt | 43 ++++++++++++++++++++++++++
- 4 files changed, 58 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/compare/compare.go      | 13 +++--
+ src/cmd/compile/internal/reflectdata/alg.go      | 64 +++++++++++++++++++++++-
+ src/cmd/compile/internal/reflectdata/alg_test.go | 54 +++++++++++++++++++-
+ src/cmd/compile/internal/walk/compare.go         |  2 +-
+ test/fixedbugs/issue8606.go                      | 13 +++++
+ 5 files changed, 138 insertions(+), 8 deletions(-)

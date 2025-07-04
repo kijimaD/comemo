@@ -1,18 +1,13 @@
-commit 5d40742728cac9fa351c03d21598937b27b398a7
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 19 11:49:59 2014 +0400
+commit 860f941e7fdcb22c6b4956f187cb47fd06833c12
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 20:58:05 2014 -0400
 
-    runtime: convert Gosched to Go
+    [dev.power64] cmd/9c: fix endian issue in integer to floating point conversion
     
-    LGTM=rlh, khr
-    R=golang-codereviews, rlh, bradfitz, khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/127490043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/129850043
 
- src/pkg/runtime/extern.go |  4 ----
- src/pkg/runtime/proc.c    | 14 ++++----------
- src/pkg/runtime/proc.go   | 11 +++++++++++
- src/pkg/runtime/runtime.h |  2 +-
- src/pkg/runtime/stack.c   |  2 +-
- src/pkg/runtime/stubs.go  |  3 ++-
- 6 files changed, 19 insertions(+), 17 deletions(-)
+ src/cmd/9c/txt.c | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

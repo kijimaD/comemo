@@ -1,24 +1,19 @@
-commit 3f60da7944352d7f2d4a04830c0612457643016c
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Feb 20 16:13:33 2024 -0500
+commit 9aaaedbbb407330185b1ebd62fd4f146dfe2eff3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 28 13:58:42 2023 +0100
 
-    cmd/go/internal/modcmd: correctly filter out main modules in verify
+    syscall: use unsafe.Slice in (*RawSockaddrAny).Sockaddr on windows
     
-    This change fixes a bug where we incorrectly filtered out the main
-    modules from the beginning of the build list before verifying them. We
-    made the assumption that the first MainModules.Len() entries of the
-    build list were the main modules, but now it can contain the go and
-    toolchain version entries, so removing the first MainModules.Len()
-    entries could leave main module names in the build list if any of
-    their names sorted after the string 'go'.
+    Follow CL 471436.
     
-    Fixes #62663
-    
-    Change-Id: I35ab6857a556f58d306303322afe24c48fc8b38f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565378
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I415b126f58dbd381b8d45457e7bd79f025a2a03c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472035
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/modcmd/verify.go           |  5 ++++-
- src/cmd/go/testdata/script/mod_verify_work.txt | 24 ++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/syscall/syscall_windows.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

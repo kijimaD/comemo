@@ -1,12 +1,16 @@
-commit 9cd3c0662aa63eea8e7fae80f558fda9d646ba98
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Thu Dec 15 12:02:20 2016 -0800
+commit 9c850958cea35d019142f8341beacb4151e1511b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Oct 7 18:11:06 2016 -0400
 
-    api: add openbsd syscall constants
+    go/types: expose Default function, which converts untyped T to T
     
-    Change-Id: I3ec00dac5e7d0e6dcafb7d65851bc53e0661c2b6
-    Reviewed-on: https://go-review.googlesource.com/34500
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibcf5e0ba694b280744a00c2c6fda300f0a653455
+    Reviewed-on: https://go-review.googlesource.com/30715
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- api/go1.8.txt | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/go/types/assignments.go | 4 ++--
+ src/go/types/builtins.go    | 2 +-
+ src/go/types/conversions.go | 2 +-
+ src/go/types/expr.go        | 6 +++---
+ src/go/types/predicates.go  | 4 ++--
+ 5 files changed, 9 insertions(+), 9 deletions(-)

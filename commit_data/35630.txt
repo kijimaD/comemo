@@ -1,20 +1,23 @@
-commit 19f3794c00252db3363eb649bc73bad66a2c583a
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Jun 7 20:25:10 2018 +1000
+commit fd5bf0393eb7b3a21b55adf2c0f1e293b24cf308
+Author: motemen <motemen@gmail.com>
+Date:   Mon Feb 26 18:22:46 2018 +0000
 
-    cmd/cover: add test for HTML output
+    cmd/go: fix formatting of file paths under cwd
     
-    This adds a case for what was fixed in 4fe688c to prevent regression;
-    a follow-on change will address #25767.
+    The output of go with -x flag is formatted in a manner that file paths
+    under current directory are modified to start with a dot (.), but when
+    the directory path ends with a slash (/), the formatting goes wrong.
     
-    Change-Id: Iced8cc10e2993ef7caf7e9c59ffbc7147d78ddd7
-    Reviewed-on: https://go-review.googlesource.com/116975
-    Run-TryBot: David Symonds <dsymonds@golang.org>
+    Fixes #23982
+    
+    Change-Id: I8f8d15dd52bee882a9c6357eb9eabdc3eaa887c3
+    GitHub-Last-Rev: 1493f38bafdf2c40f16392b794fd1a12eb12a151
+    GitHub-Pull-Request: golang/go#23985
+    Reviewed-on: https://go-review.googlesource.com/95755
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cover/cover_test.go              | 59 ++++++++++++++++++++++++++++++++
- src/cmd/cover/testdata/html/html.go      | 18 ++++++++++
- src/cmd/cover/testdata/html/html.golden  | 10 ++++++
- src/cmd/cover/testdata/html/html_test.go |  7 ++++
- 4 files changed, 94 insertions(+)
+ src/cmd/go/go_test.go            | 8 ++++++++
+ src/cmd/go/internal/work/exec.go | 6 +++++-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

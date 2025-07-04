@@ -1,17 +1,18 @@
-commit 5b48ab8881928e7a23678b93836e32f961a9dddb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 5 10:20:24 2018 -0500
+commit c292b32f33d4c466abb769782d9cdfacdb76688b
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed May 9 15:49:22 2018 -0500
 
-    cmd/go/internal/module: fix validation for module paths ending with /v
+    cmd/compile: enable disjoint memmove inlining on amd64
     
-    Unlike "/v1", "/v" is not likely to be mistaken for a semantic import path.
+    Memmove can use AVX/prefetches/other optional instructions, so
+    only do it for small sizes, when call overhead dominates.
     
-    Change-Id: I024647d78c79c7761b98ddeccdc7e259ca94b568
-    Reviewed-on: https://go-review.googlesource.com/c/152738
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ice5e93deb11462217f7fb5fc350b703109bb4090
+    Reviewed-on: https://go-review.googlesource.com/112517
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/go/internal/module/module.go      | 2 +-
- src/cmd/go/internal/module/module_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 2 +-
+ test/codegen/copy.go                    | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

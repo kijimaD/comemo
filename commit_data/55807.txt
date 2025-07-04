@@ -1,22 +1,31 @@
-commit ac76417a6210dc2cfd062eb8d9be8108bcc89570
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Thu Feb 29 04:40:02 2024 +0000
+commit f26bf203ac67fd917f2eb992baa1cb2d01edf3c8
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Mar 13 12:02:36 2023 -0400
 
-    reflect: clean up unnecessary comments for rtype
+    cmd/link/internal/arm: fix off-by-1 in trampoline reachability computation
     
-    For consistency, this CL cleans up unnecessary comments,
-    and moves these Overflow methods to exported area.
+    Tweak the code in trampoline generation that determines if a given
+    call branch will reach, changing the lower limit guard from "x <
+    -0x800000" to "x <= -0x800000". This is to resolve linking failures
+    when the computed displacement is exactly -0x800000, which results in
+    errors of the form
     
-    For #60427
+      .../ld.gold: internal error in arm_branch_common, at ../../gold/arm.cc:4079
     
-    Change-Id: I14d4ffbc3552d31c211ea1e0b7a0f7090a4a8b89
-    GitHub-Last-Rev: acdc6ad51bd9ad60a34fdfa8f00a7652cbe34510
-    GitHub-Pull-Request: golang/go#66019
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567917
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    when using the Gold linker, and
+    
+      ...:(.text+0x...): relocation truncated to fit: R_ARM_CALL against `runtime.morestack_noctxt'
+    
+    when using the bfd linker.
+    
+    Fixes #59034.
+    Updates #58425.
+    
+    Change-Id: I8a76986b38727df1b961654824c2af23f06b9fcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475957
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/reflect/type.go | 96 ++++++++++++++++++++++++-----------------------------
- 1 file changed, 44 insertions(+), 52 deletions(-)
+ src/cmd/link/internal/arm/asm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

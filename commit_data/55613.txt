@@ -1,26 +1,21 @@
-commit 1c9c9c8412f7d650a543c31478a82b9d61d1dd14
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Nov 15 15:51:41 2023 -0600
+commit e153905a7bc59265ddbe9054eac11bc5f9706d3e
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Feb 27 10:29:24 2023 -0500
 
-    cmd/internal/obj/ppc64: cleanup optab entries after renaming
+    cmd/link: revert CL 467715 in favor of better fix
     
-    Combine MOVW/MOVD using C_16CON as they accept any 16 bit
-    constant.
+    This patch backs out CL 467715 (written to fix 58425), now that we
+    have a better fix for the "relocation doesn't fit" problem in the
+    trampoline generation phase (send in a previous CL).
     
-    Remove MULLW/MULLD C_U16CON optab entry. These assemble to
-    the mulli opcode which only accepts a signed 16 bit constant.
+    Updates #58428.
+    Updates #58425.
     
-    Remove superfluous optab entrys for VSPLTB and VSPLTISB,
-    as C_S16CON accepts C_U15CON arguments.
-    
-    Change-Id: Ie20dd07bcedda428fb1dd674474d7dfa67d76dc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/563915
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ib0d966fed00bd04db7ed85aa4e9132382b979a44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471596
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/obj/ppc64/asm9.go | 38 +++++++++++---------------------------
- 1 file changed, 11 insertions(+), 27 deletions(-)
+ src/cmd/link/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

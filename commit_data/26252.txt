@@ -1,18 +1,17 @@
-commit 8ec80176d49d268beb282ec32ee9fe7275ef170b
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Fri Mar 11 01:10:35 2016 +0100
+commit 62c280ac1c2fce24133359513fa33ff11315f5ad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 6 13:10:22 2016 -0800
 
-    cmd/compile: move decompose builtin closer to late opt
+    runtime/pprof: skip TestStackBarrierProfiling on dragonfly too
     
-    * Shaves about 10k from pkg/tools/linux_amd64.
-    * Was suggested by drchase before
-    * Found by looking at ssa output of #14758
+    Just saw a few dragonfly failures here.
     
-    Change-Id: If2c4ddf3b2603d4dfd8fb4d9199b9a3dcb05b17d
-    Reviewed-on: https://go-review.googlesource.com/20570
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    I'm tempted to preemptively add plan9 here too, but I'll wait until
+    I see it fail.
+    
+    Change-Id: Ic99fc088dbfd1aa21f509148aee98ccfe7f640bf
+    Reviewed-on: https://go-review.googlesource.com/18306
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/pprof/pprof_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

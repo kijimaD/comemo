@@ -1,19 +1,17 @@
-commit 9eb9c7ba1c047c2463a524ea109c08b2dfbbb574
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sun Nov 10 14:14:47 2019 +0530
+commit b3399ac5d19c896452548ca8e99176bcdab78781
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 12 07:01:04 2019 -0700
 
-    time: change variable name to next
+    cmd/go: add more docs for go directive in go.mod file
     
-    The variable now implies that the next tick always
-    returns the current time which is not always the case.
-    Change it to next to clarify that it returns
-    the time of the next tick which is more appropriate.
+    Updates #30791
     
-    Fixes #30271
-    
-    Change-Id: Ie7719cb8c7180bc6345b436f9b3e950ee349d6e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206123
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I67efd7fd3b3a550428b16518bb27a3d81c178d28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181840
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/time/example_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go               | 7 +++++++
+ src/cmd/go/internal/modload/help.go | 7 +++++++
+ 2 files changed, 14 insertions(+)

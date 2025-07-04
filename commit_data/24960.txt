@@ -1,19 +1,17 @@
-commit 1a111ea2c7bfc9283f04a3be58ae46b339c691a1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 16 17:27:32 2015 -0800
+commit 4f33436004605a086a2c981ac2fad93a3dbe90db
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 13:18:14 2015 +0000
 
-    cmd/compile/internal/gc: fix parsing of <-x (recv op vs recv-only chan)
+    runtime,internal/trace: map/slice literals janitoring
     
-    Also:
-    - better error messages in some cases
-    - factored out function to produce syntax error at given line number
+    Simplify slice/map literal expressions.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
+    Checked that the result can still be compiled with Go 1.4.
     
-    Fixes #13273.
-    
-    Change-Id: I0192a94731cc23444680a26bd0656ef663e6da0b
-    Reviewed-on: https://go-review.googlesource.com/16992
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: I06bce110bb5f46ee2f45113681294475aa6968bc
+    Reviewed-on: https://go-review.googlesource.com/13839
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 66 ++++++++++++++++++++++++++++-------
- test/fixedbugs/issue13273.go          | 55 +++++++++++++++++++++++++++++
- 2 files changed, 108 insertions(+), 13 deletions(-)
+ src/internal/trace/parser.go          |   2 +-
+ src/runtime/trace/trace_stack_test.go | 154 +++++++++++++++++-----------------
+ 2 files changed, 78 insertions(+), 78 deletions(-)

@@ -1,29 +1,18 @@
-commit 50b16f9de590822a04ec8d6cbac476366c1bde32
-Author: Anmol Sethi <hi@nhooyr.io>
-Date:   Sat Oct 24 00:40:41 2020 +0000
+commit 09cd0658750f798e295a0a38837ab899d2f3c030
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Apr 28 17:28:52 2020 -0400
 
-    net/http: allow upgrading non keepalive connections
+    [dev.link] cmd/link: add archrelocsym x86 support for loader
     
-    If one was using http.Transport with DisableKeepAlives and trying
-    to upgrade a connection against net/http's Server, the Server
-    would not allow a "Connection: Upgrade" header to be written
-    and instead override it to "Connection: Close" which would
-    break the handshake.
-    
-    This change ensures net/http's Server does not override the
-    connection header for successful protocol switch responses.
-    
-    Fixes #36381.
-    
-    Change-Id: I882aad8539e6c87ff5f37c20e20b3a7fa1a30357
-    GitHub-Last-Rev: dc0de83201dc26236527b68bd49dffc53dd0389b
-    GitHub-Pull-Request: golang/go#36382
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213277
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I34822e5610caf537d62203fb6e0023c382a1e60a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230678
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/response.go   | 16 +++++++++-----
- src/net/http/serve_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     |  8 ++++++-
- 3 files changed, 71 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/data.go | 35 +++++++++++++++++------------------
+ src/cmd/link/internal/ld/lib.go  |  1 +
+ src/cmd/link/internal/ld/main.go |  2 +-
+ src/cmd/link/internal/x86/asm.go | 13 +++++++++++++
+ src/cmd/link/internal/x86/obj.go |  1 +
+ 5 files changed, 33 insertions(+), 19 deletions(-)

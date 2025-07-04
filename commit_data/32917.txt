@@ -1,19 +1,14 @@
-commit 6b4008db8be6d4d8ca0693c51b1e8f15f8d1f6ce
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 16 08:17:37 2017 -0600
+commit dd94bacddcd3039e63207856138028c9541b3067
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 06:37:55 2017 +0000
 
-    cmd/go: drop PackageInternal.Fake
+    time: unify the Time.Equals vs == pitfall documentation
     
-    The point of this code is to print a warning about repeated go test
-    invocations rebuilding the same packages over and over.
-    The new cache will eliminate this failure mode and with it
-    the need for the warning and this field.
+    Fixes #19510 (good details therein)
     
-    Change-Id: Ied79b3ca67d51a61f44629de6ae4974e6c8dd5a9
-    Reviewed-on: https://go-review.googlesource.com/56282
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Id28b66d91435d839fd79eeed486527cc77257c12
+    Reviewed-on: https://go-review.googlesource.com/45698
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go  |  1 -
- src/cmd/go/internal/test/test.go | 49 ----------------------------------------
- 2 files changed, 50 deletions(-)
+ src/time/time.go | 32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)

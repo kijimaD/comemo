@@ -1,12 +1,18 @@
-commit 15b1e4fb94a23c17c594b5e77b3bd81eed880dee
-Author: Kale Blankenship <kale@lemnisys.com>
-Date:   Wed Jun 7 21:11:30 2017 -0700
+commit f37ee0f33ba461dbaa58645c3ebdf148a43911a5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 16 10:43:54 2017 -0700
 
-    doc: add net/http changes to go1.9.html
+    cmd/compile/internal/syntax: track column position at function end
     
-    Change-Id: Ib59e1eea64b0bd2cf8ed778607aafcf74a6239a3
-    Reviewed-on: https://go-review.googlesource.com/45087
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #19576.
+    
+    Change-Id: I11034fb08e989f6eb7d54bde873b92804223598d
+    Reviewed-on: https://go-review.googlesource.com/38291
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.9.html | 38 ++++++++++++++++++++++++++++----------
- 1 file changed, 28 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/noder.go      |  6 +++---
+ src/cmd/compile/internal/syntax/nodes.go  | 24 +++++++++++-----------
+ src/cmd/compile/internal/syntax/parser.go | 34 +++++++++++++++----------------
+ 3 files changed, 31 insertions(+), 33 deletions(-)

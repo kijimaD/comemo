@@ -1,19 +1,25 @@
-commit 42057e9848d40fc6181cd7a68fd788c652772b8d
-Author: korzhao <korzhao95@gmail.com>
-Date:   Sat Sep 11 01:14:54 2021 +0800
+commit 33801cdc627bc4d3f7128d1076a1ac249da2e015
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 28 23:42:49 2020 -0800
 
-    cmd/compile: save the note of fields when translating struct
+    [dev.regabi] cmd/compile: use Ntype where possible
     
-    Fixes #48317
+    For nodes that are always a type expression, we can use Ntype instead
+    of Node.
     
-    Change-Id: I756ae6253022870071004332dd8f49169307f7e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349013
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I28f9fa235015ab48d0da06b78b30c49d74c64e3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280642
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go |  1 +
- test/typeparam/issue48317.go               | 38 ++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/cmd/compile/internal/ir/func.go        |  2 +-
+ src/cmd/compile/internal/ir/node_gen.go    | 10 +++++-----
+ src/cmd/compile/internal/ir/type.go        | 22 +++++++++++-----------
+ src/cmd/compile/internal/typecheck/expr.go |  4 ++--
+ src/cmd/compile/internal/typecheck/func.go |  2 +-
+ src/cmd/compile/internal/typecheck/type.go | 12 ++++++------
+ 6 files changed, 26 insertions(+), 26 deletions(-)

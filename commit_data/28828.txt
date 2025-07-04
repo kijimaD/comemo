@@ -1,25 +1,19 @@
-commit 1bc6be6423e48318451a0faeaae840772137b001
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 11 22:58:21 2016 -0400
+commit da070bed19fb23a8dd1b9f974c7fdf1f247fdba0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 4 12:21:05 2016 -0700
 
-    runtime: mark several types go:notinheap
+    syscall: fix Gettimeofday on macOS Sierra
     
-    This covers basically all sysAlloc'd, persistentalloc'd, and
-    fixalloc'd types.
+    Fixes #16606
     
-    Change-Id: I0487c887c2a0ade5e33d4c4c12d837e97468e66b
-    Reviewed-on: https://go-review.googlesource.com/30941
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I57465061b90e901293cd8b6ef756d6aa84ebd4a3
+    Reviewed-on: https://go-review.googlesource.com/25495
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Quentin Smith <quentin@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cpuprof.go   |  1 +
- src/runtime/malloc.go    |  2 ++
- src/runtime/mcache.go    |  2 ++
- src/runtime/mcentral.go  |  2 ++
- src/runtime/mfinal.go    | 11 +++++++----
- src/runtime/mfixalloc.go |  4 ++++
- src/runtime/mgcwork.go   |  3 +++
- src/runtime/mheap.go     | 22 +++++++++++++++++++---
- src/runtime/mprof.go     |  4 ++++
- src/runtime/netpoll.go   |  4 ++++
- src/runtime/trace.go     |  7 +++++++
- 11 files changed, 55 insertions(+), 7 deletions(-)
+ src/syscall/syscall_darwin_386.go   | 21 ++++++++++++++-------
+ src/syscall/syscall_darwin_amd64.go | 21 ++++++++++++++-------
+ src/syscall/syscall_darwin_test.go  | 23 +++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 14 deletions(-)

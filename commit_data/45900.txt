@@ -1,18 +1,21 @@
-commit 743f03eeb0bdcb596b46fae51d23c0fcf0db0474
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 1 16:52:59 2021 -0700
+commit f0ff6d4a67ec9a956aa655d487543da034cf576b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 25 13:47:42 2020 -0800
 
-    spec, unsafe: clarify unsafe.Slice docs
+    reflect: fix Value.Convert for int-to-string conversions (regression)
     
-    For #19367
+    The bug was introduced by https://golang.org/cl/220844.
     
-    Change-Id: If0ff8ddba3b6b48e2e198cf3653e73284c7572a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332409
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #42792.
+    Fixes #42835.
+    
+    Change-Id: I03065c7526488aded35ef2f800b7162e1606877a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273326
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html     | 8 +++++---
- src/unsafe/unsafe.go | 6 ++++--
- 2 files changed, 9 insertions(+), 5 deletions(-)
+ src/reflect/all_test.go |  3 +++
+ src/reflect/value.go    | 12 ++++++++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)

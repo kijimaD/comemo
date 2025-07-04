@@ -1,17 +1,14 @@
-commit 3a35e0253c8344ae4efb975e4bdc0cc53b841e0a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 4 12:28:20 2017 -0400
+commit c7403ac7b6dcea7e0bb0a4991b0ebe7f26b01eff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 15 10:29:34 2017 -0700
 
-    runtime: deflake TestPeriodicGC
+    doc: mention that os package now uses poller
     
-    It was only waiting 0.1 seconds for the two GCs it wanted.
-    Let it wait 1 second.
+    Updates #20587
     
-    Change-Id: Ib3cdc8127cbf95694a9f173643c02529a85063af
-    Reviewed-on: https://go-review.googlesource.com/68151
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I428d20bf8512ba859cc63c439bd5d92a5173fad2
+    Reviewed-on: https://go-review.googlesource.com/45910
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/gc_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.9.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,15 +1,23 @@
-commit 7a5d76fa62d05a97d088a1278508d3c868cab4a2
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Sep 21 17:35:32 2017 +0200
+commit c82a6307f4ad5bc211bfd387dcd38602599eeb63
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Sun May 28 09:09:07 2017 -0700
 
-    math/big: delete solved TODO
+    cmd/cover: take default value of total only once.
     
-    The TODO is no longer needed as it was solved by a previous CL.
-    See https://go-review.googlesource.com/14995.
+    Defaulting total to 1 for each function, adds up to the
+    counting error. testing/cover.go already does this once.
     
-    Change-Id: If62d1b296f35758ad3d18d28c8fbb95e797f4464
-    Reviewed-on: https://go-review.googlesource.com/65232
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #20515
+    
+    Change-Id: I0e3f524c2ccb628eb9a8f0a1f81c22365c24cf9a
+    Reviewed-on: https://go-review.googlesource.com/44337
+    Run-TryBot: Dhananjay Nakrani <dhananjayn@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/intconv.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/cover/cover_test.go        | 28 ++++++++++++++++++++++++----
+ src/cmd/cover/func.go              | 14 +++++++++-----
+ src/cmd/cover/testdata/p.go        | 27 +++++++++++++++++++++++++++
+ src/cmd/cover/testdata/profile.cov |  5 +++++
+ src/cmd/vet/all/whitelist/all.txt  |  1 -
+ 5 files changed, 65 insertions(+), 10 deletions(-)

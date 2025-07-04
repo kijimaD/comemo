@@ -1,17 +1,14 @@
-commit 1b18a6072e3af427b92e26e7f472fd6d0c6efc09
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Dec 18 00:26:08 2012 +0800
+commit 94430937ac9330a4c7e8ed23659bc4475f520739
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 17 11:05:58 2012 -0500
 
-    cmd/cgo: access errno from void C function
-    Fixes #3729.
+    test: add "duplicate" struct map key test
     
-    R=rsc
+    Update #4555.
+    
+    R=gri, iant
     CC=golang-dev
-    https://golang.org/cl/6938052
+    https://golang.org/cl/6944059
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue3729.go  | 47 +++++++++++++++++++++++++++++++++++++++++++++
- misc/cgo/test/issue3729w.go | 16 +++++++++++++++
- misc/cgo/test/issue4417.go  |  2 --
- src/cmd/cgo/gcc.go          | 12 +++++++-----
- 5 files changed, 71 insertions(+), 7 deletions(-)
+ test/initializerr.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,28 +1,41 @@
-commit 2486ebfb6381146d3c50c8495000da2193c42785
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed May 9 11:11:49 2018 +0700
+commit dfbf568c9f71d5fadfebaa206ab8341168f582d9
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 25 12:15:23 2018 -0500
 
-    cmd/vet: assume that no builtin funcs are pure
+    runtime: use NOFRAME on mips and mips64
     
-    That was the intention with the existing code, but it was buggy; builtin
-    functions aren't treated as values by types.TypeAndVal. Thus, we should
-    use the IsBuiltin method instead of IsValue.
+    This replaces frame size -4/-8 with the NOFRAME flag in mips and
+    mips64 assembly.
     
-    Teaching vet what builtin funcs are pure is already being tracked as a
-    separate issue, #22851.
+    This was automated with:
     
-    While at it, also add a test with methods, just to be sure that the
-    current logic doesn't break with that edge case either.
+    sed -i -e 's/\(^TEXT.*[A-Z]\),\( *\)\$-[84]/\1|NOFRAME,\2$0/' $(find -name '*_mips*.s')
     
-    Fixes #25303.
+    Plus a manual fix to mkduff.go.
     
-    Change-Id: Ic18402b22cceeabf76641c02f575b194b9a536cc
-    Reviewed-on: https://go-review.googlesource.com/112177
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    The go binary is identical on both architectures before and after this
+    change.
+    
+    Change-Id: I0310384d1a584118c41d1cd3a042bb8ea7227efb
+    Reviewed-on: https://go-review.googlesource.com/92044
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/vet/bool.go          | 16 +++++++++++-----
- src/cmd/vet/testdata/bool.go |  9 ++++++++-
- 2 files changed, 19 insertions(+), 6 deletions(-)
+ misc/cgo/test/issue9400/asm_mipsx.s          |  2 +-
+ src/runtime/asm_mips64x.s                    | 34 +++++++++---------
+ src/runtime/asm_mipsx.s                      | 16 ++++-----
+ src/runtime/atomic_mips64x.s                 |  2 +-
+ src/runtime/cgo/asm_mips64x.s                |  2 +-
+ src/runtime/cgo/asm_mipsx.s                  |  2 +-
+ src/runtime/duff_mips64x.s                   |  2 +-
+ src/runtime/internal/atomic/atomic_mips64x.s |  6 ++--
+ src/runtime/memmove_mips64x.s                |  2 +-
+ src/runtime/mkduff.go                        |  2 +-
+ src/runtime/rt0_linux_mips64x.s              |  4 +--
+ src/runtime/rt0_linux_mipsx.s                |  4 +--
+ src/runtime/sys_linux_mips64x.s              | 54 ++++++++++++++--------------
+ src/runtime/sys_linux_mipsx.s                |  2 +-
+ src/runtime/tls_mips64x.s                    |  4 +--
+ src/runtime/tls_mipsx.s                      |  4 +--
+ 16 files changed, 71 insertions(+), 71 deletions(-)

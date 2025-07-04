@@ -1,18 +1,18 @@
-commit 81ed9ca1d411f0bd8738ea60b3a8045446ad85fc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 27 16:21:48 2017 +0000
+commit 39e22f04231511f2448897e3c392e98cdbf7abea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 23 16:55:31 2017 -0700
 
-    cmd/go: skip broken TestExecutableGOROOT/RelocatedExe
+    cmd/compile: pass in importpkg to importer rather than rely on global
     
-    Test just doesn't work.
+    First step towards removing global var importpkg.
     
-    Updates #20284
-    
-    Change-Id: I31c3f771e68dcdc471767594a1467e19fbf5fe88
-    Reviewed-on: https://go-review.googlesource.com/46830
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifdda7c295e5720a7ff2da9baea17f03f190d48fa
+    Reviewed-on: https://go-review.googlesource.com/38594
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@google.com>
 
- src/cmd/go/go_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/bimport.go | 78 +++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/export.go  |  2 +-
+ src/cmd/compile/internal/gc/main.go    |  2 +-
+ 3 files changed, 42 insertions(+), 40 deletions(-)

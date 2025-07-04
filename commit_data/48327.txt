@@ -1,33 +1,129 @@
-commit bd77d6e24048e5a8b7b07d2d0b7cf552d21905f5
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Tue Feb 8 14:51:41 2022 -0800
+commit 9d0819b27ca248f9949e7cf6bf7cb9fe7cf574e8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 28 01:37:09 2021 -0400
 
-    runtime/pprof: check if PC is reused for inlining
+    crypto/tls: make cipher suite preference ordering automatic
     
-    When describing call stacks that include inlined function calls, the
-    runtime uses "fake" PCs to represent the frames that inlining removed.
-    Those PCs correspond to real NOP instructions that the compiler inserts
-    for this purpose.
+    We now have a (well, two, depending on AES hardware support) universal
+    cipher suite preference order, based on their security and performance.
+    Peer and application lists are now treated as filters (and AES hardware
+    support hints) that are applied to this universal order.
     
-    Describing the call stack in a protobuf-formatted profile requires the
-    runtime/pprof package to collapse any sequences of fake call sites back
-    into single PCs, removing the NOPs but retaining their line info.
+    This removes a complex and nuanced decision from the application's
+    responsibilities, one which we are better equipped to make and which
+    applications usually don't need to have an opinion about. It also lets
+    us worry less about what suites we support or enable, because we can be
+    confident that bad ones won't be selected over good ones.
     
-    But because the NOP instructions are part of the function, they can
-    appear as leaf nodes in a CPU profile. That results in an address that
-    should sometimes be ignored (when it appears as a call site) and that
-    sometimes should be present in the profile (when it is observed
-    consuming CPU time).
+    This also moves 3DES suites to InsecureCipherSuites(), even if they are
+    not disabled by default. Just because we can keep them as a last resort
+    it doesn't mean they are secure. Thankfully we had not promised that
+    Insecure means disabled by default.
     
-    When processing a PC address, consider it first as a fake PC to add to
-    the current inlining deck, and then as a previously-seen (real) PC.
+    Notable test changes:
     
-    Fixes #50996
+      - TestCipherSuiteCertPreferenceECDSA was testing that we'd pick the
+        right certificate regardless of CipherSuite ordering, which is now
+        completely ignored, as tested by TestCipherSuitePreference. Removed.
     
-    Change-Id: I80802369978bd7ac9969839ecfc9995ea4f84ab4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384239
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+      - The openssl command of TestHandshakeServerExportKeyingMaterial was
+        broken for TLS 1.0 in CL 262857, but its golden file was not
+        regenerated, so the test kept passing. It now broke because the
+        selected suite from the ones in the golden file changed.
+    
+      - In TestAESCipherReordering, "server strongly prefers AES-GCM" is
+        removed because there is no way for a server to express a strong
+        preference anymore; "client prefers AES-GCM and AES-CBC over ChaCha"
+        switched to ChaCha20 when the server lacks AES hardware; and finally
+        "client supports multiple AES-GCM" changed to always prefer AES-128
+        per the universal preference list.
+    
+        * this is going back on an explicit decision from CL 262857, and
+          while that client order is weird and does suggest a strong dislike
+          for ChaCha20, we have a strong dislike for software AES, so it
+          didn't feel worth making the logic more complex
+    
+      - All Client-* golden files had to be regenerated because the
+        ClientHello cipher suites have changed.
+        (Even when Config.CipherSuites was limited to one suite, the TLS 1.3
+        default order changed.)
+    
+    Fixes #45430
+    Fixes #41476 (as 3DES is now always the last resort)
+    
+    Change-Id: If5f5d356c0f8d1f1c7542fb06644a478d6bad1e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314609
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
 
- src/runtime/pprof/proto.go | 50 +++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 49 insertions(+), 1 deletion(-)
+ src/crypto/tls/cipher_suites.go                    | 259 ++++++++--
+ src/crypto/tls/common.go                           | 161 +-----
+ src/crypto/tls/handshake_client.go                 |  36 +-
+ src/crypto/tls/handshake_server.go                 |  35 +-
+ src/crypto/tls/handshake_server_test.go            | 171 +++----
+ src/crypto/tls/handshake_server_tls13.go           |  25 +-
+ src/crypto/tls/handshake_test.go                   |  12 +-
+ src/crypto/tls/key_agreement.go                    |  19 +
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  |  92 ++--
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  88 ++--
+ .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    |  94 ++--
+ .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  88 ++--
+ .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |  72 +--
+ .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  70 +--
+ .../testdata/Client-TLSv10-ExportKeyingMaterial    |  70 +--
+ src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  38 +-
+ .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  74 +--
+ .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  70 +--
+ src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  38 +-
+ .../tls/testdata/Client-TLSv12-AES128-GCM-SHA256   |  42 +-
+ .../tls/testdata/Client-TLSv12-AES128-SHA256       |  56 +--
+ .../tls/testdata/Client-TLSv12-AES256-GCM-SHA384   |  42 +-
+ src/crypto/tls/testdata/Client-TLSv12-ALPN         |  60 +--
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  |  94 ++--
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  86 ++--
+ .../tls/testdata/Client-TLSv12-ClientCert-Ed25519  |  70 +--
+ .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  82 ++--
+ .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 100 ++--
+ .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  82 ++--
+ .../Client-TLSv12-ClientCert-RSA-RSAPKCS1v15       |  82 ++--
+ .../testdata/Client-TLSv12-ClientCert-RSA-RSAPSS   |  82 ++--
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  72 +--
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  66 +--
+ .../Client-TLSv12-ECDHE-ECDSA-AES128-SHA256        |  80 +--
+ .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  68 +--
+ .../Client-TLSv12-ECDHE-ECDSA-CHACHA20-POLY1305    |  58 +--
+ .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  70 +--
+ .../testdata/Client-TLSv12-ECDHE-RSA-AES128-SHA256 |  78 +--
+ .../Client-TLSv12-ECDHE-RSA-CHACHA20-POLY1305      |  54 +-
+ src/crypto/tls/testdata/Client-TLSv12-Ed25519      |  52 +-
+ .../testdata/Client-TLSv12-ExportKeyingMaterial    |  60 +--
+ src/crypto/tls/testdata/Client-TLSv12-P256-ECDHE   |  68 +--
+ src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  38 +-
+ .../tls/testdata/Client-TLSv12-RenegotiateOnce     | 356 +++++++-------
+ .../tls/testdata/Client-TLSv12-RenegotiateTwice    | 546 ++++++++++-----------
+ .../Client-TLSv12-RenegotiateTwiceRejected         | 362 +++++++-------
+ .../testdata/Client-TLSv12-RenegotiationRejected   |  66 +--
+ src/crypto/tls/testdata/Client-TLSv12-SCT          |  60 +--
+ src/crypto/tls/testdata/Client-TLSv12-X25519-ECDHE |  64 +--
+ .../tls/testdata/Client-TLSv13-AES128-SHA256       | 146 +++---
+ .../tls/testdata/Client-TLSv13-AES256-SHA384       | 150 +++---
+ src/crypto/tls/testdata/Client-TLSv13-ALPN         | 150 +++---
+ .../tls/testdata/Client-TLSv13-CHACHA20-SHA256     | 146 +++---
+ .../testdata/Client-TLSv13-ClientCert-ECDSA-RSA    | 246 +++++-----
+ .../tls/testdata/Client-TLSv13-ClientCert-Ed25519  | 212 ++++----
+ .../testdata/Client-TLSv13-ClientCert-RSA-ECDSA    | 236 ++++-----
+ .../testdata/Client-TLSv13-ClientCert-RSA-RSAPSS   | 254 +++++-----
+ src/crypto/tls/testdata/Client-TLSv13-ECDSA        | 140 +++---
+ src/crypto/tls/testdata/Client-TLSv13-Ed25519      | 104 ++--
+ .../testdata/Client-TLSv13-ExportKeyingMaterial    | 148 +++---
+ .../tls/testdata/Client-TLSv13-HelloRetryRequest   | 158 +++---
+ src/crypto/tls/testdata/Client-TLSv13-KeyUpdate    | 164 +++----
+ src/crypto/tls/testdata/Client-TLSv13-P256-ECDHE   | 150 +++---
+ src/crypto/tls/testdata/Client-TLSv13-X25519-ECDHE | 148 +++---
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    |  82 ++--
+ .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   |  88 ----
+ .../Server-TLSv12-CipherSuiteCertPreferenceRSA     |  92 ----
+ src/crypto/tls/tls_test.go                         | 147 +++++-
+ 68 files changed, 3754 insertions(+), 3815 deletions(-)

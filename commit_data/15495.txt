@@ -1,12 +1,15 @@
-commit ee95c95ebd32c7d2c75d81d4d5ede98098669d2a
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 28 10:06:38 2013 -0800
+commit 6ecb39fce66e2fb08dea2d798822c8f0a93e29d5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 28 16:07:26 2013 +0800
 
-    C: add googler Matt Brown mdbrown@google.com
+    cmd/go: fix "go run" cgo source when cgo is disabled
+    also move a cgo-depend test to appropriate source file in runtime.
     
-    R=golang-dev, rsc
+    R=golang-dev, dave, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/7444045
+    https://golang.org/cl/7393063
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/run.go                 | 10 +++++-
+ src/pkg/runtime/crash_cgo_test.go | 73 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/crash_test.go     | 73 ---------------------------------------
+ 3 files changed, 82 insertions(+), 74 deletions(-)

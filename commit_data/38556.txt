@@ -1,25 +1,62 @@
-commit b5cf035d1ca21ee4bf799c6d97b2759471b76483
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Mon Mar 25 10:26:44 2019 +0100
+commit 9e619739fdc4cbaeb00a10ef95ce3e5d6996e8a7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Nov 3 09:09:28 2018 -0700
 
-    runtime: improve sigtramp on aix/ppc64 to handle SIGPROF
+    cmd/compile: copy all fields during SubstAny
     
-    R14, R15 must be saved in sigtramp because they might be modified by Go
-    code when a SIGPROF occurs.
+    Consider these functions:
     
-    Fixes #28555
+    func f(a any) int
+    func g(a any) int
     
-    Change-Id: I573541f108d7d6aac8e60d33c649e5db943f3ef5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169117
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Prior to this change, since f and g have identical signatures,
+    they would share a single generated func type.
+    
+    types.SubstAny makes a shallow type copy, even after instantiation,
+    f and g share a single generated Result type.
+    So if you instantiate f with any=T, call dowidth,
+    instantiate g with any=U, and call dowidth,
+    and if sizeof(T) != sizeof(U),
+    then the Offset of the result for f is now wrong.
+    
+    I don't believe this happens at all right now, but it bit me hard when
+    experimenting with some other compiler changes.
+    And it's hard to debug. It results in rare stack corruption, causing
+    problems far from the actual source of the problem.
+    
+    To fix this, change SubstAny to make deep copies of TSTRUCTs.
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         35.3MB ± 0%       35.4MB ± 0%  +0.23%  (p=0.008 n=5+5)
+    Unicode          29.1MB ± 0%       29.1MB ± 0%  +0.16%  (p=0.008 n=5+5)
+    GoTypes           122MB ± 0%        122MB ± 0%  +0.16%  (p=0.008 n=5+5)
+    Compiler          513MB ± 0%        514MB ± 0%  +0.19%  (p=0.008 n=5+5)
+    SSA              1.94GB ± 0%       1.94GB ± 0%  +0.01%  (p=0.008 n=5+5)
+    Flate            24.2MB ± 0%       24.2MB ± 0%  +0.08%  (p=0.008 n=5+5)
+    GoParser         28.5MB ± 0%       28.5MB ± 0%  +0.24%  (p=0.008 n=5+5)
+    Reflect          86.2MB ± 0%       86.3MB ± 0%  +0.09%  (p=0.008 n=5+5)
+    Tar              34.9MB ± 0%       34.9MB ± 0%  +0.13%  (p=0.008 n=5+5)
+    XML              47.0MB ± 0%       47.1MB ± 0%  +0.18%  (p=0.008 n=5+5)
+    [Geo mean]       80.9MB            81.0MB       +0.15%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           348k ± 0%         349k ± 0%  +0.38%  (p=0.008 n=5+5)
+    Unicode            340k ± 0%         340k ± 0%  +0.21%  (p=0.008 n=5+5)
+    GoTypes           1.27M ± 0%        1.28M ± 0%  +0.27%  (p=0.008 n=5+5)
+    Compiler          4.90M ± 0%        4.92M ± 0%  +0.36%  (p=0.008 n=5+5)
+    SSA               15.3M ± 0%        15.3M ± 0%  +0.03%  (p=0.008 n=5+5)
+    Flate              232k ± 0%         233k ± 0%  +0.14%  (p=0.008 n=5+5)
+    GoParser           291k ± 0%         292k ± 0%  +0.42%  (p=0.008 n=5+5)
+    Reflect           1.05M ± 0%        1.05M ± 0%  +0.14%  (p=0.008 n=5+5)
+    Tar                343k ± 0%         344k ± 0%  +0.22%  (p=0.008 n=5+5)
+    XML                428k ± 0%         430k ± 0%  +0.36%  (p=0.008 n=5+5)
+    [Geo mean]         807k              809k       +0.25%
+    
+    Change-Id: I62134db642206cded01920dc1d8a7da61f7ca0ac
+    Reviewed-on: https://go-review.googlesource.com/c/147038
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/crash_cgo_test.go   |  3 ---
- src/runtime/crash_test.go       |  3 ---
- src/runtime/os_aix.go           |  2 ++
- src/runtime/pprof/pprof_test.go |  2 +-
- src/runtime/pprof/proto_test.go |  4 ---
- src/runtime/proc.go             |  2 +-
- src/runtime/sys_aix_ppc64.s     | 60 ++++++++++++++++++++---------------------
- 7 files changed, 33 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/types/type.go | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

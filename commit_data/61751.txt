@@ -1,0 +1,40 @@
+commit 97ae1817fb22913f0bbfa0be2b8181e806c26853
+Author: Matthieu Baerts (NGI0) <matttbe@kernel.org>
+Date:   Thu Nov 21 20:21:18 2024 +0000
+
+    net: check for MPTCP in DialTCP and ListenTCP
+    
+    Setting GODEBUG=multipathtcp= [1] has no effects on apps using
+    ListenTCP or DialTCP directly.
+    
+    According to the documentation, these functions are supposed to act like
+    Listen and Dial respectively:
+    
+        ListenTCP acts like Listen for TCP networks.
+        DialTCP acts like Dial for TCP networks.
+    
+    So when reading this, I think we should expect GODEBUG=multipathtcp= to
+    act on these functions as well.
+    
+    Also, since #69016, MPTCP is used by default (if supported) with TCP
+    listeners. Similarly, when ListenTCP is used directly, MPTCP is
+    unexpectedly not used. It is strange to have a different behaviour.
+    
+    So now, ListenTCP and DialTCP also check for MPTCP. Those are the exact
+    same checks that are done in dial.go, see Listen and dialSingle.
+    
+    [1] https://pkg.go.dev/net#Dialer.SetMultipathTCP
+    
+    Fixes #70500
+    
+    Change-Id: I646431a74571668e505493fa8c1b2206bf30ed09
+    GitHub-Last-Rev: 69a31a1b033497fa219309410f16c4524aa6bba9
+    GitHub-Pull-Request: golang/go#70501
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630715
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/tcpsock.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

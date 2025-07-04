@@ -1,63 +1,19 @@
-commit 40b19b56a94c4d53a3c1d98275df44049b2f5917
-Author: Roland Shoemaker <bracewell@google.com>
-Date:   Sat Mar 22 00:58:55 2025 +0000
+commit e3ec1ca17e339e21ca50fbdb375b4294783bc385
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 2 00:10:47 2024 +0200
 
-    runtime: add valgrind instrumentation
+    os: define wrapSyscallError only on linux
     
-    Add build tag gated Valgrind annotations to the runtime which let it
-    understand how the runtime manages memory. This allows for Go binaries
-    to be run under Valgrind without emitting spurious errors.
+    wrapSyscallError by now is only used on linux in the methods defined in
+    os/zero_copy_linux.go. Move the definition there.
     
-    Instead of adding the Valgrind headers to the tree, and using cgo to
-    call the various Valgrind client request macros, we just add an assembly
-    function which emits the necessary instructions to trigger client
-    requests.
-    
-    In particular we add instrumentation of the memory allocator, using a
-    two-level mempool structure (as described in the Valgrind manual [0]).
-    We also add annotations which allow Valgrind to track which memory we
-    use for stacks, which seems necessary to let it properly function.
-    
-    We describe the memory model to Valgrind as follows: we treat heap
-    arenas as a "pool" created with VALGRIND_CREATE_MEMPOOL_EXT (so that we
-    can use VALGRIND_MEMPOOL_METAPOOL and VALGRIND_MEMPOOL_AUTO_FREE).
-    Within the pool we treat spans as "superblocks", annotated with
-    VALGRIND_MEMPOOL_ALLOC. We then allocate individual objects within spans
-    with VALGRIND_MALLOCLIKE_BLOCK.
-    
-    It should be noted that running binaries under Valgrind can be _quite
-    slow_, and certain operations, such as running the GC, can be _very
-    slow_. It is recommended to run programs with GOGC=off. Additionally,
-    async preemption should be turned off, since it'll cause strange
-    behavior (GODEBUG=asyncpreemptoff=1).
-    
-    Running Valgrind with --leak-check=yes will result in some errors
-    resulting from some things not being marked fully free'd. These likely
-    need more annotations to rectify, but for now it is recommended to run
-    with --leak-check=off.
-    
-    Updates #73602
-    
-    [0] https://valgrind.org/docs/manual/mc-manual.html#mc-manual.mempools
-    
-    Change-Id: I71b26c47d7084de71ef1e03947ef6b1cc6d38301
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674077
+    Change-Id: I0ca5749adaac44e8d095b8452458b647f595d3c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575595
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/os/pidfd_linux.go        |   5 +-
- src/runtime/arena.go         |   3 +
- src/runtime/malloc.go        |   8 +++
- src/runtime/mgcmark.go       |   4 ++
- src/runtime/mgcsweep.go      |   3 +
- src/runtime/mheap.go         |  12 ++++
- src/runtime/proc.go          |  22 +++++++
- src/runtime/runtime2.go      |   4 ++
- src/runtime/sizeof_test.go   |   2 +-
- src/runtime/stack.go         |  48 +++++++++++++++
- src/runtime/valgrind.go      | 138 +++++++++++++++++++++++++++++++++++++++++++
- src/runtime/valgrind0.go     |  25 ++++++++
- src/runtime/valgrind_amd64.s |  37 ++++++++++++
- src/runtime/valgrind_arm64.s |  29 +++++++++
- src/syscall/exec_linux.go    |  27 ++++++++-
- 15 files changed, 364 insertions(+), 3 deletions(-)
+ src/os/error_posix.go     | 18 ------------------
+ src/os/zero_copy_linux.go |  9 +++++++++
+ 2 files changed, 9 insertions(+), 18 deletions(-)

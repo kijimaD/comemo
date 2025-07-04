@@ -1,18 +1,12 @@
-commit 133c6bf77fffcbfa38ed58cf06808b38bbc374e0
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Feb 22 23:37:57 2012 -0200
+commit fea7f07e560b3a8dcc16c89f683eb907762fad6f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 23 12:07:59 2012 +1100
 
-    encoding/xml: move Unmarshal example to function
+    time: run full TestTicker test even during short tests
     
-    This also fixes MarshalIndent's example after the
-    recent formatting convention changes.
-    
-    Fixes #2831.
-    
-    R=golang-dev, rsc
+    R=golang-dev, r, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5671062
+    https://golang.org/cl/5689076
 
- src/pkg/encoding/xml/example_test.go | 73 +++++++++++++++++++++++++++++++-----
- src/pkg/encoding/xml/read.go         | 52 -------------------------
- 2 files changed, 63 insertions(+), 62 deletions(-)
+ src/pkg/time/tick_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,51 +1,19 @@
-commit df709828255ba5a0e66c668b22bf555b35475d13
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Aug 9 14:50:58 2017 -0500
+commit 9294fa2749ffee7edbbb817a0ef9fe633136fa9c
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Apr 19 10:00:32 2017 -0700
 
-    cmd/compile/internal/ssa: use sse to zero on amd64
+    crypto/elliptic: fix carry bug in x86-64 P-256 implementation.
     
-    Use 16-byte stores instead of 8-byte stores to zero small blocks.
-    Also switch to duffzero for 65+ bytes only, because for each
-    duffzero call we also save/restore BP, so call requires 4 instructions
-    and replacing it with 4 sse stores doesn't cause code-bloat.
-    Also switch duffzero to use leaq, instead of addq to avoid clobbering flags.
+    Patch from Vlad Krasnov and confirmed to be under CLA.
     
-    ClearFat8-6     0.54ns ± 0%  0.54ns ± 0%     ~     (all equal)
-    ClearFat12-6    1.07ns ± 0%  1.07ns ± 0%     ~     (all equal)
-    ClearFat16-6    1.07ns ± 0%  0.69ns ± 0%  -35.51%  (p=0.001 n=8+9)
-    ClearFat24-6    1.61ns ± 1%  1.07ns ± 0%  -33.33%  (p=0.000 n=10+10)
-    ClearFat32-6    2.14ns ± 0%  1.07ns ± 0%  -50.00%  (p=0.001 n=8+9)
-    ClearFat40-6    2.67ns ± 1%  1.61ns ± 0%  -39.72%  (p=0.000 n=10+8)
-    ClearFat48-6    3.75ns ± 0%  2.68ns ± 0%  -28.59%  (p=0.000 n=9+9)
-    ClearFat56-6    4.29ns ± 0%  3.22ns ± 0%  -25.10%  (p=0.000 n=9+9)
-    ClearFat64-6    4.30ns ± 0%  3.22ns ± 0%  -25.15%  (p=0.000 n=8+8)
-    ClearFat128-6   7.50ns ± 1%  7.51ns ± 0%     ~     (p=0.767 n=10+9)
-    ClearFat256-6   13.9ns ± 1%  13.9ns ± 1%     ~     (p=0.257 n=10+10)
-    ClearFat512-6   26.8ns ± 0%  26.8ns ± 0%     ~     (p=0.467 n=8+8)
-    ClearFat1024-6  52.5ns ± 0%  52.5ns ± 0%     ~     (p=1.000 n=8+8)
+    Fixes #20040.
     
-    Also shaves ~20kb from go tool:
-    
-    go_old 10384994
-    go_new 10364514 [-20480 bytes]
-    
-    section differences
-    global text (code) = -20585 bytes (-0.532047%)
-    read-only data = -302 bytes (-0.018101%)
-    Total difference -20887 bytes (-0.348731%)
-    
-    Change-Id: I15854e87544545c1af24775df895e38e16e12694
-    Reviewed-on: https://go-review.googlesource.com/54410
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: Ieb8436c4dcb6669a1620f1e0d257efd047b1b87c
+    Reviewed-on: https://go-review.googlesource.com/41070
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ggen.go       |   6 +-
- src/cmd/compile/internal/amd64/ssa.go        |   9 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  45 +++---
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   1 -
- src/cmd/compile/internal/ssa/opGen.go        |   1 -
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 209 ++++++++++++++++++---------
- src/runtime/duff_amd64.s                     |  32 ++--
- src/runtime/mkduff.go                        |   2 +-
- 8 files changed, 192 insertions(+), 113 deletions(-)
+ src/crypto/elliptic/elliptic_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/crypto/elliptic/p256_asm_amd64.s | 10 +++++-----
+ 2 files changed, 41 insertions(+), 5 deletions(-)

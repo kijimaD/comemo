@@ -1,21 +1,18 @@
-commit 2a061fdd47ccb5420229ce5f9f057e194be76995
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 14 11:15:28 2022 -0500
+commit af8a176e911a013ab5054318224a90e5bab67efc
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 12:37:04 2021 -0400
 
-    cmd/go: fix TestScript/version_buildvcs_git_gpg
+    internal/buildcfg: enable regabidefer by default
     
-    This test was missed in CL 358539, presumably because the 'longtest'
-    builders lack a 'gpg' executable.
+    For #40724.
     
-    Updates #49168
-    Fixes #50675
-    
-    Change-Id: Ie3bfc761a5e4304531119625742f3def9df8af3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378575
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If3a66c0e29cb20dd29ac13c8d00aa46ee279ab97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310175
+    Trust: Austin Clements <austin@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,26 +1,20 @@
-commit f414dfe4f5049c2c8998b4e6b90dee7fca0c225b
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Apr 10 16:03:46 2025 +0200
+commit 0784fd1b2f6050b8fb91c88c1d02107258a1651a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 27 13:22:40 2024 -0800
 
-    os,internal/poll: support I/O on overlapped files not added to the poller
+    runtime/cgo: ignore unknown warning options
     
-    This fixes the support for I/O on overlapped files that are not added to
-    the poller. Note that CL 661795 already added support for that, but it
-    really only worked for pipes, not for plain files.
+    For #65290
+    Fixes #65971
     
-    Additionally, this CL also makes this kind of I/O operations to not
-    notify the external poller to avoid confusing it.
-    
-    Updates #15388.
-    
-    Change-Id: I15c6ea74f3a87960aef0986598077b6eab9b9c99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664415
+    Change-Id: If15853f287e06b85bb1cb038b3785516d5812f84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567556
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/poll/fd_windows.go | 36 ++++++++++++-----
- src/os/os_windows_test.go       | 90 ++++++++++++++++++++++++++++++++++-------
- 2 files changed, 102 insertions(+), 24 deletions(-)
+ src/runtime/cgo/gcc_libinit.c | 1 +
+ 1 file changed, 1 insertion(+)

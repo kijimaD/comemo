@@ -1,20 +1,23 @@
-commit 919e85ae056a238789af6bb2d7b34fe9fdde4ebb
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat Jan 20 19:56:51 2018 +0100
+commit 382d4928b8a758a91f06de9e6cb10b92bb882eff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 25 20:49:37 2017 -0700
 
-    misc,src: add support for specifying adb flags to the android harness
+    internal/poll: don't return from Close until descriptor is closed
     
-    Introduce GOANDROID_ADB_FLAGS for additional flags to adb invocations.
-    With GOANDROID_ADG_FLAGS, the Android builders can distinguish between
-    emulator and device builds.
+    This permits the program to reliably know that when the Close method
+    returns, the descriptor has definitely been closed. This matters at
+    least for listeners.
     
-    Change-Id: I11729926a523ee27f6a3795cb2cfb64a9454f0a5
-    Reviewed-on: https://go-review.googlesource.com/88795
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Fixes #21856
+    Updates #7970
+    
+    Change-Id: I1fd0cfd2333649e6e67c6ae956e19fdff3a35a83
+    Reviewed-on: https://go-review.googlesource.com/66150
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
 
- misc/android/go_android_exec.go      |  3 +++
- misc/cgo/testcshared/cshared_test.go | 20 +++++++++++++++-----
- src/androidtest.bash                 |  8 ++++----
- 3 files changed, 22 insertions(+), 9 deletions(-)
+ src/internal/poll/fd_unix.go    | 10 +++++++++-
+ src/internal/poll/fd_windows.go | 10 +++++++++-
+ src/net/listen_test.go          | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 2 deletions(-)

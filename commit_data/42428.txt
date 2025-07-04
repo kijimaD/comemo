@@ -1,19 +1,25 @@
-commit 13bc6d4223515ac05afadc13728fb12d7c80f015
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri May 29 01:59:09 2020 -0400
+commit 5481a97ab097ad27e9eeb9d10feeae22fd20e5ec
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Dec 18 10:05:59 2019 +0000
 
-    cmd/link: flush file mapping before unmapping
+    text/template: indirect interfaces before slicing
     
-    Call FlushViewOfFile before unmapping the output file, for extra
-    safety. The documentation says the function does not wait for
-    the data to be written to disk, so it should be cheap.
+    The recently added slice function used indirectInterface, but then
+    forgot to actually call reflect.Value.Slice on its result. Calling the
+    Slice method on the original Value without indirectInterface would
+    result in a panic, if our slice was indeed behind an interface.
     
-    Fixes #38440.
+    Fix that, and add test cases for all three built-in functions that work
+    with slices.
     
-    Change-Id: I05352f15d9305e6e7086a002f61802f74036b710
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235639
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Fixes #36199.
+    
+    Change-Id: I9a18f4f604a3b29967eefeb573f8960000936b88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211877
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/outbuf_windows.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/text/template/exec_test.go | 3 +++
+ src/text/template/funcs.go     | 4 ++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

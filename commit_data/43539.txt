@@ -1,26 +1,18 @@
-commit 7eba75ab60d5d76b605d6095c64ddd38218c963b
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Tue Oct 27 05:13:24 2020 +0000
+commit df15eaedd0f48d774edf633a5ae31662f9480921
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 11 03:33:21 2020 +0000
 
-    Revert "cmd/link: remove all constants of elf"
+    Revert "cmd/compile: make logopt test skip if cannot create scratch directory"
     
-    This reverts CL 252478.
+    This reverts commit 98534812bdcdd22b13469ea587e310187876b7d2.
     
-    Reason for revert: debug/Elfhdr has no Flags fields, some other CLs has removed it.
+    Reason for revert: The change does not really fixes issue #38251. CL 227497 is real fix.
     
-    Change-Id: Ie199ac29f382c56aaf37a2e8338f2dafe6e79297
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265317
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Meng Zhuo <mzh@golangcn.org>
+    Change-Id: I9f556005baf1de968f059fb8dad89dae05330aa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227802
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/link/internal/amd64/asm.go |    4 +-
- src/cmd/link/internal/arm/asm.go   |    4 +-
- src/cmd/link/internal/arm64/asm.go |    4 +-
- src/cmd/link/internal/ld/elf.go    | 1140 +++++++++++++++++++++++-------------
- src/cmd/link/internal/ld/go.go     |    3 +-
- src/cmd/link/internal/ld/lib.go    |    8 +-
- src/cmd/link/internal/ld/symtab.go |   67 ++-
- src/cmd/link/internal/ppc64/asm.go |    6 +-
- src/cmd/link/internal/s390x/asm.go |    2 +-
- src/cmd/link/internal/x86/asm.go   |    4 +-
- 10 files changed, 788 insertions(+), 454 deletions(-)
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

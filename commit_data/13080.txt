@@ -1,15 +1,12 @@
-commit dbf6215dd62cc30851a954bb3d741e8fdcbffc6d
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu May 17 02:54:03 2012 +0800
+commit c816d8c59f442928b67fb0ba9a2f136f1950f2bd
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Wed May 16 22:56:18 2012 +1000
 
-    codereview: support mercurial 2.2.1
-            We explicitly use plainformatter to avoid the
-            user's debug setting changing our behavior.
-            Fixes #3603.
+    log: fix typo in comment
     
-    R=golang-dev, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6201069
+    https://golang.org/cl/6195096
 
- lib/codereview/codereview.py | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/log/log.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

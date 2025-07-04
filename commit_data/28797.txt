@@ -1,18 +1,14 @@
-commit 347259cbae30f876be11fe5e71710969afa24374
-Author: Xia Bin <snyh@snyh.org>
-Date:   Sun Jan 24 14:22:54 2016 +0800
+commit 67f799c42cbe5fa667dbad0139a98728624cbf4b
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sat Jul 23 23:27:25 2016 -0400
 
-    misc/cgo/test: add test that gccgo fails
+    doc: add s390x information to asm.html
     
-    Gccgo isn't locking the OS thread properly during calls.
+    Fixes #16362
     
-    Change-Id: Idb2475291405e390cbb83abb27a402fd0381d0c4
-    Reviewed-on: https://go-review.googlesource.com/18882
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I676718a1149ed2f3ff80cb031e25de7043805399
+    Reviewed-on: https://go-review.googlesource.com/25157
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/test/basic.go           |  3 +++
- misc/cgo/test/cgo_test.go        |  1 +
- misc/cgo/test/cgo_thread_lock.go | 53 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 57 insertions(+)
+ doc/asm.html | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 58 insertions(+)

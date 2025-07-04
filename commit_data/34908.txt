@@ -1,17 +1,62 @@
-commit 7cb7d62950630a5a878ee6665258275fc935ef2f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 10 09:57:14 2018 +0200
+commit 1c69384da4fb4a1323e011941c101189247fea67
+Author: Tom Bergan <tombergan@google.com>
+Date:   Mon Nov 27 11:25:14 2017 -0800
 
-    debug/elf: add missing EM_AARCH64 to machineStrings
+    net/textproto: reject all headers with a leading space
     
-    EM_AARCH64 is defined as a constant, but the corresponding entry in
-    machineStrings is missing. Add it.
+    Previously, golang.org/cl/75350 updated ReadMIMEHeader to ignore the
+    first header line when it begins with a leading space, as in the
+    following example:
     
-    Change-Id: I6506404386efe608877095e635a290bbc0686215
-    Reviewed-on: https://go-review.googlesource.com/106035
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    GET / HTTP/1.1
+      Host: foo.com
+    Accept-Encoding: gzip
+    
+    However, golang.org/cl/75350 changed ReadMIMEHeader's behavior for the
+    following example: before the CL it returned an error, but after the
+    CL it ignored the first line.
+    
+    GET / HTTP/1.1
+      Host foo.com
+    Accept-Encoding: gzip
+    
+    This change updates ReadMIMEHeader to always fail when the first header
+    line starts with a space. During the discussion for golang.org/cl/75350,
+    we realized we had three competing needs:
+    
+    1. HTTP clients should accept malformed response headers when possible
+       (ignoring the malformed lines).
+    
+    2. HTTP servers should reject all malformed request headers.
+    
+    3. The net/textproto package is used by multiple protocols (most notably,
+       HTTP and SMTP) which have slightly different parsing semantics. This
+       complicates changes to net/textproto.
+    
+    We weren't sure how to best fix net/textproto without an API change, but
+    it is too late for API changes in Go 1.10. We decided to ignore initial
+    lines that begin with spaces, thinking that would have the least impact on
+    existing users -- malformed headers would continue to parse, but the
+    initial lines would be ignored. Instead, golang.org/cl/75350 actually
+    changed ReadMIMEHeader to succeed in cases where it previously failed
+    (as in the above example).
+    
+    Reconsidering the above two examples, there does not seem to be a good
+    argument to silently ignore ` Host: foo.com` but fail on ` Host foo.com`.
+    Hence, this change fails for *all* headers where the initial line begins
+    with a space.
+    
+    Updates #22464
+    
+    Change-Id: I68d3d190489c350b0bc1549735bf6593fe11a94c
+    Reviewed-on: https://go-review.googlesource.com/80055
+    Run-TryBot: Tom Bergan <tombergan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/elf/elf.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/readrequest_test.go | 28 ++++++-------------
+ src/net/http/response_test.go    | 58 +++++++++++++---------------------------
+ src/net/http/transport_test.go   | 13 ++++-----
+ src/net/textproto/reader.go      | 12 +++++----
+ src/net/textproto/reader_test.go | 29 ++++++++++----------
+ 5 files changed, 55 insertions(+), 85 deletions(-)

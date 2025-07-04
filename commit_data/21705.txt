@@ -1,24 +1,25 @@
-commit 8f8d066bfd86c736e35f1c0e36ae01fb0bdd7190
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Feb 23 14:51:40 2015 -0800
+commit 83c10b204d619d18100716c9588404200acdf6e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 20:58:17 2015 -0500
 
-    crypto/tls: allow larger initial records.
+    cmd/go: add build flag -toolexec
     
-    Some servers which misunderstood the point of the CertificateRequest
-    message send huge reply records. These records are large enough that
-    they were considered “insane” by the TLS code and rejected.
+    Like the -exec flag, which specifies a program to use to run a built executable,
+    the -toolexec flag specifies a program to use to run a tool like 5a, 5g, or 5l.
     
-    This change removes the sanity test for record lengths. Although the
-    maxCiphertext test still remains, just above, which (roughly) enforces
-    the 16KB protocol limit on record sizes:
-    https://tools.ietf.org/html/rfc5246#section-6.2.1
+    This flag enables running the toolchain under common testing environments,
+    such as valgrind.
     
-    Fixes #8928.
+    This flag also enables the use of custom testing environments or the substitution
+    of alternate tools. See https://godoc.org/rsc.io/toolstash for one possibility.
     
-    Change-Id: Idf89a2561b1947325b7ddc2613dc2da638d7d1c9
-    Reviewed-on: https://go-review.googlesource.com/5690
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I256aa7af2d96a4bc7911dc58151cc2155dbd4121
+    Reviewed-on: https://go-review.googlesource.com/3351
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/tls/conn.go | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ src/cmd/go/build.go | 19 +++++++++++++------
+ src/cmd/go/doc.go   |  4 ++++
+ src/cmd/go/fix.go   |  2 +-
+ src/cmd/go/get.go   |  2 +-
+ src/cmd/go/vet.go   |  2 +-
+ 5 files changed, 20 insertions(+), 9 deletions(-)

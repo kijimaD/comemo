@@ -1,26 +1,20 @@
-commit 2a2a283418b3ba4914520b5a7235c9b48049d1c0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jul 15 06:33:24 2017 -0700
+commit e86168430f0aab8f971763e4b00c2aae7bec55f0
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Feb 10 11:30:22 2017 +0200
 
-    cmd/dist: don't run moved_goroot test on android, iOS, Plan 9
+    cmd/fix,cmd/gofmt: flush to disk before diffing
     
-    Fails on iOS because CC_FOR_TARGET points to clangwrap.sh in the
-    original GOROOT. We could fix that but it doesn't seem worth it.
+    Flush file content to disk before diffing files,
+    may cause unpredictable results on Windows.
     
-    Fails on Android with "exec format error". I'm not sure why but I
-    doubt it is interesting.
+    Convert from \r\n to \n when comparing diff result.
     
-    Fails on Plan 9 because the original GOROOT is being preserved in some
-    unknown way. This is issue #21016.
-    
-    Updates #21016
-    
-    Change-Id: I4e7115d734fc7bf21e5a2ba18fb6ad0bfa31c735
-    Reviewed-on: https://go-review.googlesource.com/48650
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibcd6154a2382dba1338ee5674333611aea16bb65
+    Reviewed-on: https://go-review.googlesource.com/36750
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/fix/main.go         | 39 ++++++++++++++++++++++++++++-----------
+ src/cmd/gofmt/gofmt.go      | 35 ++++++++++++++++++++++-------------
+ src/cmd/gofmt/gofmt_test.go |  5 +++++
+ 3 files changed, 55 insertions(+), 24 deletions(-)

@@ -1,14 +1,23 @@
-commit bc0469da33f6b52ae13f71afa5c216b99194aad7
+commit f91b37b962dabc6ac0e5bae5ff35e4b7037cac8c
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 22 13:30:16 2011 -0700
+Date:   Tue Mar 22 13:05:51 2011 -0700
 
-    Make.pkg: Always define _CGO_CFLAGS and friends.
+    Make.pkg: add support for SWIG, and add two SWIG examples
     
-    Submitting TBR to fix Darwin build.
+    The SWIG examples are not yet built or tested by default.
     
-    TBR=rsc
+    R=r, rsc, iant2
     CC=golang-dev
-    https://golang.org/cl/4273096
+    https://golang.org/cl/4287056
 
- src/Make.pkg | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ misc/swig/callback/Makefile         |  17 +++++++++
+ misc/swig/callback/callback.h       |  24 ++++++++++++
+ misc/swig/callback/callback.swigcxx |  18 +++++++++
+ misc/swig/callback/run              | Bin 0 -> 1179384 bytes
+ misc/swig/callback/run.go           |  39 +++++++++++++++++++
+ misc/swig/stdio/Makefile            |  17 +++++++++
+ misc/swig/stdio/file.swig           |  11 ++++++
+ misc/swig/stdio/hello               | Bin 0 -> 231270 bytes
+ misc/swig/stdio/hello.go            |  11 ++++++
+ src/Make.pkg                        |  74 ++++++++++++++++++++++++++++++++----
+ 10 files changed, 203 insertions(+), 8 deletions(-)

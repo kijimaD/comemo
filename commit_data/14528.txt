@@ -1,23 +1,15 @@
-commit 0ce96f9ef4533430634fe4329b640176074ef9c4
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Nov 30 10:29:41 2012 +0400
+commit 902af974cbdf3af5ae435e3d34f2ac16beb207d1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 30 16:10:45 2012 +1100
 
-    runtime: better stack traces in race reports
-    When a race happens inside of runtime (chan, slice, etc),
-    currently reports contain only user file:line.
-    If the line contains a complex expression,
-    it's difficult to figure out where the race exactly.
-    This change adds one more top frame with exact
-    runtime function (e.g. runtime.chansend, runtime.mapaccess).
+    os: check only user attributes in TestStatDirModeExec
     
-    R=golang-dev
+    Some have their system setup in a particular way,
+    see http://golang.org/issue/4444#c3.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6851125
+    https://golang.org/cl/6851129
 
- src/pkg/runtime/chan.c    |  4 ++--
- src/pkg/runtime/hashmap.c | 18 +++++++++---------
- src/pkg/runtime/race.c    | 38 +++++++++++++++++++++++++++-----------
- src/pkg/runtime/race.h    |  4 ++--
- src/pkg/runtime/race0.c   |  6 ++++--
- src/pkg/runtime/slice.c   | 18 +++++++++---------
- 6 files changed, 53 insertions(+), 35 deletions(-)
+ src/pkg/os/os_test.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

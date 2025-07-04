@@ -1,30 +1,12 @@
-commit c63dbd87c1defe147f858d599ef49eea2f34a212
+commit fa8384dfb9d229269cca4e176a1870b776894552
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 10 10:13:42 2016 -0800
+Date:   Fri Jan 1 15:50:23 2016 -0800
 
-    cmd/compile: add Nodes.Set1 method and use it where possible
+    runtime: remove now-unused test string constants
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I05322fb5afd213f13fb247ec1a5f655c17a58774
-    Reviewed-on: https://go-review.googlesource.com/20522
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I491197e1505d02cd107a8788e5377cf1d0a9828c
+    Reviewed-on: https://go-review.googlesource.com/18157
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/alg.go       |  4 ++--
- src/cmd/compile/internal/gc/bimport.go   |  2 +-
- src/cmd/compile/internal/gc/closure.go   |  8 ++++----
- src/cmd/compile/internal/gc/dcl.go       |  2 +-
- src/cmd/compile/internal/gc/init.go      |  4 ++--
- src/cmd/compile/internal/gc/order.go     |  4 ++--
- src/cmd/compile/internal/gc/parser.go    | 18 +++++++++---------
- src/cmd/compile/internal/gc/range.go     | 10 +++++-----
- src/cmd/compile/internal/gc/select.go    | 10 +++++-----
- src/cmd/compile/internal/gc/sinit.go     |  8 ++++----
- src/cmd/compile/internal/gc/subr.go      |  4 ++--
- src/cmd/compile/internal/gc/swt.go       | 20 ++++++++++----------
- src/cmd/compile/internal/gc/syntax.go    |  5 +++++
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- src/cmd/compile/internal/gc/walk.go      | 16 ++++++++++------
- 15 files changed, 63 insertions(+), 54 deletions(-)
+ src/runtime/crash_test.go | 33 ---------------------------------
+ 1 file changed, 33 deletions(-)

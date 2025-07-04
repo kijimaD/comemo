@@ -1,19 +1,17 @@
-commit 3e62d2184ab2d2ac6053e3f4af5e3f99902c1e32
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 27 17:12:48 2014 -0400
+commit 3114bd6f97492461d2027a49fee9f7fce3742b75
+Author: Ron Hashimoto <mail@h2so5.net>
+Date:   Fri Oct 10 09:21:32 2014 +1100
 
-    runtime: fix endianness assumption when decoding ftab
+    net: disable SIO_UDP_CONNRESET behavior on windows.
     
-    The ftab ends with a half functab record consisting only of
-    the 'entry' field followed by a uint32 giving the offset of
-    the next table.  Previously, symtabinit assumed it could read
-    this uint32 as a uintptr.  Since this is unsafe on big endian,
-    explicitly read the offset as a uint32.
+    Fixes #5834.
     
-    LGTM=rsc
-    R=rsc
+    LGTM=alex.brainman
+    R=golang-codereviews, bradfitz, alex.brainman, mikioh.mikioh, in60jp, iant
     CC=golang-codereviews
-    https://golang.org/cl/157660043
+    https://golang.org/cl/149510043
 
- src/runtime/symtab.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/net/fd_windows.go         | 12 ++++++++++++
+ src/net/udp_test.go           | 36 ++++++++++++++++++++++++++++++++++++
+ src/syscall/ztypes_windows.go |  1 +
+ 3 files changed, 49 insertions(+)

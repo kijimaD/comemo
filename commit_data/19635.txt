@@ -1,22 +1,11 @@
-commit ce5bbfdde4ac3e2b8b1437e3ff12c69daec938a7
+commit 1abab32c6512ca5c2c3b3855a0f6d108ef2ff3b6
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 30 15:47:11 2014 -0700
+Date:   Mon Jun 30 12:28:20 2014 -0700
 
-    encoding/gob: simplify allocation in decode.
-    The old code's structure needed to track indirections because of the
-    use of unsafe. That is no longer necessary, so we can remove all
-    that tracking. The code cleans up considerably but is a little slower.
-    We may be able to recover that performance drop. I believe the
-    code quality improvement is worthwhile regardless.
+    doc/go1.4.txt: encoding/gob is now safe
     
-    BenchmarkEndToEndPipe           5610          5780          +3.03%
-    BenchmarkEndToEndByteBuffer     3156          3222          +2.09%
-    
-    LGTM=rsc
-    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/103700043
+    https://golang.org/cl/103690043
 
- src/pkg/encoding/gob/codec_test.go |  38 ++---
- src/pkg/encoding/gob/decode.go     | 339 +++++++++++++------------------------
- 2 files changed, 133 insertions(+), 244 deletions(-)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

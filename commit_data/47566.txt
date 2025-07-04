@@ -1,17 +1,147 @@
-commit e30ebaab0bd5d95178f77cf40998ab14a0341d17
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 18 17:52:24 2021 -0800
+commit 67d565d2815f33887cfb448bd4c1928318324c78
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 25 19:50:08 2021 -0400
 
-    spec: add section on the structure of interfaces
+    cmd/compile: restructure ABI wrapper generation, export ABI
     
-    This change introduces the notion of a structural interface
-    and its corresponding structural type.
+    This CL restructures how we track function ABIs and generate ABI
+    wrappers in the compiler and adds import/export of ABIs across package
+    boundaries.
     
-    Change-Id: Ib5442dfd04cb5950b4467428cae51849f8922272
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365474
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Currently, we start by tracking definition and referencing ABIs in two
+    global maps and eventually move some of this information into the
+    LSyms for functions. This complicates a lot of the existing code for
+    handling wrappers and makes it particularly hard to export ABI
+    information across packages. This change is built around instead
+    recording this information on the ir.Func.
+    
+    First, this change replaces the global ABI def/ref maps with a type,
+    which makes the data flow and lifetime of this information clear in
+    gc.Main. These are populated during flag parsing.
+    
+    Then, early in the front-end, we loop over all ir.Funcs to 1. attach
+    ABI def/ref information to the ir.Funcs and 2. create new ir.Funcs for
+    ABI wrappers. Step 1 is slightly subtle because the information is
+    keyed by linker symbol names, so we can't simply look things up in the
+    compiler's regular symbol table.
+    
+    By generating ABI wrappers early in the front-end, we decouple this
+    step from LSym creation, which makes LSym creation much simpler (like
+    it was before ABI wrappers). In particular, LSyms for wrappers are now
+    created at the same time as all other functions instead of by
+    makeABIWrapper, which means we're back to the simpler, old situation
+    where InitLSym was the only thing responsible for constructing
+    function LSyms. Hence, we can restore the check that InitLSym is
+    called exactly once per function.
+    
+    Attaching the ABI information to the ir.Func has several follow-on
+    benefits:
+    
+    1. It's now easy to include in the export info. This enables direct
+    cross-package cross-ABI calls, which are important for the performance
+    of calling various hot assembly functions (e.g., internal/bytealg.*).
+    This was really the point of this whole change.
+    
+    2. Since all Funcs, including wrappers, now record their definition
+    ABI, callTargetLSym no longer needs to distinguish wrappers from
+    non-wrappers, so it's now nearly trivial (it would be completely
+    trivial except that it has to work around a handful of cases where
+    ir.Name.Func is nil).
+    
+    The simplification of callTargetLSym has one desirable but potentially
+    surprising side-effect: the compiler will now generate direct calls to
+    the definition ABI even when ABI wrappers are turned off. This is
+    almost completely unnoticeable except that cmd/internal/obj/wasm looks
+    for the call from runtime.deferreturn (defined in Go) to
+    runtime.jmpdefer (defined in assembly) to compile is specially. That
+    now looks like a direct call to ABI0 rather than going through the
+    ABIInternal alias.
+    
+    While we're in here, we also set up the structures to support more
+    than just ABI0 and ABIInternal and add various additional consistency
+    checks all around.
+    
+    Performance-wise, this reduces the overhead induced by wrappers from
+    1.24% geomean (on Sweet) to 0.52% geomean, and reduces the number of
+    benchmarks impacts >2% from 5 to 3. It has no impact on compiler speed.
+    
+    Impact of wrappers before this change:
+    
+    name                                old time/op  new time/op  delta
+    BiogoIgor                            15.8s ± 2%   15.8s ± 1%    ~     (p=0.863 n=25+25)
+    BiogoKrishna                         18.3s ± 6%   18.1s ± 7%  -1.39%  (p=0.015 n=25+25)
+    BleveIndexBatch100                   5.88s ± 3%   6.04s ± 6%  +2.72%  (p=0.000 n=25+25)
+    BleveQuery                           6.42s ± 1%   6.76s ± 1%  +5.31%  (p=0.000 n=24+24)
+    CompileTemplate                      245ms ± 3%   250ms ± 6%    ~     (p=0.068 n=22+25)
+    CompileUnicode                      93.6ms ± 2%  93.9ms ± 5%    ~     (p=0.958 n=22+25)
+    CompileGoTypes                       1.60s ± 2%   1.59s ± 2%    ~     (p=0.115 n=24+24)
+    CompileCompiler                      104ms ± 4%   104ms ± 3%    ~     (p=0.453 n=22+25)
+    CompileSSA                           11.0s ± 2%   11.0s ± 1%    ~     (p=0.789 n=24+25)
+    CompileFlate                         153ms ± 2%   153ms ± 1%    ~     (p=0.055 n=21+20)
+    CompileGoParser                      229ms ± 2%   230ms ± 2%    ~     (p=0.305 n=21+22)
+    CompileReflect                       585ms ± 5%   582ms ± 3%    ~     (p=0.365 n=25+25)
+    CompileTar                           211ms ± 1%   211ms ± 3%    ~     (p=0.592 n=20+22)
+    CompileXML                           282ms ± 3%   281ms ± 2%    ~     (p=0.937 n=22+23)
+    CompileStdCmd                        13.7s ± 3%   13.6s ± 2%    ~     (p=0.700 n=25+25)
+    FoglemanFauxGLRenderRotateBoat       8.67s ± 1%   8.78s ± 1%  +1.30%  (p=0.000 n=25+25)
+    FoglemanPathTraceRenderGopherIter1   20.5s ± 2%   20.9s ± 2%  +1.85%  (p=0.000 n=25+25)
+    GopherLuaKNucleotide                 30.1s ± 2%   31.1s ± 2%  +3.38%  (p=0.000 n=25+25)
+    MarkdownRenderXHTML                  246ms ± 5%   250ms ± 1%  +1.42%  (p=0.002 n=25+23)
+    Tile38WithinCircle100kmRequest       828µs ± 6%   885µs ± 6%  +6.85%  (p=0.000 n=23+25)
+    Tile38IntersectsCircle100kmRequest  1.04ms ± 5%  1.10ms ± 7%  +5.63%  (p=0.000 n=25+25)
+    Tile38KNearestLimit100Request        974µs ± 4%   972µs ± 4%    ~     (p=0.356 n=25+24)
+    [Geo mean]                           588ms        595ms       +1.24%
+    
+    (https://perf.golang.org/search?q=upload:20210328.5)
+    
+    And after this change:
+    
+    name                                old time/op  new time/op  delta
+    BiogoIgor                            15.9s ± 1%   15.8s ± 1%  -0.48%  (p=0.008 n=22+25)
+    BiogoKrishna                         18.4s ± 6%   17.8s ± 6%  -3.55%  (p=0.008 n=25+25)
+    BleveIndexBatch100                   5.86s ± 3%   5.97s ± 4%  +1.88%  (p=0.001 n=25+25)
+    BleveQuery                           6.42s ± 1%   6.75s ± 1%  +5.14%  (p=0.000 n=25+25)
+    CompileTemplate                      246ms ± 5%   245ms ± 2%    ~     (p=0.472 n=23+23)
+    CompileUnicode                      93.7ms ± 3%  93.5ms ± 2%    ~     (p=0.813 n=22+23)
+    CompileGoTypes                       1.60s ± 2%   1.60s ± 2%    ~     (p=0.108 n=25+23)
+    CompileCompiler                      104ms ± 3%   104ms ± 2%    ~     (p=0.845 n=23+23)
+    CompileSSA                           11.0s ± 2%   11.0s ± 2%    ~     (p=0.525 n=25+25)
+    CompileFlate                         152ms ± 1%   153ms ± 2%    ~     (p=0.408 n=22+22)
+    CompileGoParser                      230ms ± 1%   230ms ± 1%    ~     (p=0.363 n=21+23)
+    CompileReflect                       582ms ± 3%   584ms ± 4%    ~     (p=0.658 n=25+25)
+    CompileTar                           212ms ± 2%   211ms ± 2%    ~     (p=0.315 n=23+24)
+    CompileXML                           282ms ± 1%   282ms ± 1%    ~     (p=0.991 n=23+22)
+    CompileStdCmd                        13.6s ± 2%   13.6s ± 2%    ~     (p=0.699 n=25+24)
+    FoglemanFauxGLRenderRotateBoat       8.66s ± 1%   8.69s ± 1%  +0.28%  (p=0.002 n=25+24)
+    FoglemanPathTraceRenderGopherIter1   20.5s ± 3%   20.5s ± 2%    ~     (p=0.407 n=25+25)
+    GopherLuaKNucleotide                 30.1s ± 2%   31.2s ± 2%  +3.82%  (p=0.000 n=25+25)
+    MarkdownRenderXHTML                  246ms ± 3%   245ms ± 1%    ~     (p=0.478 n=23+22)
+    Tile38WithinCircle100kmRequest       820µs ± 4%   856µs ± 5%  +4.39%  (p=0.000 n=24+25)
+    Tile38IntersectsCircle100kmRequest  1.05ms ± 6%  1.07ms ± 6%  +1.91%  (p=0.014 n=25+25)
+    Tile38KNearestLimit100Request        970µs ± 4%   970µs ± 3%    ~     (p=0.819 n=22+24)
+    [Geo mean]                           588ms        591ms       +0.52%
+    
+    (https://perf.golang.org/search?q=upload:20210328.6)
+    
+    For #40724.
+    
+    Change-Id: I1c374e32d4bbc88efed062a1b360017d3642140d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305274
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go_spec.html | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 62 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/main.go           |   8 +-
+ src/cmd/compile/internal/ir/func.go           |  25 ++-
+ src/cmd/compile/internal/ir/sizeof_test.go    |   2 +-
+ src/cmd/compile/internal/ssagen/abi.go        | 298 +++++++++++++++-----------
+ src/cmd/compile/internal/ssagen/nowb.go       |   6 +
+ src/cmd/compile/internal/ssagen/ssa.go        |  49 +----
+ src/cmd/compile/internal/staticdata/data.go   |  16 +-
+ src/cmd/compile/internal/typecheck/iexport.go |   6 +-
+ src/cmd/compile/internal/typecheck/iimport.go |   3 +-
+ src/cmd/compile/internal/types/sym.go         |   2 +-
+ src/cmd/internal/obj/link.go                  |  42 ++++
+ src/cmd/internal/obj/wasm/wasmobj.go          |   8 +-
+ 12 files changed, 287 insertions(+), 178 deletions(-)

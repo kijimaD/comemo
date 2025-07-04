@@ -1,20 +1,27 @@
-commit 65adb6ab9a91c2f4336e1e48f9e7c325dafa0213
-Author: Kenny Grant <kennygrant@gmail.com>
-Date:   Sat May 21 16:57:37 2016 +0100
+commit 13f97ea4568b6b1720438347a914618a8bee07be
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 19:23:50 2016 -0400
 
-    time: run genzabbrs.go with new source data
+    cmd/internal/obj/s390x: add s390x support
     
-    The source xml data has changed, so running genzabbrs.go
-    regenerates a new time zone file in zoneinfo_abbrs_windows.go
-    which adds some zones and adjusts others.
+    Based on the ppc64 port.
     
-    Now set export ZONEINFO=$GOROOT/lib/time/zoneinfo.zip to use zoneinfo.zip in go tip.
+    s390x supports 2, 4 and 6 byte instructions and Go assembly
+    instructions sometimes map to several s390x instructions. The
+    assembler loops until a fixed point is reached in order to use
+    branch instructions that can only handle a short offset in a
+    similar way to other ports.
     
-    Change-Id: I19f72359cc808094e5dcb420e480a00c6b2205d7
-    Reviewed-on: https://go-review.googlesource.com/23321
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4278bf46aca35a96ca9cea0857e6229643c9c1e3
+    Reviewed-on: https://go-review.googlesource.com/20942
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/zoneinfo_abbrs_windows.go | 40 ++++++++++++++++++++++++--------------
- 1 file changed, 25 insertions(+), 15 deletions(-)
+ src/cmd/dist/buildtool.go             |    1 +
+ src/cmd/internal/obj/s390x/a.out.go   |  895 +++++++
+ src/cmd/internal/obj/s390x/anames.go  |  650 +++++
+ src/cmd/internal/obj/s390x/anamesz.go |   39 +
+ src/cmd/internal/obj/s390x/asmz.go    | 4628 +++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/s390x/listz.go   |   73 +
+ src/cmd/internal/obj/s390x/objz.go    | 1013 ++++++++
+ src/cmd/internal/obj/s390x/vector.go  | 1061 ++++++++
+ 8 files changed, 8360 insertions(+)

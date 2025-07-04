@@ -1,22 +1,23 @@
-commit cc8bac88353d8067244a196f70b2fe9475f4336e
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jul 21 15:53:25 2022 -0400
+commit d09e09bc615a50e9f2f1144991ebeba08a7c6f05
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Tue Sep 14 13:37:21 2021 +0800
 
-    runtime: move trace locks to the leaf of the lock graph
+    cmd/compile: fixing writebarrier.go for -G=3
     
-    Now that trace.lock cannot be held over a stack split, we can move
-    that lock and traceStackTab to the leaf of the lock graph. We add a
-    couple edges to STACKGROW that were previously passing through trace.
+    This is caused by some nodes didn't carry the real line number.
+    Noder1 wraps these node with ir.ParenExpr. To fix this issue,
+    wraps this node like what noder1 does.
     
-    Fixes #53979.
-    
-    Change-Id: Ie664ff7bb33973745f991f7516dc6106e60f5892
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418957
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I212cad09b93b8bf1a7adfad416d229d15711918a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349769
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
 
- src/runtime/lockrank.go   | 24 ++++++++++++------------
- src/runtime/mklockrank.go | 27 ++++++++++++++-------------
- 2 files changed, 26 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/noder/expr.go      | 5 +++--
+ src/cmd/compile/internal/noder/noder.go     | 8 ++++++--
+ src/cmd/compile/internal/noder/stmt.go      | 2 +-
+ src/cmd/compile/internal/noder/transform.go | 4 ++++
+ test/run.go                                 | 2 --
+ 5 files changed, 14 insertions(+), 7 deletions(-)

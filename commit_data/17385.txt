@@ -1,14 +1,18 @@
-commit 9ec0f30a25dc2f2b106a30130bf6b97d2d20ef3f
+commit cb79c57dfa25b917c4ce1c08e2a9a6f9405a5998
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Aug 24 17:05:27 2013 -0500
+Date:   Sat Aug 24 09:51:42 2013 -0500
 
-    bytes: clarify Equal docs
+    cmd/api: ignore GOARCH when building cmd/api.
     
-    == isn't defined on slices, so don't use it in docs.
+    This was breaking people setting GOARCH=386 before running
+    all.bash on amd64 machines.
     
-    R=golang-dev, iant
+    cmd/go puts different architecture binaries where "go tool"
+    can't find them.
+    
+    R=golang-dev, r, khr
     CC=golang-dev
-    https://golang.org/cl/12983045
+    https://golang.org/cl/13139044
 
- src/pkg/bytes/bytes_decl.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/api/run.go | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

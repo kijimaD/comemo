@@ -1,17 +1,16 @@
-commit 1c6a35b4fe894ab0dc229be35d8a5fb0080a31d6
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 2 10:15:34 2016 -0500
+commit 0133d24c9410a9b1f3e41925efd5d1c977dd57d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 12:29:55 2015 -0800
 
-    runtime: deflake TestGoroutineProfileTrivial
+    cmd/compile/internal/gc: don't ignore EOF in new parser
     
-    Failed at https://storage.googleapis.com/go-build-log/9875de36/nacl-amd64p32_931ba6cf.log
+    Fixes #13274.
+    Fixes #13272.
     
-    Change-Id: I2bc204ed58da543ee2534b69c29c8e8485d54683
-    Reviewed-on: https://go-review.googlesource.com/19155
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie67a2c4671ee2b49831898fff7677cd65d780942
+    Reviewed-on: https://go-review.googlesource.com/16972
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/runtime/runtime_test.go | 25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/parser.go |  4 +++-
+ test/fixedbugs/issue13274.go          | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

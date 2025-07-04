@@ -1,23 +1,25 @@
-commit 810799a16d71c6293b7d305fbe22dd85456fe1fd
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 28 20:20:50 2016 +0000
+commit 4d02b1241738a5bd06201455a4f74a013f6c9437
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 4 13:38:38 2016 -0800
 
-    Revert "cmd/asm: add s390x support"
+    runtime: don't expose stack buffer in stringto{byte,rune}slice
     
-    This reverts commit 85bbabd9c49253846f10d08876f9e15338cfe6b4.
+    When using a stack-allocated buffer for the result, don't
+    expose the uninitialized portion of it by restricting its
+    capacity to its length.
     
-    The reverted CL broke all builds, because it depends on other CLs
-    that haven't been reviewed or landed yet.
+    The other option is to zero the portion between len and cap.
+    That seems like more work, but might be worth it if the caller
+    then appends some stuff to the result.  But this close to 1.6,
+    I'm inclined to do the simplest fix possible.
     
-    Change-Id: I936f969431e0ac77133e43de2bf63042cef6b777
-    Reviewed-on: https://go-review.googlesource.com/21238
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #14232
+    
+    Change-Id: I21c50d3cda02fd2df4d60ba5e2cfe2efe272f333
+    Reviewed-on: https://go-review.googlesource.com/19231
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/arch/arch.go         |  58 --------
- src/cmd/asm/internal/arch/s390x.go        | 139 -------------------
- src/cmd/asm/internal/asm/asm.go           |  30 -----
- src/cmd/asm/internal/asm/endtoend_test.go |   4 -
- src/cmd/asm/internal/asm/operand_test.go  | 103 --------------
- src/cmd/asm/internal/asm/testdata/s390x.s | 215 ------------------------------
- 6 files changed, 549 deletions(-)
+ src/runtime/string.go      |  4 ++--
+ src/runtime/string_test.go | 15 +++++++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

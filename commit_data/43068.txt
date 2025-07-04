@@ -1,19 +1,21 @@
-commit 095f66f662ac73e2aafbc369c59fc3870eb9b86f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Sep 18 14:15:56 2020 -0400
+commit cc6a8bd0d7f782c31e1a35793b4e1253c6716ad5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 2 04:26:54 2020 +1100
 
-    cmd/go/internal/modget: if building packages, only update go.mod if the build succeeds
+    cmd/compile: add zero store operations for riscv64
     
-    Fixes #41315
+    This allows for zero stores to be performed using the zero register, rather
+    than loading a separate register with zero.
     
-    Change-Id: I5b18a0c2d1d72ff556a882e862b95133deb3ef98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255970
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ic81d8dbcdacbb2ca2c3f77682ff5ad7cdc33d18d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221684
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modget/get.go             | 29 +++++++++----------
- src/cmd/go/testdata/script/mod_get_errors.txt | 41 +++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/riscv64/ssa.go        |   7 +
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  18 ++
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  19 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  56 ++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 264 +++++++++++++++++++++++++
+ 5 files changed, 358 insertions(+), 6 deletions(-)

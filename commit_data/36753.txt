@@ -1,20 +1,50 @@
-commit ebdc0b8d68e04ad383088c8b3ab963de4a9b5c5d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 26 20:19:11 2018 +0000
+commit 482d241936deac1e50a77ab340345449f8579886
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Mar 9 00:14:58 2018 +0100
 
-    bytes, strings: add ReplaceAll
+    cmd/compile: add wasm stack optimization
     
-    Credit to Harald Nordgren for the proposal in
-    https://golang.org/cl/137456 and #27864.
+    Go's SSA instructions only operate on registers. For example, an add
+    instruction would read two registers, do the addition and then write
+    to a register. WebAssembly's instructions, on the other hand, operate
+    on the stack. The add instruction first pops two values from the stack,
+    does the addition, then pushes the result to the stack. To fulfill
+    Go's semantics, one needs to map Go's single add instruction to
+    4 WebAssembly instructions:
+    - Push the value of local variable A to the stack
+    - Push the value of local variable B to the stack
+    - Do addition
+    - Write value from stack to local variable C
     
-    Fixes #27864
+    Now consider that B was set to the constant 42 before the addition:
+    - Push constant 42 to the stack
+    - Write value from stack to local variable B
     
-    Change-Id: I80546683b0623124fe4627a71af88add2f6c1c27
-    Reviewed-on: https://go-review.googlesource.com/137855
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This works, but is inefficient. Instead, the stack is used directly
+    by inlining instructions if possible. With inlining it becomes:
+    - Push the value of local variable A to the stack (add)
+    - Push constant 42 to the stack (constant)
+    - Do addition (add)
+    - Write value from stack to local variable C (add)
+    
+    Note that the two SSA instructions can not be generated sequentially
+    anymore, because their WebAssembly instructions are interleaved.
+    
+    Design doc: https://docs.google.com/document/d/131vjr4DH6JFnb-blm_uRdaC0_Nv3OUwjEY5qVCxCup4
+    
+    Updates #18892
+    
+    Change-Id: Ie35e1c0bebf4985fddda0d6330eb2066f9ad6dec
+    Reviewed-on: https://go-review.googlesource.com/103535
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/bytes/bytes.go          | 9 +++++++++
- src/bytes/bytes_test.go     | 6 ++++++
- src/strings/strings.go      | 9 +++++++++
- src/strings/strings_test.go | 6 ++++++
- 4 files changed, 30 insertions(+)
+ logs.txt                                    |  0
+ src/cmd/compile/internal/gc/ssa.go          |  3 +
+ src/cmd/compile/internal/ssa/regalloc.go    | 72 ++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go  |  2 +-
+ src/cmd/compile/internal/ssa/value.go       |  4 ++
+ src/cmd/compile/internal/wasm/ssa.go        | 90 +++++++++++++++++++----------
+ 7 files changed, 137 insertions(+), 36 deletions(-)

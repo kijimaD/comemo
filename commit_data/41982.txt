@@ -1,14 +1,19 @@
-commit 8ce21fae6009adc0d528945b09293ff2c4530364
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 16 20:33:02 2020 -0400
+commit 376c4ceab76591838623086ce387230cab5d0d5d
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Oct 31 09:52:21 2019 -0700
 
-    test: add copyright notice to typecheck.go
+    cmd/vet: add test for loading complex values with a single instruction
     
-    Also gofmt.
+    Actual fix will be submitted to x/tools and vendored.
+    This is just an end-to-end test for vet after that is done.
     
-    Change-Id: I36ac990965250867574f8e2318b65b87a0beda04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228697
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Update #35264
+    
+    Change-Id: I1a63f607e7cfa7aafee23c2c081086c276d3c38c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204538
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- test/typecheck.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/vet/testdata/asm/asm.go |  2 ++
+ src/cmd/vet/testdata/asm/asm1.s | 15 +++++++++++++++
+ 2 files changed, 17 insertions(+)

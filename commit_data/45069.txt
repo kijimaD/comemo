@@ -1,31 +1,33 @@
-commit 117b1c84d3678a586c168a5f7f2f0a750c27f0c2
-Author: Hajime Hoshi <hajimehoshi@gmail.com>
-Date:   Sat Dec 26 02:25:13 2020 +0900
+commit 3caaaddffd605c0ec1787d68295b732fff73026b
+Author: Andrei Vagin <avagin@google.com>
+Date:   Tue Sep 29 04:45:55 2020 +0000
 
-    cmd/go/internal/work: remove '_test' from import paths in stacktraces when -trimpath is specified
+    runtime: don't crash if vsyscall and vdso are disabled on x86_64
     
-    ExampleFrames with -trimpath failed since the content of Frame's File
-    changed when -trimpath is specified.
+    If vdso is disabled, the goruntime calls gettimeofday from vsyscall,
+    but if vsyscall is disabled too, all golang binaries crash:
     
-    This CL fixes the issue by adding a new field OrigImportPath to
-    PackageInternal, which represents the original import path before adding
-    '_test' suffix for an external test package, and always using it to
-    create paths for the build tools.
+    SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_MAPERR, si_addr=0xffffffffff600000} ---
+    killed by SIGSEGV (core dumped) ++
     
-    Fixes golang/go#43380
+    vsyscall doesn't work as it was designed for a long time due to security
+    reasons and now vsyscall is a little more expensive than real syscalls:
+    https://github.com/torvalds/linux/commit/5cec93c216db
     
-    Change-Id: Ibbc947eb3ae08a7ba81f13f03af67c8745b5c69f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279440
-    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
+    This patch reworks the code to call syscalls if the vdso library isn't
+    available.
+    
+    Change-Id: I16cbf3f49871bea91e26af1f49aa0ae2fbd3a01d
+    GitHub-Last-Rev: 1d133cd30a5dee1fea9aee0fb4ea0b07e0e87f2a
+    GitHub-Pull-Request: golang/go#41681
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257982
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/load/pkg.go                    |  2 +
- src/cmd/go/internal/load/test.go                   | 25 ++++++-----
- src/cmd/go/internal/work/gc.go                     |  5 ++-
- src/cmd/go/testdata/script/test_trimpath.txt       | 51 ++++++++++++++++++++++
- src/cmd/go/testdata/script/test_trimpath_main.txt  | 38 ++++++++++++++++
- .../testdata/script/test_trimpath_test_suffix.txt  | 40 +++++++++++++++++
- 6 files changed, 148 insertions(+), 13 deletions(-)
+ src/runtime/sys_linux_amd64.s   | 31 +++++++++++--------------------
+ src/runtime/vdso_linux_amd64.go |  5 ++---
+ src/syscall/asm_linux_amd64.s   | 10 +++++++++-
+ 3 files changed, 22 insertions(+), 24 deletions(-)

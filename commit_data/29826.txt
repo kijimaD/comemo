@@ -1,18 +1,18 @@
-commit 34bd7d5d4bf93484f920d2ccb12183f530a684e6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Dec 15 18:00:12 2016 +0900
+commit 6e759ad2e2ae53f08db4470aa60e972eb908f2ef
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Aug 1 20:34:12 2016 +1000
 
-    net: fix comment on IPv4bcast
+    cmd/compile/internal/gc: add runtime/trace support
     
-    In Go 1.8, almost all the platforms except NaCl provide network
-    interface and address identification and applications can use IPv4
-    limited or directed broadcast addresses appropriately.
+    This change adds runtime/trace support to go tool compile.
     
-    Fixes #18176.
-    
-    Change-Id: Ie5de834d19c0aaeb4128a3ca655f6c4c9ae5e501
-    Reviewed-on: https://go-review.googlesource.com/34435
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6c496b9b063796123f75eba6af511c53a57c0196
+    Reviewed-on: https://go-review.googlesource.com/25354
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/ip.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go  |  1 +
+ src/cmd/compile/internal/gc/trace.go | 27 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/util.go  |  5 +++++
+ 3 files changed, 33 insertions(+)

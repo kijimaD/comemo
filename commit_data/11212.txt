@@ -1,14 +1,14 @@
-commit 4985ee3dcb76bd0f9d8aba800e97ba29b535997f
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 17 13:24:59 2012 -0800
+commit f4ad8c1c5b8ec6c271a206a3ec74d57b03b7e0e6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 17 13:14:27 2012 -0800
 
-    text/template: fix nil error on redefinition
-    Fixes #2720.
+    net/http/cgi: increase a flaky test timeout
     
-    R=golang-dev, dsymonds
+    Fixes 2450, probably.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5545072
+    https://golang.org/cl/5540074
 
- src/pkg/text/template/multi_test.go | 15 +++++++++++++++
- src/pkg/text/template/template.go   |  2 +-
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/pkg/net/http/cgi/host_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,16 @@
-commit 90e4ece365cd8220a7efd589556fa7e59c1ca939
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 15 16:33:52 2011 -0700
+commit 3d36a81fcc5ae2ab81c1680339736452979565c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 19:17:16 2011 -0400
 
-    mime: bunch more tests, few minor parsing fixes
+    undo 4439044
     
-    Working towards issue 1119
+    cannot use regalloc with floating point on 386.
+    will redo some other way.
     
-    Using test data from http://greenbytes.de/tech/tc2231/
-    
-    R=r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4430049
+    https://golang.org/cl/4439045
 
- src/pkg/mime/mediatype.go      | 35 ++++++++++++++-
- src/pkg/mime/mediatype_test.go | 99 +++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 120 insertions(+), 14 deletions(-)
+ src/cmd/gc/cplx.c        | 19 +++---------------
+ test/fixedbugs/bug329.go | 50 ------------------------------------------------
+ 2 files changed, 3 insertions(+), 66 deletions(-)

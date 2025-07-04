@@ -1,33 +1,13 @@
-commit 350a8fcde14e936a4af33560b5365b18e822477a
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri May 2 17:32:42 2014 +0100
+commit 3b3e1a09a9dc495a0d5fc298f472538a7216a503
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu May 1 16:29:34 2014 -0400
 
-    runtime: make MemStats.LastGC Unix time again
-    The monotonic clock patch changed all runtime times
-    to abstract monotonic time. As the result user-visible
-    MemStats.LastGC become monotonic time as well.
-    Restore Unix time for LastGC.
+    html: fix small typo
     
-    This is the simplest way to expose time.now to runtime that I found.
-    Another option would be to change time.now to C called
-    int64 runtime.unixnanotime() and then express time.now in terms of it.
-    But this would require to introduce 2 64-bit divisions into time.now.
-    Another option would be to change time.now to C called
-    void runtime.unixnanotime1(struct {int64 sec, int32 nsec} *now)
-    and then express both time.now and runtime.unixnanotime in terms of it.
-    
-    Fixes #7852.
-    
-    LGTM=minux.ma, iant
-    R=minux.ma, rsc, iant
+    LGTM=dsymonds, adg, crawshaw, r, bradfitz, campoy, nigeltao, sameer, iant, robsc, djd, michael.j.fromberger, gmlewis, adonovan, rsc
+    R=golang-codereviews, dsymonds, adg, crawshaw, r, nigeltao, sameer, iant, robsc, djd, michael.j.fromberger, gmlewis, adonovan, rsc
     CC=golang-codereviews
-    https://golang.org/cl/93720045
+    https://golang.org/cl/98880043
 
- src/pkg/runtime/asm_386.s      |  3 +++
- src/pkg/runtime/asm_amd64.s    |  3 +++
- src/pkg/runtime/asm_amd64p32.s |  3 +++
- src/pkg/runtime/asm_arm.s      |  3 +++
- src/pkg/runtime/gc_test.go     | 13 +++++++++++++
- src/pkg/runtime/mgc0.c         |  4 +++-
- src/pkg/runtime/mgc0.go        |  7 +++++++
- 7 files changed, 35 insertions(+), 1 deletion(-)
+ src/pkg/html/template/js.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

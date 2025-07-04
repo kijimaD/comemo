@@ -1,28 +1,22 @@
-commit 195945a40d6c644e91d4811c727e65a0593be1eb
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Wed Oct 6 05:27:52 2021 +0200
+commit 5cdf0da1bfc74ad1017a488044a865850f7c3c8e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Jan 27 01:00:05 2021 +1100
 
-    internal/cpu: remove option to mark cpu features required
+    syscall: clean up mkasm related changes
     
-    With the removal of SSE2 runtime detection made in
-    golang.org/cl/344350 we can remove this mechanism as there
-    are no required features anymore.
+    The mkasm_darwin.go file was renamed to mkasm.go in CL 270380, with OpenBSD
+    support being added. The mkasm_openbsd.go file should not have been merged,
+    so remove it. Fix up references to mkasm_$GOOS.go and provide $GOOS as an
+    argument on invocation.
     
-    For making sure CPUs running a go program support all
-    the minimal hardware requirements the go runtime should
-    do feature checks early in the runtime initialization
-    before it is likely any compiler emitted but unsupported
-    instructions are used. This is already the case for e.g.
-    checking MMX support on 386 arch targets.
+    Updates #36435
     
-    Change-Id: If7b1cb6f43233841e917d37a18314d06a334a734
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354209
-    Trust: Martin Möhrmann <martin@golang.org>
-    Run-TryBot: Martin Möhrmann <martin@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I868d3f2146973d026e6a663d437749dbb6b312ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286812
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/internal/cpu/cpu.go      |  8 +-------
- src/internal/cpu/cpu_test.go | 20 +-------------------
- 2 files changed, 2 insertions(+), 26 deletions(-)
+ src/syscall/mkall.sh         |  8 +++---
+ src/syscall/mkasm_openbsd.go | 58 --------------------------------------------
+ src/syscall/mksyscall.pl     |  2 +-
+ 3 files changed, 5 insertions(+), 63 deletions(-)

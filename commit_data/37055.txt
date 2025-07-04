@@ -1,14 +1,22 @@
-commit b917bdd3ba255cd71ec0aa837215fa296b89eb77
-Author: Genevieve Luyt <genevieve.luyt@gmail.com>
-Date:   Mon Oct 22 13:39:13 2018 -0400
+commit 00eac8921e04c07df2d25df33b9401226f5d0326
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 19 19:50:03 2018 -0700
 
-    doc: use the new log functions
+    os, net: avoid races between dup, set-blocking-mode, and closing
     
-    The log interface was changed in https://golang.org/cl/2419042.
+    Fixes #24481
+    Fixes #24483
     
-    Change-Id: I3eaddd8a5cfcae961db16555fb1b0ce6770b6334
-    Reviewed-on: https://go-review.googlesource.com/c/143777
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Id7da498425a440c91582aa5480c253ae7a9c932c
+    Reviewed-on: https://go-review.googlesource.com/119955
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/effective_go.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/dist/test.go         |  2 +-
+ src/internal/poll/fd_unix.go | 53 +++++++++++++++++++++++++++++++++++++++++--
+ src/net/fd_unix.go           | 40 ++++----------------------------
+ src/net/file_test.go         | 54 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/file_unix.go         |  5 +++-
+ src/os/pipe_test.go          | 23 +++++++++++++++++++
+ 6 files changed, 137 insertions(+), 40 deletions(-)

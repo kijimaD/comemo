@@ -1,28 +1,20 @@
-commit 7ca6902c171b336d98adbb103d701a013229c806
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Mar 19 00:34:26 2022 +0700
+commit cfe0250497aa2eaa7d3a9a56d815bfa1f4b9b8b5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 20 14:47:40 2021 -0700
 
-    cmd/compile: remove n.Diag() deadcode paths
+    [dev.typeparams] cmd/compile/internal/types2: move struct checking into separate file
     
-    CL 392918 changed n.Diag() to always return false, we can now get rid
-    of all its deadcode paths.
+    This only moves functionality from one file into another.
+    Except for import adjustments there are no changes to the
+    code.
     
-    Updates #51691
-    
-    Change-Id: I64c07970493e7bdcf89df9508ce88132ef4aa4d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393915
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8dff41fe82693c96b09a152975c3fd1e3b439e8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321589
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ir/expr.go             |  1 -
- src/cmd/compile/internal/ir/mini.go             |  1 -
- src/cmd/compile/internal/ir/node.go             |  1 -
- src/cmd/compile/internal/typecheck/const.go     | 16 ++++-----
- src/cmd/compile/internal/typecheck/expr.go      |  6 ++--
- src/cmd/compile/internal/typecheck/func.go      |  3 --
- src/cmd/compile/internal/typecheck/stmt.go      | 10 +++---
- src/cmd/compile/internal/typecheck/subr.go      |  3 --
- src/cmd/compile/internal/typecheck/typecheck.go | 48 +++++++++----------------
- 9 files changed, 30 insertions(+), 59 deletions(-)
+ src/cmd/compile/internal/types2/struct.go  | 165 +++++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go | 156 ---------------------------
+ 2 files changed, 165 insertions(+), 156 deletions(-)

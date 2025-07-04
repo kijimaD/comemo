@@ -1,14 +1,19 @@
-commit 8869cc159e25f571f7b24f23735679d1a0531d82
-Author: Emil Hessman <c.emil.hessman@gmail.com>
-Date:   Fri Aug 30 10:11:18 2013 +1000
+commit ccfe1bfd92461e2743d1004da0365ac2b33f2a6a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 29 16:42:13 2013 -0700
 
-    misc/dist: remove Xcode files from the darwin binary distribution
+    misc/pprof: work with either LWP::UserAgent or curl
     
-    Fixes #6132.
+    Use either LWP::UserAgent or curl to make HTTP requests so it
+    works on Windows (most Perl distros include LWP::UserAgent),
+    and also on OS X (whose Perl at least sometimes doesn't
+    include LWP::UserAgent).
     
-    R=golang-dev, adg
+    Fixes #6273
+    
+    R=golang-dev, alex.brainman, cldorian
     CC=golang-dev
-    https://golang.org/cl/12858049
+    https://golang.org/cl/13330044
 
- misc/dist/darwin/scripts/postinstall | 21 ---------------------
- 1 file changed, 21 deletions(-)
+ misc/pprof | 99 +++++++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 62 insertions(+), 37 deletions(-)

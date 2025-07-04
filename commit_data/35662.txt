@@ -1,16 +1,16 @@
-commit 6b3e3434086133ecba3fa8cc45bf7cca88c64cdb
-Author: Joe Cortopassi <joe@joecortopassi.com>
-Date:   Mon Apr 30 22:32:33 2018 +0000
+commit 1be58dcda8f31eb0ed77fd5e33fb3f5fe47f33ab
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 28 10:17:58 2018 +1100
 
-    doc: remove GOROOT custom install instruction
+    doc/faq: add a Q&A about virus scanners
     
-    Setting GOROOT is no longer necessary for custom installation as of 1.10 (reference: https://go-review.googlesource.com/c/go/+/42533). Fixes #25002
+    Fixes #23759.
     
-    Change-Id: Ic3980833ac437b7a20b951df33805ad1071a40ce
-    GitHub-Last-Rev: 156bf6510a21266bfb8397e564635278aa3bb1e5
-    GitHub-Pull-Request: golang/go#25190
-    Reviewed-on: https://go-review.googlesource.com/110435
+    Change-Id: I0407ebfea507991fc205f7b04bc5798808a5c5f6
+    Reviewed-on: https://go-review.googlesource.com/97496
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- doc/install.html | 25 -------------------------
- 1 file changed, 25 deletions(-)
+ doc/go_faq.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

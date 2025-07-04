@@ -1,24 +1,16 @@
-commit 8fce59eab5cb2facfafca89e047b4b43ba44785f
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Mar 20 17:30:49 2023 -0400
+commit a5dd684293d375ec7648ed85326c3a32edb126e2
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Apr 28 12:04:21 2022 +0800
 
-    cmd/go: add a -debug-runtime-trace flag
+    A+C: add Shuai Tan (individual CLA)
     
-    The runtime/trace package proved useful for investigating go command
-    performance, and it makes sense (to me) to make this available for
-    development behind an undocumented flag, at the cost of ~25KB of binary
-    size. We could of course futher hide this functionality behind an
-    experiment or build tag, if necessary.
+    Replaced github username with my real name and added to AUTHORS.
     
-    Updates #59157
-    
-    Change-Id: I612320920ca935f1ee10bb6a803b7952f36c939b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477896
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Id68c30eeb31b3f0b7cecc434462029843758f9f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402794
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/cfg/cfg.go    |  5 +++--
- src/cmd/go/internal/work/build.go |  1 +
- src/cmd/go/main.go                | 15 +++++++++++++++
- 3 files changed, 19 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

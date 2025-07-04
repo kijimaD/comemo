@@ -1,20 +1,19 @@
-commit 688d75b14fd7646d66c18825f22f0a67e9fafd9e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Jun 7 10:18:06 2023 +0700
+commit b6149224499108d4ea6e562fd9fd7eac35f50a6d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 15 11:04:03 2022 +0200
 
-    cmd/go: skip TestScript/gccgo_link_ldflags on aix/ppc64
+    hash/crc32: remove single-use {castagnoli,ieee}ArchImpl bools
     
-    The gccgo on the builder is not updated to support runtime/cgo
+    These are only used once right after being set in castagnoliInit and
+    ieeeInit, respectively.
     
-    Updates #60306
-    
-    Change-Id: If0fb1ccdf589cc9741f6a065bacfa4f06e64ec15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501435
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ifc5df1fe3040b97b1d252cc6d6d28d8fbc132fa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423854
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/go/testdata/script/gccgo_link_ldflags.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/hash/crc32/crc32.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

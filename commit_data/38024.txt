@@ -1,41 +1,20 @@
-commit 2d3474043cd35ba06d3566df520e8550c479944f
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Feb 21 14:48:52 2019 -0500
+commit 699da6bd134c22ac174ec1accae9ae8218f873f7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 25 15:16:17 2018 -0700
 
-    cmd/compile: call ginsnop, not ginsnop2 on ppc64le for mid-stack inlining tracebacks
+    go/build: support Import of local import path in standard library for gccgo
     
-    A recent change to fix stacktraces for inlined functions
-    introduced a regression on ppc64le when compiling position
-    independent code. That happened because ginsnop2 was called for
-    the purpose of inserting a NOP to identify the location of
-    the inlined function, when ginsnop should have been used.
-    ginsnop2 is intended to be used before deferreturn to ensure
-    r2 is properly restored when compiling position independent code.
-    In some cases the location where r2 is loaded from might not be
-    initialized. If that happens and r2 is used to generate an address,
-    the result is likely a SEGV.
+    It's possible for a local import path to refer to a standard library
+    package. This was not being correctly handled for gccgo. When using
+    gccgo, change the code to permit the existing lexical test, and to
+    accept a missing directory for a standard package found via a local
+    impor path.
     
-    This fixes that problem.
-    
-    Fixes #30283
-    
-    Change-Id: If70ef27fc65ef31969712422306ac3a57adbd5b6
-    Reviewed-on: https://go-review.googlesource.com/c/163337
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Ia9829e55c0ff62e7d1f01a1d6dc9fcff521501ca
+    Reviewed-on: https://go-review.googlesource.com/137439
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/galign.go  | 1 +
- src/cmd/compile/internal/arm/galign.go    | 1 +
- src/cmd/compile/internal/arm64/galign.go  | 1 +
- src/cmd/compile/internal/gc/go.go         | 7 ++++---
- src/cmd/compile/internal/gc/ssa.go        | 2 +-
- src/cmd/compile/internal/mips/galign.go   | 1 +
- src/cmd/compile/internal/mips64/galign.go | 1 +
- src/cmd/compile/internal/ppc64/galign.go  | 3 ++-
- src/cmd/compile/internal/s390x/galign.go  | 1 +
- src/cmd/compile/internal/wasm/ssa.go      | 1 +
- src/cmd/compile/internal/x86/galign.go    | 1 +
- 11 files changed, 15 insertions(+), 5 deletions(-)
+ src/go/build/build.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

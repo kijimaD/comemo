@@ -1,14 +1,13 @@
-commit a9c695204db90e21c798edabfc7aea9316a347ba
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 16 14:20:06 2013 -0700
+commit 86cd1d9e157ce673c9dc64f4be10dfe1a442fea1
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 17 04:41:28 2013 +0800
 
-    doc: more doubled words
-    I wrote a tool.
+    doc/effective_go.html: fix typo
+    Fixes #5296.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8695047
+    https://golang.org/cl/8682044
 
- doc/gccgo_contribute.html | 2 +-
- doc/install.html          | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

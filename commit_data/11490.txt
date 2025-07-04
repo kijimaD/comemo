@@ -1,31 +1,13 @@
-commit 10498f4d335f6bf0089791b263e795233ff79ec5
+commit ceb1ca6b41e0dc2fae4fddf5f06533a0c55c8786
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Jan 31 14:01:53 2012 +1100
+Date:   Tue Jan 31 12:29:00 2012 +1100
 
-    image: remove image/bmp and image/tiff from std.
+    doc: add image/{bmp,tiff} renames to go1.tmpl.
     
-    They have moved to the code.google.com/p/go.image subrepo.
-    
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5552052
+    https://golang.org/cl/5598052
 
- src/pkg/Makefile                                   |   3 -
- src/pkg/image/bmp/Makefile                         |  11 -
- src/pkg/image/bmp/reader.go                        | 152 --------
- src/pkg/image/decode_test.go                       |   9 +-
- src/pkg/image/testdata/video-001.bmp               | Bin 46610 -> 0 bytes
- src/pkg/image/testdata/video-001.tiff              | Bin 30810 -> 0 bytes
- src/pkg/image/tiff/Makefile                        |  14 -
- src/pkg/image/tiff/buffer.go                       |  54 ---
- src/pkg/image/tiff/buffer_test.go                  |  36 --
- src/pkg/image/tiff/compress.go                     |  59 ---
- src/pkg/image/tiff/consts.go                       | 103 -----
- src/pkg/image/tiff/reader.go                       | 430 ---------------------
- src/pkg/image/tiff/reader_test.go                  | 119 ------
- src/pkg/image/tiff/testdata/bw-deflate.tiff        | Bin 594 -> 0 bytes
- src/pkg/image/tiff/testdata/bw-packbits.tiff       | Bin 890 -> 0 bytes
- src/pkg/image/tiff/testdata/bw-uncompressed.tiff   | Bin 1396 -> 0 bytes
- src/pkg/image/tiff/testdata/no_rps.tiff            | Bin 1294 -> 0 bytes
- .../tiff/testdata/video-001-uncompressed.tiff      | Bin 46674 -> 0 bytes
- 18 files changed, 2 insertions(+), 988 deletions(-)
+ doc/go1.html | 5 +++++
+ doc/go1.tmpl | 5 +++++
+ 2 files changed, 10 insertions(+)

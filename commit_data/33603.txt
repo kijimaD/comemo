@@ -1,15 +1,25 @@
-commit 7cddd39f966c4e3a755a8447c618965479431405
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 16 11:43:39 2017 -0500
+commit 05ff6bfe3367837a8bdf8f72ed5ceaecbbd7b5e8
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Aug 24 16:32:54 2017 -0400
 
-    cmd/go: drop flaky part of TestGoTestJSON
+    misc/trace: update trace-viewer
     
-    Still failing on builders. I give up.
-    (For example https://build.golang.org/log/4fa5ba031c2fab5df397ac894f8b81392a93728e.)
+    Generated with
+     github.com/catapult/tracing/bin/vulcanize_trace_viewer
+    catapult @ ab4d571fa
     
-    Change-Id: Ifa87813e27e1adfe9920c7e657b0ff129eb5bf2f
-    Reviewed-on: https://go-review.googlesource.com/78315
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Renamed trace_viewer_lean.html to trace_viewer_full.html
+    to make it clear we are using the full version of trace viewer
+    (waiting for https://github.com/catapult-project/catapult/issues/2247
+    to be fixed).
+    
+    Update #15302
+    
+    Change-Id: Ice808bb27ab79a1dec9fc863e0c5a761027ebfbe
+    Reviewed-on: https://go-review.googlesource.com/58750
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/go/go_test.go | 46 ++++++++--------------------------------------
- 1 file changed, 8 insertions(+), 38 deletions(-)
+ misc/trace/trace_viewer_full.html | 9525 +++++++++++++++++++++++++++++++++++++
+ misc/trace/trace_viewer_lean.html | 7758 ------------------------------
+ src/cmd/trace/trace.go            |    2 +-
+ 3 files changed, 9526 insertions(+), 7759 deletions(-)

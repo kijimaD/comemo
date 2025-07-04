@@ -1,16 +1,16 @@
-commit 0c75eb824ca7ca41970c2265ad1bccb82bbb408f
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Mon Jun 3 15:57:43 2019 +0700
+commit b88462ef8b9b0d8613c13deb27ef5f8b72eeab6e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 15 17:58:21 2019 -0500
 
-    runtime: fix sigpipe do not check SIGPIPE was ignored
+    cmd/cover: fix TestHtmlUnformatted in module mode
     
-    Fixes #32386
+    Updates #30228
     
-    Change-Id: I29ad4113b02264336eebe7865895f07ef386f450
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180177
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Id9dffa6c805ac630945bac8febe342ce633626c6
+    Reviewed-on: https://go-review.googlesource.com/c/162830
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/signal_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cover/cover_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

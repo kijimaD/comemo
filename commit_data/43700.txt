@@ -1,19 +1,19 @@
-commit e4b4e4b733624a4922741f13dcdaa493c01fe9fd
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Nov 1 15:40:37 2020 -0500
+commit 876c1feb7d5e10a6ff831de9db19b9ff0ea92fa8
+Author: alex-semenyuk <alexsemenyuk88@gmail.com>
+Date:   Mon Apr 20 20:33:19 2020 +0000
 
-    race.bash: add darwin/arm64
+    test/codegen, runtime/pprof, runtime: apply fmt
     
-    Race detector support was added in previous CLs.
-    
-    Updates #38485.
-    
-    Change-Id: Ie9ae69406ff4770f573c2287bfbbb0421769b3ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267098
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ife4e065246729319c39e57a4fbd8e6f7b37724e1
+    GitHub-Last-Rev: e71803eaeb366c00f6c156de0b0b2c50927a0e82
+    GitHub-Pull-Request: golang/go#38527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228901
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/race.bash | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/runtime/pprof/proto.go      |  2 +-
+ src/runtime/runtime-gdb_test.go |  1 +
+ test/codegen/condmove.go        |  2 +-
+ test/codegen/copy.go            | 28 ++++++++++++++--------------
+ 4 files changed, 17 insertions(+), 16 deletions(-)

@@ -1,16 +1,14 @@
-commit 9b07abab785cde1c3ffaccc2d0846b26f2659909
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 27 14:11:58 2011 -0800
+commit c9bf30cf19949221a4ffdd109b131496c40c5521
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Jan 27 14:00:31 2011 -0800
 
-    godoc: tiny bug fix - use correct filename when comparing files against the index whitelist
+    bytes: Add Buffer.ReadBytes, Buffer.ReadString
     
-    This bug prevented files such as READMEs etc. from being included in the index.
-    For instance, now author names recorded in the AUTHORS file can be found with
-    a godoc query.
-    
-    R=rsc, r2
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4005047
+    https://golang.org/cl/4000046
 
- src/cmd/godoc/index.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/bufio/bufio.go       |  6 ++++--
+ src/pkg/bytes/buffer.go      | 29 +++++++++++++++++++++++++++++
+ src/pkg/bytes/buffer_test.go | 27 ++++++++++++++++++++++++++-
+ 3 files changed, 59 insertions(+), 3 deletions(-)

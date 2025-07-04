@@ -1,30 +1,27 @@
-commit 46f60d650616b192c74bf8960df6e0bb99be2a9b
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon May 1 13:02:04 2023 -0400
+commit 3a1f1e15757e4c2fd310e3659eefff577d87717b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue May 17 16:11:36 2022 +0700
 
-    cmd/cgo: reject attempts to declare methods on C types
+    [dev.unified] cmd/compile: remove package height
     
-    This change causes cgo to emit an error (with the same
-    message as the compiler) when it encounters a declaration
-    of a method whose receiver type is C.T or *C.T.
+    After CL 410654, symbols are now sorted by package path, package height
+    is not necessary anymore.
     
-    Conceptually, C is another package, but unfortunately
-    the desugaring of C.T is a type within the same package,
-    causing the previous behavior to accept invalid input.
+    Updates #51734
     
-    It is likely that at least some users are intentionally
-    exploiting this behavior, so this may break their build.
-    We should mention it in the release notes.
-    
-    Fixes #57926
-    
-    Change-Id: I513cffb7e13bc93d08a07b7e61301ac1762fd42d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490819
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I976edd2e574dda68eb5c76cf95645b9dce051393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410342
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/cgo/ast.go                                 | 68 +++++++++++++++-------
- .../testdata/script/cgo_badmethod_issue57926.txt   | 31 ++++++++++
- 2 files changed, 79 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/main.go           | 5 -----
+ src/cmd/compile/internal/noder/irgen.go       | 1 -
+ src/cmd/compile/internal/noder/reader.go      | 8 +-------
+ src/cmd/compile/internal/noder/unified.go     | 1 -
+ src/cmd/compile/internal/noder/writer.go      | 2 +-
+ src/cmd/compile/internal/typecheck/iexport.go | 2 +-
+ src/cmd/compile/internal/typecheck/iimport.go | 6 +-----
+ src/cmd/compile/internal/types/pkg.go         | 9 ---------
+ 8 files changed, 4 insertions(+), 30 deletions(-)

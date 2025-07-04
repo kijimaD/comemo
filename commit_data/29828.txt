@@ -1,14 +1,16 @@
-commit 92fb0a00c2c0bbc2efda09fb65918d108e3ed8cb
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Thu Dec 15 17:22:30 2016 +0100
+commit 6d702d8ed2a980cd0c96499379eee5eb218f8339
+Author: Jean-Nicolas Moal <jn.moal@gmail.com>
+Date:   Mon Aug 22 19:02:33 2016 +0200
 
-    misc/cgo/test: add mipsx test case for #9400
+    os: add examples of environment functions
     
-    Change-Id: I7d0bc5093943b0744d865e91517ff6292f3b2f89
-    Reviewed-on: https://go-review.googlesource.com/34510
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    For #16360.
+    
+    Change-Id: Iaa3548704786018eacec530f7a907b976fa532fe
+    Reviewed-on: https://go-review.googlesource.com/27443
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/issue9400/asm_mipsx.s | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ src/os/example_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)

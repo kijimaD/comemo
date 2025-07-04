@@ -1,20 +1,18 @@
-commit 8c3924c6569ceb8183c136e42c9f4b7904a0c031
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Sep 24 14:41:10 2023 +0100
+commit e23876a3835a67dfab936da273fb050dabe765d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 1 12:56:12 2022 -0700
 
-    path/filepath: reuse os.ReadDir
+    net: drop unused _C_ai_addrlen function
     
-    While reading the source code, I noticed that readDir
-    seemed extremely similar to os.ReadDir. They indeed appear to be copies.
+    Fixes AIX build.
     
-    Note that there's readDirNames as well, but it has no corresponding
-    os.ReadDirNames top-level helper to be replaced by.
-    
-    Change-Id: I6fe1d0aeda35dc69bb4531986fe3a21ebda1d877
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530795
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Icbb33896017bbcc488a8baff20e10eb0e14ea4b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447095
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/path/filepath/path.go | 18 +-----------------
- 1 file changed, 1 insertion(+), 17 deletions(-)
+ src/net/cgo_unix_cgo.go     | 15 +++++++--------
+ src/net/cgo_unix_syscall.go |  1 -
+ 2 files changed, 7 insertions(+), 9 deletions(-)

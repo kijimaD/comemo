@@ -1,25 +1,22 @@
-commit 31cabcf08429be71299975f7961822d26f8ea389
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jan 1 15:08:28 2025 +0100
+commit 4346ba34df6b830b629f716002ce83d2e9c41288
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 9 13:36:17 2023 -0800
 
-    crypto/internal/fips140: mark OpenBSD unsupported
+    go/types, types2: always run tests with and without _Alias nodes enabled
     
-    Since OpenBSD 7.3, external linking uses -fexecute-only, which breaks
-    the integrity check. Since we are not validating on OpenBSD anyway,
-    mark it as unsupported at least for now.
+    In manual mode, _Alias nodes are disabled by default and can be
+    enabled with a line comment (// -alias) at the start of a file.
     
-    Fixes #70880
+    Follow-up on feedback for CL 521956.
     
-    Change-Id: I6a6a4656b6c7a97c0962b4158d920f9e6b19678e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/639337
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: صادق <sadq04724@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I937eb2e58e9e96fa6785ac45ca19e6328d2bd1fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541295
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/dist/test.go                   | 1 +
- src/crypto/internal/fips140/fips140.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/compile/internal/types2/check_test.go | 60 ++++++++++++++-----------
+ src/go/types/check_test.go                    | 65 ++++++++++++++++-----------
+ 2 files changed, 73 insertions(+), 52 deletions(-)

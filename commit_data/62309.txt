@@ -1,0 +1,21 @@
+commit 51f3ca35942c39c8ed2b6c9fb46cc1030e638a92
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Feb 19 21:27:21 2025 +0000
+
+    go/types,types2: remove some unused parameters and results (cleanup)
+    
+    This CL is the result of pulling the thread of some unused parameter
+    diagnostics reported by gopls: remove some variables holding partial
+    type argument expression information that are no longer needed.
+    
+    Change-Id: Idfc1d0271252ce9bc5b75feb86e30dd2f6dd550b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go |  2 +-
+ src/cmd/compile/internal/types2/call.go     | 41 ++++++++++++-----------------
+ src/go/types/builtins.go                    |  2 +-
+ src/go/types/call.go                        | 41 ++++++++++++-----------------
+ 4 files changed, 36 insertions(+), 50 deletions(-)

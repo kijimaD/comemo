@@ -1,17 +1,34 @@
-commit 6799b773ebbd53c2c6d3d36e5b58e6efd0f4dc80
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jan 31 14:12:43 2013 +1100
+commit eea0f19990c2bcb2a5f92e60307428fc7e18e153
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Wed Jan 30 17:53:48 2013 -0800
 
-    exp/cookiejar: update PublicSuffixList doc comment to match the
-    examples at http://publicsuffix.org/.
+    encoding/json: improve performance of Unmarshal on primitive types
     
-    That website previously listed pvt.k12.wy.us, but that was an error,
-    as confirmed by correspondance with submissions@publicsuffix.org, and
-    the website was fixed on 2013-01-23.
+    Attempt 2. The first fix was much faster but ignored syntax errors.
     
-    R=adg
-    CC=dr.volker.dobler, golang-dev
-    https://golang.org/cl/7241053
+    benchmark                      old ns/op    new ns/op    delta
+    BenchmarkCodeEncoder            74993543     72982390   -2.68%
+    BenchmarkCodeMarshal            77811181     75610637   -2.83%
+    BenchmarkCodeDecoder           213337123    190144982  -10.87%
+    BenchmarkCodeUnmarshal         212180972    190394852  -10.27%
+    BenchmarkCodeUnmarshalReuse    202113428    182106660   -9.90%
+    BenchmarkUnmarshalString            1343          919  -31.57%
+    BenchmarkUnmarshalFloat64           1149          908  -20.97%
+    BenchmarkUnmarshalInt64              967          778  -19.54%
+    BenchmarkSkipValue              28851581     28414125   -1.52%
+    
+    benchmark                       old MB/s     new MB/s  speedup
+    BenchmarkCodeEncoder               25.88        26.59    1.03x
+    BenchmarkCodeMarshal               24.94        25.66    1.03x
+    BenchmarkCodeDecoder                9.10        10.21    1.12x
+    BenchmarkCodeUnmarshal              9.15        10.19    1.11x
+    BenchmarkSkipValue                 69.05        70.11    1.02x
+    
+    Fixes #3949.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7231058
 
- src/pkg/exp/cookiejar/jar.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/json/decode.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

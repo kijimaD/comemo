@@ -1,33 +1,22 @@
-commit f0db7eae74ea235e9fbc2598252bfd46c1cc5510
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Wed Sep 29 17:35:27 2021 -0700
+commit 51e1819a8d2ecb6ed292ca363cbb8edfea4aea65
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Jan 22 14:32:06 2021 -0800
 
-    runtime: add padding to Linux kernel structures
+    [dev.regabi] cmd/compile: scan body of closure in tooHairy to check for disallowed nodes
     
-    Go exchanges siginfo and sigevent structures with the kernel. They
-    contain unions, but Go's use is limited to the first few fields. Pad out
-    the rest so the size Go sees is the same as what the Linux kernel sees.
+    Several of the bugs in #43818 are because we were not scanning the body
+    of an possibly inlined closure in tooHairy(). I think this scanning got
+    lost in the rebase past some of the ir changes. This fixes the issue
+    related to the SELRECV2 and the bug reported from cuonglm. There is at
+    least one other bug related to escape analysis which I'll fix in another
+    change.
     
-    This is a follow-up to CL 342052 which added the sigevent struct without
-    padding. It updates the siginfo struct as well so there are no bad
-    examples in the defs_linux_*.go files.
-    
-    Change-Id: Id991d4a57826677dd7e6cc30ad113fa3b321cddf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353136
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Change-Id: I8f38cd12a287881155403bbabbc540ed5fc2248e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285676
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/defs_linux_386.go     | 11 +++++++++++
- src/runtime/defs_linux_amd64.go   | 11 +++++++++++
- src/runtime/defs_linux_arm.go     | 11 +++++++++++
- src/runtime/defs_linux_arm64.go   | 11 +++++++++++
- src/runtime/defs_linux_mips64x.go | 11 +++++++++++
- src/runtime/defs_linux_mipsx.go   | 11 +++++++++++
- src/runtime/defs_linux_ppc64.go   | 11 +++++++++++
- src/runtime/defs_linux_ppc64le.go | 11 +++++++++++
- src/runtime/defs_linux_riscv64.go | 11 +++++++++++
- src/runtime/defs_linux_s390x.go   | 11 +++++++++++
- src/runtime/os_linux.go           | 12 ++++++++++++
- 11 files changed, 122 insertions(+)
+ src/cmd/compile/internal/inline/inl.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

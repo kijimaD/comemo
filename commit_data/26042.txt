@@ -1,26 +1,17 @@
-commit 867910ea170cad67ef929ae472f1e19052da7d7c
-Author: Spencer Nelson <s@spenczar.com>
-Date:   Wed Mar 2 15:29:30 2016 -0500
+commit a27bbb7f746a44eafae924a0333fa371ca0626c3
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Thu Dec 3 13:19:48 2015 -0800
 
-    cmd/vet: Use function signature to find format string index.
+    os: make TestLchown actually test Lchown.
     
-    cmd/vet's printf checker currently uses a hardcoded map of function
-    names to expected positions of format strings. We can be a bit more
-    precise than this by looking up the signature of the function, which
-    helps when libraries implement functions like Errorf or Logf with
-    extra arguments like log levels or error codes.
+    TestLchown was creating a hard-link instead of a symlink. It would
+    have passed if you replaced all Lchown() calls in it with Chown().
     
-    Specifically, the format string param is assumed to be the last string
-    parameter of the called function.
-    
-    Fixes #12294.
-    
-    Change-Id: Icf10ebb819bba91fa1c4109301417042901e34c7
-    Reviewed-on: https://go-review.googlesource.com/20163
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I3a108948ec25fcbac8ea890a6eaf5bac094f0800
+    Reviewed-on: https://go-review.googlesource.com/17397
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/print.go          | 71 ++++++++++++++++++++++++++++++++-----------
- src/cmd/vet/testdata/print.go | 15 ++++++++-
- 2 files changed, 67 insertions(+), 19 deletions(-)
+ src/os/os_unix_test.go | 23 +++++++----------------
+ 1 file changed, 7 insertions(+), 16 deletions(-)

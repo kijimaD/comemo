@@ -1,13 +1,12 @@
-commit 2f2423c81da3764b5c8ba6a87506083468cc9926
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Fri Dec 4 15:09:59 2015 -0700
+commit 1b84bb8c7cefb29e8aa976504905a7bdc1c74e6f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 24 14:24:32 2015 -0400
 
-    net/http: TimeoutHandler test ported to HTTP/2
+    runtime: fix out-of-date comment on gcWork usage
     
-    Change-Id: I69e62199140e5cf203696af17d4816f3a5f13bd1
-    Reviewed-on: https://go-review.googlesource.com/17434
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3c21ffa80a5c14911e07238b1f64bec686ed7b72
+    Reviewed-on: https://go-review.googlesource.com/14980
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/http/serve_test.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/runtime/mgcwork.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

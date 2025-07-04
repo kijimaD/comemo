@@ -1,18 +1,15 @@
-commit 7944bbf2d23377b450fddc133a28086544eafcb8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 12 12:20:48 2011 -0700
+commit 817da6657682a1bd8a50893466e92499bc4e5933
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Sep 12 16:18:48 2011 -0300
 
-    godoc, suffixarray: switch to exp/regexp
+    path/filepath: fix Visitor doc
     
-    R=rsc
+    The path is not in fact relative to the root, but
+    joined to it.
+    
+    R=golang-dev, adg, rsc, gustavo
     CC=golang-dev
-    https://golang.org/cl/4983058
+    https://golang.org/cl/4977059
 
- src/cmd/godoc/codewalk.go                     | 2 +-
- src/cmd/godoc/format.go                       | 2 +-
- src/cmd/godoc/godoc.go                        | 2 +-
- src/cmd/godoc/index.go                        | 2 +-
- src/cmd/godoc/main.go                         | 2 +-
- src/pkg/index/suffixarray/suffixarray.go      | 2 +-
- src/pkg/index/suffixarray/suffixarray_test.go | 2 +-
- 7 files changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/path/filepath/path.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

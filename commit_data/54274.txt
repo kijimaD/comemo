@@ -1,23 +1,29 @@
-commit 140266fe7521bf75bf0037f12265190213cc8e7d
-Author: xuri <xuri.me@gmail.com>
-Date:   Wed Aug 23 22:31:34 2023 +0000
+commit 0cbe30467ad2b4823bc07a8784ca66aff7cdb20a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 1 00:23:48 2022 +0700
 
-    encoding/xml: overriding by empty namespace when no new name declaration
+    test: relax closure name matching in closure3.go
     
-    The unmarshal and marshal XML text should be consistent if not modified deserialize variable.
+    The mismatch between Unified IR and the old frontend is not about how
+    they number the closures, but how they name them. For nested closure,
+    the old frontend use the immediate function which contains the closure
+    as the outer function, while Unified IR uses the outer most function as
+    the outer for all closures.
     
-    Fixes #61881
+    That said, what important is matching the number of closures, not their
+    name prefix. So this CL relax the test to match both "main.func1.func2"
+    and "main.func1.2" to satisfy both Unified IR and the old frontend.
     
-    Change-Id: I475f7b05211b618685597d3ff20b97e3bbeaf8f8
-    GitHub-Last-Rev: 6831c770c384831798cb1c6dc4674e5d4caa5e3c
-    GitHub-Pull-Request: golang/go#58401
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466295
-    Reviewed-by: ri xu <xuri.me@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #53058
+    
+    Change-Id: I66ed816d1968aa68dd3089a4ea5850ba30afd75b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437216
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/xml/marshal.go  | 3 ++-
- src/encoding/xml/xml_test.go | 7 ++++++-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ test/closure3.dir/main.go | 8 ++++----
+ test/run.go               | 3 +--
+ 2 files changed, 5 insertions(+), 6 deletions(-)

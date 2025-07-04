@@ -1,53 +1,21 @@
-commit 1c4e9b2edaa741860944edef83b7ce8eac00079e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Apr 25 15:14:35 2020 -0700
+commit c9a4b01f424d5c1b13ddf9eb900c664ea2bf7d98
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 11 12:41:01 2019 -0500
 
-    cmd/compile: improve equality algs for arrays of strings
+    cmd/go: in 'go build -o', allow the destination file to exist if it is empty
     
-    type T [8]string
+    This allows the target of 'go build' to be a filename constructed
+    using ioutil.TempFile or similar, without racily deleting the file
+    before rebuilding it.
     
-    Prior to this change, we generated this equality algorithm for T:
+    Updates #32407
+    Updates #28387
     
-    func eqT(p, q *T) (r bool) {
-        for i := range *p {
-            if p[i] == q[i] {
-                    } else {
-                return
-            }
-        }
-        return true
-    }
-    
-    This change splits this into two loops, so that we can do the
-    cheap (length) half early and only then do the expensive (contents) half.
-    
-    We now generate:
-    
-    func eqT(p, q *T) (r bool) {
-        for i := range *p {
-            if len(p[i]) == len(q[i]) {
-            } else {
-                return
-            }
-        }
-        for j := range *p {
-            if runtime.memeq(p[j].ptr, q[j].ptr, len(p[j])) {
-            } else {
-                return
-            }
-        }
-        return true
-    }
-    
-    The generated code is typically ~17% larger because it contains
-    two loops instead of one. In the future, we might want to unroll
-    the first loop when the array is small.
-    
-    Change-Id: I26b2793b90ec6aff21766a411b15a4ff1096c03f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230209
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4c5072830a02b93f0c4186b50bffa9de00257afe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206477
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/alg.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/go/internal/work/exec.go                     |  4 ++--
+ src/cmd/go/testdata/script/test_compile_tempfile.txt | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

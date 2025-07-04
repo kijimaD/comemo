@@ -1,68 +1,52 @@
-commit f67b0a73e30d4780c90f2a7d7dd659affea99f43
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Mar 17 10:20:01 2023 -0400
+commit 74f00094220f26c80fbaab6eca28c3a664897d24
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 15 12:23:06 2022 -0400
 
-    log/slog: initial commit
+    runtime: use saved LR when unwinding through morestack
     
-    The slog structured logging package.
+    On LR machine, consider F calling G calling H, which grows stack.
+    The stack looks like
+    ...
+    G's frame:
+            ... locals ...
+            saved LR = return PC in F  <- SP points here at morestack
+    H's frame (to be created)
     
-    This code was copied from the slog directory of the x/exp repo
-    at commit 642cacee5cc05231f45555a333d07f1005ffc287, with the
-    following changes:
+    At morestack, we save
+            gp.sched.pc = H's morestack call
+            gp.sched.sp = H's entry SP (the arrow above)
+            gp.sched.lr = return PC in G
     
-    - Change import paths.
-    - Delete unused files list.go, list_test.go.
-    - Rename example_depth_test.go to example_wrap_test.go and
-      adjust example output.
-    - Change the tag safe_values to safe_slog_values.
-    - Make captureHandler goroutine-safe to fix a race condition
-      in benchmarks.
-    - Other small changes as suggested in review comments.
+    Currently, when unwinding through morestack (if _TraceJumpStack
+    is set), we switch PC and SP but not LR. We then have
+            frame.pc = H's morestack call
+            frame.sp = H's entry SP (the arrow above)
+    As LR is not set, we load it from stack at *sp, so
+            frame.lr = return PC in F
+    As the SP hasn't decremented at the morestack call,
+            frame.fp = frame.sp = H's entry SP
     
-    Also, add dependencies to go/build/deps_test.go.
+    Unwinding a frame, we have
+            frame.pc = old frame.lr = return PC in F
+            frame.sp = old frame.fp = H's entry SP a.k.a. G's SP
+    The PC and SP don't match. The unwinding will go off if F and G
+    have different frame sizes.
     
-    Also, add new API for the API checker.
+    Fix this by preserving the LR when switching stack.
     
-    Updates golang/go#56345.
+    Also add code to detect infinite loop in unwinding.
     
-    Change-Id: Id8d720967571ced5c5f32c84a8dd9584943cd7df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477295
+    TODO: add some test. I can reproduce the infinite loop (or throw
+    with added check) but the frequency is low.
+    
+    May fix #52116.
+    
+    Change-Id: I6e1294f1c6e55f664c962767a1cf6c466a0c0eff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400575
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- api/next/56345.txt                            | 158 +++++++
- src/go/build/deps_test.go                     |  15 +-
- src/log/slog/attr.go                          |  84 ++++
- src/log/slog/attr_test.go                     |  43 ++
- src/log/slog/doc.go                           | 316 ++++++++++++++
- src/log/slog/example_custom_levels_test.go    |  91 ++++
- src/log/slog/example_level_handler_test.go    |  73 ++++
- src/log/slog/example_logvaluer_group_test.go  |  35 ++
- src/log/slog/example_logvaluer_secret_test.go |  32 ++
- src/log/slog/example_test.go                  |  31 ++
- src/log/slog/example_wrap_test.go             |  50 +++
- src/log/slog/handler.go                       | 589 ++++++++++++++++++++++++++
- src/log/slog/handler_test.go                  | 510 ++++++++++++++++++++++
- src/log/slog/internal/buffer/buffer.go        |  84 ++++
- src/log/slog/internal/buffer/buffer_test.go   |  22 +
- src/log/slog/internal/buffer/norace_test.go   |  26 ++
- src/log/slog/internal/ignorepc.go             |   9 +
- src/log/slog/internal/testutil/testutil.go    |  18 +
- src/log/slog/json_handler.go                  | 345 +++++++++++++++
- src/log/slog/json_handler_test.go             | 271 ++++++++++++
- src/log/slog/level.go                         | 201 +++++++++
- src/log/slog/level_test.go                    | 168 ++++++++
- src/log/slog/logger.go                        | 300 +++++++++++++
- src/log/slog/logger_test.go                   | 511 ++++++++++++++++++++++
- src/log/slog/norace_test.go                   |  23 +
- src/log/slog/record.go                        | 173 ++++++++
- src/log/slog/record_test.go                   | 163 +++++++
- src/log/slog/text_handler.go                  | 167 ++++++++
- src/log/slog/text_handler_test.go             | 201 +++++++++
- src/log/slog/value.go                         | 397 +++++++++++++++++
- src/log/slog/value_access_benchmark_test.go   | 215 ++++++++++
- src/log/slog/value_test.go                    | 226 ++++++++++
- src/log/slog/value_unsafe.go                  | 102 +++++
- 33 files changed, 5647 insertions(+), 2 deletions(-)
+ src/runtime/traceback.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

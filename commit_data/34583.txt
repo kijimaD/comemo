@@ -1,24 +1,14 @@
-commit e1f8fe8dff31136ec2c3f3ba83fbeee9f2ef4c3b
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Wed Jan 10 15:29:50 2018 -0200
+commit b31162d87877828e5cdb1eed9c88bbee8e6e9744
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 19:24:07 2017 -0400
 
-    cmd/internal/obj/ppc64: implement full operand support for l*arx instructions
+    cmd/go/internal/cache: add GetBytes, PutBytes
     
-    The current implementation of l*arx instructions does not accept non-zero
-    offsets in RA nor the EH field. This change adds full functionality to those
-    instructions.
+    These are convenience function for small cached items.
     
-    Updates #23845
-    
-    Change-Id: If113f70d11de5f35f8389520b049390dbc40e863
-    Reviewed-on: https://go-review.googlesource.com/99635
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Iba92b7826a9fd6979e627687f2ce72d4b4799385
+    Reviewed-on: https://go-review.googlesource.com/75292
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s    | 20 ++++++++++++++++
- src/cmd/asm/internal/asm/testdata/ppc64enc.s | 14 +++++++++++
- src/cmd/internal/obj/ppc64/a.out.go          |  1 +
- src/cmd/internal/obj/ppc64/anames.go         |  1 +
- src/cmd/internal/obj/ppc64/asm9.go           | 36 ++++++++++++++++++++++++----
- 5 files changed, 67 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/cache/cache.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

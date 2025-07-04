@@ -1,27 +1,36 @@
-commit 25e793d7ea7519f407cb84c4cb3955f5b96d0fb5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 17 15:14:31 2015 -0700
+commit f0bbb5c45023782c064c6241ba85897a3a3a2e18
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Feb 23 03:55:54 2015 -0500
 
-    cmd/internal/gc, runtime: speed up some cases of _, ok := i.(T)
+    runtime/pprof: make TestBlockProfile more robust
     
-    Some type assertions of the form _, ok := i.(T) allow efficient inlining.
-    Such type assertions commonly show up in type switches.
-    For example, with this optimization, using 6g, the length of
-    encoding/binary's intDataSize function shrinks from 2224 to 1728 bytes (-22%).
+    It's using debug mode of pprof.writeBlock, so the output actually goes
+    through text/tabwriter. It is possible that tabwriter expands each tab
+    into multiple tabs in certain cases.
     
-    benchmark                    old ns/op     new ns/op     delta
-    BenchmarkAssertI2E2Blank     4.67          0.82          -82.44%
-    BenchmarkAssertE2T2Blank     4.38          0.83          -81.05%
-    BenchmarkAssertE2E2Blank     3.88          0.83          -78.61%
-    BenchmarkAssertE2E2          14.2          14.4          +1.41%
-    BenchmarkAssertE2T2          10.3          10.4          +0.97%
-    BenchmarkAssertI2E2          13.4          13.3          -0.75%
+    For example, this output has been observed on the new arm64 port:
+    10073805 1 @ 0x1088ec 0xd1b8c 0xd0628 0xb68c0 0x867f4
+    #       0x1088ec        sync.(*Cond).Wait+0xfc                          /home/minux/go.git/src/sync/cond.go:63
+    #       0xd1b8c         runtime/pprof_test.blockCond+0x22c              /home/minux/go.git/src/runtime/pprof/pprof_test.go:454
+    #       0xd0628         runtime/pprof_test.TestBlockProfile+0x1b8       /home/minux/go.git/src/runtime/pprof/pprof_test.go:359
+    #       0xb68c0         testing.tRunner+0x140                           /home/minux/go.git/src/testing/testing.go:447
     
-    Change-Id: Ie9798c3e85432bb8e0f2c723afc376e233639df7
-    Reviewed-on: https://go-review.googlesource.com/7697
-    Reviewed-by: Keith Randall <khr@golang.org>
+    10069965 1 @ 0x14008 0xd1390 0xd0628 0xb68c0 0x867f4
+    #       0x14008 runtime.chansend1+0x48                          /home/minux/go.git/src/runtime/chan.go:76
+    #       0xd1390 runtime/pprof_test.blockChanSend+0x100          /home/minux/go.git/src/runtime/pprof/pprof_test.go:396
+    #       0xd0628 runtime/pprof_test.TestBlockProfile+0x1b8       /home/minux/go.git/src/runtime/pprof/pprof_test.go:359
+    #       0xb68c0 testing.tRunner+0x140                           /home/minux/go.git/src/testing/testing.go:447
+    
+    10069706 1 @ 0x108e0c 0xd193c 0xd0628 0xb68c0 0x867f4
+    #       0x108e0c        sync.(*Mutex).Lock+0x19c                        /home/minux/go.git/src/sync/mutex.go:67
+    #       0xd193c         runtime/pprof_test.blockMutex+0xbc              /home/minux/go.git/src/runtime/pprof/pprof_test.go:441
+    #       0xd0628         runtime/pprof_test.TestBlockProfile+0x1b8       /home/minux/go.git/src/runtime/pprof/pprof_test.go:359
+    #       0xb68c0         testing.tRunner+0x140                           /home/minux/go.git/src/testing/testing.go:447
+    
+    Change-Id: I3bef778c5fe01a894cfdc526fdc5fecb873b8ade
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/5554
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/internal/gc/walk.go | 28 +++++++++++++++++++++++++++-
- src/runtime/iface.go        | 33 +++++++++++++--------------------
- src/runtime/iface_test.go   | 43 +++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 83 insertions(+), 21 deletions(-)
+ src/runtime/pprof/pprof_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

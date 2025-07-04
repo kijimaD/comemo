@@ -1,42 +1,21 @@
-commit c8545439b596ffc88d09b9f6970fefdf69fcfc5d
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Nov 24 12:39:20 2024 +1100
+commit 5e724ccb2b092a6bc294b63c4e33ed1da317ca87
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 6 16:36:10 2023 -0800
 
-    cmd/asm,cmd/internal/obj/riscv: implement vector configuration setting instructions
+    go/types, types2: don't print aliased type (in comments) for Alias types
     
-    Implement vector configuration setting instructions (VSETVLI,
-    VSETIVLI, VSETL).  These allow the vector length (vl) and vector
-    type (vtype) CSRs to be configured via a single instruction.
-    Unfortunately each instruction has its own dedicated encoding.
+    Fixes #64584.
     
-    In the case of VSETVLI/VSETIVLI, the vector type is specified via
-    a series of special operands, which specify the selected element
-    width (E8, E16, E32, E64), the vector register group multiplier
-    (M1, M2, M4, M8, MF2, MF4, MF8), the vector tail policy (TU, TA)
-    and vector mask policy (MU, MA). Note that the order of these
-    special operands matches non-Go assemblers.
-    
-    Partially based on work by Pengcheng Wang <wangpengcheng.pp@bytedance.com>.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
-    Change-Id: I431f59c1e048a3e84754f0643a963da473a741fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631936
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I756d6026d10f130c1dd5026891b7cc3c640d7f78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548135
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/asm/internal/arch/arm64.go               |   6 +-
- src/cmd/asm/internal/arch/riscv64.go             |  35 +++++-
- src/cmd/asm/internal/asm/asm.go                  |  21 ++++
- src/cmd/asm/internal/asm/parse.go                |  16 ++-
- src/cmd/asm/internal/asm/testdata/riscv64.s      |  24 ++++
- src/cmd/asm/internal/asm/testdata/riscv64error.s |   4 +
- src/cmd/internal/obj/arm64/a.out.go              |   4 +-
- src/cmd/internal/obj/link.go                     |   3 +-
- src/cmd/internal/obj/riscv/cpu.go                |  71 +++++++++++
- src/cmd/internal/obj/riscv/list.go               |   9 ++
- src/cmd/internal/obj/riscv/obj.go                | 149 +++++++++++++++++++++--
- src/cmd/internal/obj/util.go                     |   7 ++
- 12 files changed, 325 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/types2/issues_test.go | 2 +-
+ src/cmd/compile/internal/types2/typestring.go  | 2 --
+ src/go/types/issues_test.go                    | 2 +-
+ src/go/types/typestring.go                     | 2 --
+ 4 files changed, 2 insertions(+), 6 deletions(-)

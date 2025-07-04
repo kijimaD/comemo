@@ -1,14 +1,16 @@
-commit 88a8ac08b903513ddec32caea7eb1b7ac0560da6
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 5 12:51:10 2011 -0700
+commit 906b2e76799628b144b06846cccbc88f0e643768
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Apr 5 15:40:48 2011 -0400
 
-    gotest: fix a bug in error handling.
-    If the command couldn't be found, argv[0] would be wiped.
-    Also, fix a print statement not to refer to make - it was a vestige of a prior form.
+    crypto/des: cleanups
     
-    R=rsc, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4360048
+    https://golang.org/cl/4315050
 
- src/cmd/gotest/gotest.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/pkg/Makefile               |   1 +
+ src/pkg/crypto/des/block.go    | 114 ++++++++--------------
+ src/pkg/crypto/des/cipher.go   |  48 ++++-----
+ src/pkg/crypto/des/const.go    | 197 ++++++++++++++++++-------------------
+ src/pkg/crypto/des/des_test.go | 214 +++++++++++------------------------------
+ 5 files changed, 218 insertions(+), 356 deletions(-)

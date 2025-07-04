@@ -1,13 +1,63 @@
-commit d83cc435e4c324e34aa10af72c1aa7f4fa47d4c1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Nov 9 10:57:09 2011 +1100
+commit f9489bed72f43333e50346785b75feff4e646aae
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 8 15:43:02 2011 -0800
 
-    weekly.2011-11-09
+    renaming_4: gofix -r everything/but/src/pkg
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5344055
+    https://golang.org/cl/5338043
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 38 +++++++++++++++++++++++++++++++++++++-
- 2 files changed, 37 insertions(+), 2 deletions(-)
+ doc/codelab/wiki/final-noclosure.go     |  4 ++--
+ doc/codelab/wiki/final-noerror.go       |  4 ++--
+ doc/codelab/wiki/final-parsetemplate.go |  4 ++--
+ doc/codelab/wiki/final-template.go      |  4 ++--
+ doc/codelab/wiki/final.go               |  4 ++--
+ doc/codelab/wiki/get.go                 |  2 +-
+ doc/codelab/wiki/htmlify.go             |  4 ++--
+ doc/codelab/wiki/http-sample.go         |  2 +-
+ doc/codelab/wiki/index.html             |  2 +-
+ doc/codelab/wiki/notemplate.go          |  2 +-
+ doc/codelab/wiki/part2.go               |  2 +-
+ doc/codelab/wiki/srcextract.go          |  4 ++--
+ doc/codewalk/markov.go                  |  2 +-
+ doc/codewalk/pig.go                     |  2 +-
+ doc/codewalk/urlpoll.go                 |  2 +-
+ doc/progs/eff_qr.go                     |  4 ++--
+ doc/talks/io2010/balance.go             |  2 +-
+ doc/tmpltohtml.go                       |  2 +-
+ misc/dashboard/builder/exec.go          |  2 +-
+ misc/dashboard/builder/http.go          |  6 +++---
+ misc/dashboard/builder/main.go          |  2 +-
+ misc/goplay/goplay.go                   |  6 +++---
+ src/cmd/cgo/util.go                     |  2 +-
+ src/cmd/go/main.go                      |  2 +-
+ src/cmd/godoc/appinit.go                |  2 +-
+ src/cmd/godoc/codewalk.go               |  8 ++++----
+ src/cmd/godoc/format.go                 |  2 +-
+ src/cmd/godoc/godoc.go                  |  4 ++--
+ src/cmd/godoc/httpzip.go                |  2 +-
+ src/cmd/godoc/index.go                  |  2 +-
+ src/cmd/godoc/main.go                   |  6 +++---
+ src/cmd/godoc/spec.go                   |  2 +-
+ src/cmd/godoc/utils.go                  |  2 +-
+ src/cmd/gofix/main.go                   |  2 +-
+ src/cmd/gofmt/gofmt.go                  |  2 +-
+ src/cmd/gofmt/rewrite.go                |  2 +-
+ src/cmd/goinstall/download.go           |  6 +++---
+ src/cmd/goinstall/main.go               |  2 +-
+ src/cmd/goinstall/make.go               |  2 +-
+ src/cmd/gotest/gotest.go                |  4 ++--
+ src/cmd/govet/govet.go                  |  2 +-
+ src/cmd/hgpatch/main.go                 |  2 +-
+ test/alias.go                           | 14 +++++++-------
+ test/bench/pidigits.go                  |  2 +-
+ test/chan/select5.go                    |  2 +-
+ test/cmplxdivide.go                     | 14 +++++++-------
+ test/garbage/parser.go                  |  6 +++---
+ test/ken/divconst.go                    |  2 +-
+ test/ken/modconst.go                    |  2 +-
+ test/mallocrand.go                      |  2 +-
+ test/stringrange.go                     |  2 +-
+ test/utf.go                             |  2 +-
+ 52 files changed, 87 insertions(+), 87 deletions(-)

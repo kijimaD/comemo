@@ -1,28 +1,14 @@
-commit 154394f8d35ebd084f27132396d90309646cafcf
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Jul 29 13:15:25 2018 +0200
+commit 3c64c86412995e1e07424951551cd40d8cc0a2ad
+Author: Veselkov Konstantin <kostozyb@gmail.com>
+Date:   Fri Apr 6 22:54:29 2018 +0400
 
-    cmd/go: fix TestScript/mod_gobuild_import on Plan 9
+    time: simplify comparison in test
     
-    CL 125296 added TestScript/mod_gobuild_import. This
-    test is failing on Plan 9, because go/build invokes
-    the go tool which cannot be found in the path.
+    Found using go-simple.
     
-    The "PATH" environment variable has been updated to
-    contain the path to the go tool on Unix and Windows,
-    but on Plan 9, the analogous environment variable is
-    called "path".
-    
-    This change fixes the script engine by setting
-    the "path" environment variable on Plan 9.
-    
-    Fixes #26669.
-    
-    Change-Id: If1be50e14baceccee591f4f76b7e698f5e12a2d4
-    Reviewed-on: https://go-review.googlesource.com/126608
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I349e80a8c083688539bb4267564f02e3d7913da5
+    Reviewed-on: https://go-review.googlesource.com/105195
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/script_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/time/sleep_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

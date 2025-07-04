@@ -1,22 +1,16 @@
-commit 7c388cc89c76bc7167287fb488afcaf5a4aa12bf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 1 09:23:44 2019 -0500
+commit 165ebaf97bc4c4863a756775d75ddc750c55b8f2
+Author: ludweeg <mursalimovemeel@gmail.com>
+Date:   Sat Oct 6 18:38:37 2018 +0300
 
-    go/internal/srcimporter: set -mod=vendor before running tests
+    net: simplify bool expression
     
-    Otherwise, if the working directory is inside a standard-library
-    module, the test may try to fetch module contents from GOPROXY or
-    upstream.
+    Simplify `!(x <= y)` to `x > y` and `!(x >= y)` to `x < y` where x,y are not defined as float.
     
-    Updates #26924
-    Updates #30228
-    Updates #30241
-    
-    Change-Id: I4cb9a07721bd808fd094f7ed55a74cf7bce9cd6f
-    Reviewed-on: https://go-review.googlesource.com/c/164625
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id1e5b518395d97e75f96aa4ac5d6c0ee990c0e7d
+    Reviewed-on: https://go-review.googlesource.com/c/140337
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/go/internal/srcimporter/srcimporter_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/net/dial_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

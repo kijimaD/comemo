@@ -1,13 +1,14 @@
-commit f4ed50c26054492e4a2e726d89feffb2dd535ef8
+commit db8d7a292db3c781d35db07e50fe32b6258cf022
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Nov 26 22:28:39 2012 +0400
+Date:   Mon Nov 26 22:11:05 2012 +0400
 
-    net: add deadline prolongation test
-    Currently the test exposes data races on deadline vars.
+    cmd/go: racewalk: fix nested struct handling
+    Fixes #4424.
+    Fixes #4425.
     
-    R=golang-dev, dave, bradfitz, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6845091
+    https://golang.org/cl/6849093
 
- src/pkg/net/timeout_test.go | 48 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 48 insertions(+)
+ src/cmd/gc/racewalk.c | 5 +++++
+ 1 file changed, 5 insertions(+)

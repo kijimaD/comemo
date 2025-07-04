@@ -1,32 +1,25 @@
-commit 39da9ae5130afa58f8b9e4ea609a57d516bd78db
-Author: Rob Findley <rfindley@google.com>
-Date:   Thu May 6 22:28:37 2021 -0400
+commit bb9a96d03a35ab56f3e1a3e6a6c835f7f2120d54
+Author: Joshua M. Clulow <josh@sysmgr.org>
+Date:   Fri Nov 6 13:11:58 2020 -0800
 
-    go/types: ensure that Named.check is nilled out once it is expanded
+    os/exec: use "pfiles" for fd debugging on illumos
     
-    To support lazy expansion of defined types, *Named holds on to a
-    *Checker field, which can pin the *Checker in memory. This can have
-    meaningful memory implications for applications that keep type
-    information around.
+    On illumos (and Solaris) systems, the native "pfiles" tool provides the
+    best information about open file descriptors for a process:
     
-    Ensure that the Checker field is nilled out for any Named types that are
-    instantiated during the type checking pass, by deferring a clean up to
-    'later' boundaries.
+        https://illumos.org/man/1/pfiles
     
-    In testing this almost exactly offset the ~6% memory footprint increase
-    I observed with 1.17.
+    Use that instead of "lsof" when debugging file descriptor leaks.
     
-    Fixes #45580
+    Updates #42431.
     
-    Change-Id: I8aa5bb777573a924afe36e79fa65f8729336bceb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318849
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: If1250c4e6c9e8adbd076495a09fb1ce63abcc68b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268019
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/types/decl.go     | 53 ++++++++++++++++++++++++++++++++++++------------
- src/go/types/sanitize.go |  3 +++
- src/go/types/type.go     | 17 +++++++++++++++-
- 3 files changed, 59 insertions(+), 14 deletions(-)
+ src/os/exec/read3.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

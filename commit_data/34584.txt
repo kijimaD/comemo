@@ -1,17 +1,16 @@
-commit c74aa39f47840a36ddf10cfac96a2c49bd0786f1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 13 12:58:56 2018 -0700
+commit c604792d28334d07fb6c86893d7f352d89e06949
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 19:37:07 2017 -0400
 
-    cmd/compile: eliminate mkinlcall's isddd parameter
+    cmd/go: add "go env GOCACHE"
     
-    These are always set to n.Isddd(), which is readily available within
-    mkinlcall.
+    This lets users see the effective GOCACHE setting.
     
-    Change-Id: I3d7fbc9dc19a40d6b905691c666eee9bcd031a00
-    Reviewed-on: https://go-review.googlesource.com/100455
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0b6dd2945d54611be89ed68fe2fd99110b9a25f6
+    Reviewed-on: https://go-review.googlesource.com/75293
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/dist/deps.go                 | 19 ++++----
+ src/cmd/go/internal/cache/default.go | 85 ++++++++++++++++++++----------------
+ src/cmd/go/internal/envcmd/env.go    |  2 +
+ 3 files changed, 59 insertions(+), 47 deletions(-)

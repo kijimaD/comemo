@@ -1,14 +1,25 @@
-commit 6731063e42e6c9831a19e1cc7b79658bd663ad9b
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Feb 13 17:19:33 2015 +0300
+commit cef15faafe5d15ba6242bad3504a52d287f78b88
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Mon Jan 5 10:07:05 2015 +0000
 
-    runtime/race: fix test in preparation for new race runtime
+    crypto/x509: implement crypto.Signer
     
-    New race runtime is more scrupulous about env flags format.
+    Signer is an interface to support opaque private keys.
+    These keys typically result from being kept in special hardware
+    (i.e. a TPM) although sometimes operating systems provide a
+    similar interface using process isolation for security rather
+    than hardware boundaries.
     
-    Change-Id: I2828bc737a8be3feae5288ccf034c52883f224d8
-    Reviewed-on: https://go-review.googlesource.com/4811
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This changes provides updates implements crypto.Signer in
+    CreateCRL and CreateCertificate so that they can be used with
+    opaque keys.
+    
+    This CL has been discussed at: http://golang.org/cl/145910043
+    
+    Change-Id: Ie4a4a583fb120ff484a5ccf267ecd2a9c5a3902b
+    Reviewed-on: https://go-review.googlesource.com/2254
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/race/race_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/x509.go      | 106 ++++++++++++++-----------------------------
+ src/crypto/x509/x509_test.go |  12 +++--
+ 2 files changed, 41 insertions(+), 77 deletions(-)

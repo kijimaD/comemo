@@ -1,17 +1,14 @@
-commit 873483c682747e8ce881c1bf8ac4428a01836324
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 20 10:20:36 2015 -0700
+commit fa3ad1ebb582b96d1eda471c68ea250561db28b1
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Fri Mar 20 15:27:35 2015 +0100
 
-    cmd/internal/obj: reuse the varint encoding buffer
+    mime/quotedprintable: add binary mode to the writer
     
-    This reduces the number of allocations in the compiler
-    while building the stdlib by 15.66%.
-    
-    No functional changes. Passes toolstash -cmp.
-    
-    Change-Id: Ia21b37134a8906a4e23d53fdc15235b4aa7bbb34
-    Reviewed-on: https://go-review.googlesource.com/9085
+    Change-Id: Id82c3111d7571263208ced3d011ad80f3fe55984
+    Reviewed-on: https://go-review.googlesource.com/7892
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/objfile.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/mime/quotedprintable/writer.go      |  6 ++++-
+ src/mime/quotedprintable/writer_test.go | 43 +++++++++++++++++++++++----------
+ 2 files changed, 35 insertions(+), 14 deletions(-)

@@ -1,18 +1,32 @@
-commit ca49b8d7af25a51309af277c27724b01bd80453f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 2 12:43:04 2023 -0400
+commit a7551fe24524fb960fbe4cd74dae13afe9ca6a5c
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 6 15:52:19 2022 -0700
 
-    cmd/go: remove a redundant HasExec check in TestScript/README
+    net: use synthetic network in TestDialParallel
     
-    The test checks testenv.HasExec right before calling testenv.Command,
-    but testenv.Command already skips the test if HasExec is false.
+    TestDialParallel is testing the Happy Eyeballs algorithm implementation,
+    which dials IPv4 and IPv6 addresses in parallel with the preferred
+    address family getting a head start. This test doesn't care about
+    the actual network operations, just the handling of the parallel
+    connections.
     
-    Change-Id: I04716bf823a1b76640394a964973ff34c65afb1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491658
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Use testHookDialTCP to replace socket creation with a function that
+    returns successfully, with an error, or after context cancellation
+    as required.
+    
+    Limit tests of elapsed times to a check that the fallback deadline
+    has been exceeded in cases where this is expected.
+    
+    This should fix persistent test flakiness.
+    
+    Fixes #52173.
+    
+    Change-Id: Ic93f270fccb63b24a91105a4d541479fc33a2de4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410754
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/scriptreadme_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/net/dial_test.go | 174 +++++++++++++++++++++------------------------------
+ 1 file changed, 71 insertions(+), 103 deletions(-)

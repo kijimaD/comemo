@@ -1,24 +1,32 @@
-commit 2eac154b1c8b51d05fa5b110ae065d3610a61e06
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 31 11:19:28 2024 -0700
+commit 6ecd5f750454665f789e3d557548bb5a65ad5c3a
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Sep 9 13:41:35 2023 +0000
 
-    cmd/compile: better error message when offending/missing token is a keyword
+    runtime/internal/atomic: add wasm And/Or operators
     
-    Prefix keywords (type, default, case, etc.) with "keyword" in error
-    messages to make them less ambiguous.
+    In the WebAssembly version of these operators we avoid using
+    a CAS loop since the Go wasm implementation is single-threaded.
     
-    Fixes #68589.
+    A new test file has been added that has build tags in order to
+    only test this feature on implemented architectures.
     
-    Change-Id: I1eb92d1382f621b934167b3a4c335045da26be9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623819
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
+    This is part of a series of CLs aimed to add the primitives
+    for And/Or atomic operations that will be used by the public
+    sync/atomic apis.
+    
+    For #61395
+    
+    Change-Id: Ic67ffefc9cfb626915ea86b6b21b500117710327
+    GitHub-Last-Rev: bbec3a5f356c55185af0357b929e76a9dfac230e
+    GitHub-Pull-Request: golang/go#62517
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526656
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go              | 8 ++++++--
- src/cmd/compile/internal/syntax/testdata/issue68589.go | 7 +++++++
- test/fixedbugs/issue11610.go                           | 2 +-
- test/switch2.go                                        | 4 ++--
- test/syntax/semi7.go                                   | 2 +-
- 5 files changed, 17 insertions(+), 6 deletions(-)
+ src/runtime/internal/atomic/atomic_andor_test.go | 169 +++++++++++++++++++++++
+ src/runtime/internal/atomic/atomic_wasm.go       |  48 +++++++
+ 2 files changed, 217 insertions(+)

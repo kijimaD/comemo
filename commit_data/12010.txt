@@ -1,13 +1,20 @@
-commit ac6357b44d16986a43a253927ec005509f8f18e0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 17 09:26:36 2012 -0800
+commit 4f5ffe568466cdd571a6fbae1c8af56474f3db99
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Fri Feb 17 11:07:34 2012 -0600
 
-    go/scanner: replace comment with example
+    misc/dist/windows:  distro builder updates
     
-    R=r
+    files moved from misc/windows, bash packager file replaced with Windows batch file
+    
+    R=golang-dev, alex.brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/5676074
+    https://golang.org/cl/5677074
 
- src/pkg/go/scanner/example_test.go | 46 ++++++++++++++++++++++++++++++++++++++
- src/pkg/go/scanner/scanner.go      | 18 +++------------
- 2 files changed, 49 insertions(+), 15 deletions(-)
+ misc/{ => dist}/windows/README          |   0
+ misc/dist/windows/dist.bat              |  54 +++++++++++++++++++++++++++++++
+ misc/{ => dist}/windows/godocserver.bat |   0
+ misc/{ => dist}/windows/goenv.bat       |   0
+ misc/{ => dist}/windows/installer.wxs   |   0
+ misc/windows/LICENSE                    | Bin 1687 -> 0 bytes
+ misc/windows/package.bash               |  55 --------------------------------
+ 7 files changed, 54 insertions(+), 55 deletions(-)

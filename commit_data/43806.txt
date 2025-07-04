@@ -1,24 +1,17 @@
-commit d70a33a40bd2bab2f8cd6ab714c4664ce55dc499
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 1 10:53:41 2020 -0400
+commit 1c5453510c9aee1b0d6a51f7e5411a9718fc9deb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 22:31:32 2020 -0700
 
-    cmd/go/internal/work: add missing newline to go version note
+    cmd/compile: convert pointer and address comparisons to typed aux
     
-    A missed newline was added for one case in CL 162957, but
-    the parallel no-output case was missed.
+    Passes toolstash-check.
     
-    Add the missed newline for the second case and update the test to
-    cover the full line for both cases.
-    
-    Updates #30263
-    
-    Change-Id: I02aa523290295a6d409cd68066b45c6990e6fb6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258758
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id4c4d341e5733673eb8a899e881d70b193f76580
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229687
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/exec.go              |  2 +-
- src/cmd/go/testdata/script/mod_go_version.txt | 41 +++++++++++++++++++++++++--
- 2 files changed, 40 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  78 ++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 252 ++++++++++++-------------
+ 2 files changed, 165 insertions(+), 165 deletions(-)

@@ -1,24 +1,78 @@
-commit e2cbb7f629d05807925a5dcd08b61b2a30306ac5
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Sep 19 12:58:02 2019 -0400
+commit d5fd2dd6a17a816b7dfd99d4df70a85f1bf0de31
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 1 15:33:33 2019 -0500
 
-    cmd/go: don't construct module version info if there are import errors
+    sync: use lock-free structure for Pool stealing
     
-    A precondition of modload.PackageBuildInfo is that its path and deps
-    arguments correspond to paths that have been loaded successfully with
-    modload.ImportPaths or one of the Load functions. load.Package.load
-    should not call PackageBuildInfo if there were any errors resolving
-    imports.
+    Currently, Pool stores each per-P shard's overflow in a slice
+    protected by a Mutex. In order to store to the overflow or steal from
+    another shard, a P must lock that shard's Mutex. This allows for
+    simple synchronization between Put and Get, but has unfortunate
+    consequences for clearing pools.
     
-    Fixes #34393
+    Pools are cleared during STW sweep termination, and hence rely on
+    pinning a goroutine to its P to synchronize between Get/Put and
+    clearing. This makes the Get/Put fast path extremely fast because it
+    can rely on quiescence-style coordination, which doesn't even require
+    atomic writes, much less locking.
     
-    Change-Id: I107514f1c535885330ff266c85d3981b71b31c2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196520
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    The catch is that a goroutine cannot acquire a Mutex while pinned to
+    its P (as this could deadlock). Hence, it must drop the pin on the
+    slow path. But this means the slow path is not synchronized with
+    clearing. As a result,
+    
+    1) It's difficult to reason about races between clearing and the slow
+    path. Furthermore, this reasoning often depends on unspecified nuances
+    of where preemption points can occur.
+    
+    2) Clearing must zero out the pointer to every object in every Pool to
+    prevent a concurrent slow path from causing all objects to be
+    retained. Since this happens during STW, this has an O(# objects in
+    Pools) effect on STW time.
+    
+    3) We can't implement a victim cache without making clearing even
+    slower.
+    
+    This CL solves these problems by replacing the locked overflow slice
+    with a lock-free structure. This allows Gets and Puts to be pinned the
+    whole time they're manipulating the shards slice (Pool.local), which
+    eliminates the races between Get/Put and clearing. This, in turn,
+    eliminates the need to zero all object pointers, reducing clearing to
+    O(# of Pools) during STW.
+    
+    In addition to significantly reducing STW impact, this also happens to
+    speed up the Get/Put fast-path and the slow path. It somewhat
+    increases the cost of PoolExpensiveNew, but we'll fix that in the next
+    CL.
+    
+    name                 old time/op     new time/op     delta
+    Pool-12                 3.00ns ± 0%     2.21ns ±36%  -26.32%  (p=0.000 n=18+19)
+    PoolOverflow-12          600ns ± 1%      587ns ± 1%   -2.21%  (p=0.000 n=16+18)
+    PoolSTW-12              71.0µs ± 2%      5.6µs ± 3%  -92.15%  (p=0.000 n=20+20)
+    PoolExpensiveNew-12     3.14ms ± 5%     3.69ms ± 7%  +17.67%  (p=0.000 n=19+20)
+    
+    name                 old p50-ns/STW  new p50-ns/STW  delta
+    PoolSTW-12               70.7k ± 1%       5.5k ± 2%  -92.25%  (p=0.000 n=20+20)
+    
+    name                 old p95-ns/STW  new p95-ns/STW  delta
+    PoolSTW-12               73.1k ± 2%       6.7k ± 4%  -90.86%  (p=0.000 n=18+19)
+    
+    name                 old GCs/op      new GCs/op      delta
+    PoolExpensiveNew-12       0.38 ± 1%       0.39 ± 1%   +2.07%  (p=0.000 n=20+18)
+    
+    name                 old New/op      new New/op      delta
+    PoolExpensiveNew-12       33.9 ± 6%       40.0 ± 6%  +17.97%  (p=0.000 n=19+20)
+    
+    (https://perf.golang.org/search?q=upload:20190311.1)
+    
+    Fixes #22331.
+    For #22950.
+    
+    Change-Id: Ic5cd826e25e218f3f8256dbc4d22835c1fecb391
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166960
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/load/pkg.go                   |  4 ++--
- src/cmd/go/internal/modload/build.go              |  4 ++++
- src/cmd/go/testdata/script/mod_build_info_err.txt | 22 ++++++++++++++++++++++
- 3 files changed, 28 insertions(+), 2 deletions(-)
+ src/sync/pool.go | 74 ++++++++++++++++++++------------------------------------
+ 1 file changed, 26 insertions(+), 48 deletions(-)

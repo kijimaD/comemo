@@ -1,41 +1,23 @@
-commit ead08e91f6468ab1c35c250ec487935103c580f6
-Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
-Date:   Wed Apr 20 14:29:30 2016 -0300
+commit 074d6a649c57a3731e273c8f9dcb36f1663e504a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 16 17:32:54 2016 -0700
 
-    cmd/go, testing: indicate when no tests are run
+    cmd/compile: remove conditional code dealing with two export formats
     
-    For example, testing the current directory:
+    This removes some scaffolding introduced pre-1.7, introduced to
+    fix an export format bug, and to minimize conflicts with older
+    formats. The currently deployed and recognized format is "v1",
+    so don't worry about other versions. This is a step towards a
+    better scheme for internal export format versioning.
     
-            $ go test -run XXX
-            testing: warning: no tests to run
-            PASS
-            ok      testing 0.013s
-            $
+    For #16244.
     
-    And in a summary:
-    
-            $ go test -run XXX testing
-            ok      testing 0.013s [no tests to run]
-            $
-    
-    These make it easy to spot when the -run regexp hasn't matched anything
-    or there are no tests. Previously the message was printed in the "current directory"
-    case when there were no tests at all, but not for no matches, and either way
-    was not surfaced in the directory list summary form.
-    
-    Fixes #15211.
-    
-    Change-Id: I1c82a423d6bd429fb991c9ca964c9d26c96fd3c5
-    Reviewed-on: https://go-review.googlesource.com/22341
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: Ic7cf99dd2a24ad5484cc54aed44fa09332c2cf72
+    Reviewed-on: https://go-review.googlesource.com/27205
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go                              | 97 ++++++++++++++++++++++
- src/cmd/go/test.go                                 | 23 +++--
- src/cmd/go/testdata/standalone_benchmark_test.go   |  6 ++
- src/cmd/go/testdata/standalone_fail_sub_test.go    |  8 ++
- .../go/testdata/standalone_parallel_sub_test.go    | 14 ++++
- src/cmd/go/testdata/standalone_sub_test.go         |  7 ++
- src/testing/benchmark.go                           |  5 +-
- src/testing/example.go                             | 10 ++-
- src/testing/testing.go                             | 41 +++++++--
- 9 files changed, 194 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 17 +++--------------
+ src/cmd/compile/internal/gc/bimport.go | 16 +++++-----------
+ src/go/internal/gcimporter/bimport.go  | 11 +++--------
+ 3 files changed, 11 insertions(+), 33 deletions(-)

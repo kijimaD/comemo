@@ -1,15 +1,13 @@
-commit dd01e9281d681c18f6e70bf032d622603bec6a67
-Author: Vladimir Nikishenko <vova616@gmail.com>
-Date:   Wed Nov 21 13:04:38 2012 -0800
+commit 42cc4ea69bf9947625dca122b7f94955e3ac6ef0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 21 10:40:14 2012 -0800
 
-    cmd/cgo: fix alignment of bool.
-    Fixes #4417.
+    A+C: Add Vladimir Nikishenko (Individual CLA)
     
-    R=golang-dev, iant, minux.ma, bradfitz
-    CC=golang-dev, vova616
-    https://golang.org/cl/6782097
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6845073
 
- misc/cgo/test/cgo_test.go  |  1 +
- misc/cgo/test/issue4417.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/cgo/gcc.go         |  2 +-
- 3 files changed, 46 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

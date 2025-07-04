@@ -1,14 +1,21 @@
-commit 55732ad839164e65af3088bffcf569fab07ae4b3
-Author: Samuel Tan <samueltan@google.com>
-Date:   Thu Mar 29 17:50:46 2018 -0700
+commit c4c3f2a1f2d9ee0735aba1583bb2a3301ec790d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 14 13:23:10 2017 -0500
 
-    html/template: fix one more lint naming error
+    encoding/csv: rename ParseError.RecordLine to .StartLine
     
-    Change-Id: I629d89d5065271f3b92dde8b12f0e743c9bde8f0
-    Reviewed-on: https://go-review.googlesource.com/103595
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    A record can span multiple lines (the whole reason for the extra field),
+    so the important fact is that it's the _start_ of the record.
+    Make that clear in the name.
+    
+    (This API was added during the Go 1.10 cycle so it can still be cleaned up.)
+    
+    Change-Id: Id95b3ceb7cdfc4aa0ed5a053cb84da8945fa5496
+    Reviewed-on: https://go-review.googlesource.com/78119
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/html/template/url.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/encoding/csv/reader.go      | 20 ++++++++++----------
+ src/encoding/csv/reader_test.go | 24 ++++++++++++------------
+ 2 files changed, 22 insertions(+), 22 deletions(-)

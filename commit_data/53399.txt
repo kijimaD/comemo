@@ -1,17 +1,22 @@
-commit 077194538c7b35d27f8310e57ec4bf4d4a1a21fb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 30 15:36:16 2023 -0700
+commit 45c748f7e61a4044a1f79516746d5851113de251
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 13 00:44:08 2022 +0700
 
-    doc/go1.21: reading from debug/pe uninitialized section fails
+    test: add test case for issue 53702
     
-    For #47653
+    The issue is expected to be fixed when Unified IR is enabled by default,
+    so adding a test to make sure thing works correctly.
     
-    Change-Id: Id44c9dba58966f43f188030a53343d890a6ffde7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499419
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Updates #53702
+    
+    Change-Id: Id9d7d7ca4506103df0d10785ed5ee170d69988ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423434
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- doc/go1.21.html | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ test/fixedbugs/issue53702.go | 39 +++++++++++++++++++++++++++++++++++++++
+ test/run.go                  |  1 +
+ 2 files changed, 40 insertions(+)

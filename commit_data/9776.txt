@@ -1,12 +1,13 @@
-commit 3dc3fa0d8cda00202d1c2162cf6d93789822e7d6
-Author: Paul Sbarra <Sbarra.Paul@gmail.com>
-Date:   Fri Sep 23 09:38:10 2011 +1000
+commit 76d82dbc4cde51cde2cfcb002af2ec874a8a5c88
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 23 07:22:28 2011 +1000
 
-    vim: Send GoFmt errors to a location list
+    doc: link to image blog post
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5043046
+    https://golang.org/cl/5086048
 
- misc/vim/ftplugin/go/fmt.vim | 22 ++++++++++++++++++----
- 1 file changed, 18 insertions(+), 4 deletions(-)
+ doc/docs.html          | 1 +
+ src/pkg/image/image.go | 3 +++
+ 2 files changed, 4 insertions(+)

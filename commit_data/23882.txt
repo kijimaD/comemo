@@ -1,15 +1,15 @@
-commit 6c08213dc050269cee3d4c2bc93d8dec907326e2
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jul 28 10:58:27 2015 -0700
+commit ccec93481483f03ad51005b48d6962a52f0ab359
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 18 14:45:38 2015 +1000
 
-    cmd/dist: cleanup message about building go_bootstrap
+    compress/lzw: reject writing bytes that don't fit into litWidth.
     
-    At this stage, dist is only building go_bootstrap as cmd/compile and
-    the rest of the Go toolchain has already been built.
+    Fixes #11142.
     
-    Change-Id: I6f99fa00ff1d3585e215f4ce84d49344c4fcb8a5
-    Reviewed-on: https://go-review.googlesource.com/12779
+    Change-Id: Id772c4364c47776d6afe86b0939b9c6281e85edc
+    Reviewed-on: https://go-review.googlesource.com/11227
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/lzw/writer.go      | 13 ++++++++++---
+ src/compress/lzw/writer_test.go | 10 ++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

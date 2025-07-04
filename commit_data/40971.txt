@@ -1,37 +1,22 @@
-commit 41348081fa0511c8f442d236d32ff8d589c8c557
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Dec 10 14:27:53 2019 +0000
+commit cc6feab39668bf81fcaae8d80173704add7f4918
+Author: Stefan Baebler <sbaebler@outbrain.com>
+Date:   Tue Aug 27 20:45:25 2019 +0000
 
-    all: fix a number of misuses of the word "an"
+    net/url: fail TestParseErrors test when getting an unwanted error
     
-    After golang.org/cl/210124, I wondered if the same error had gone
-    unnoticed elsewhere. I quickly spotted another dozen mistakes after
-    reading through the output of:
+    The TestParseErrors test function was not strict with unwanted errors
+    received from url.Parse(). It was not failing in such cases, now it does
     
-            git grep '\<[Aa]n [bcdfgjklmnpqrtvwyz][a-z]'
+    Fixes #33646
+    Updates #29098
     
-    Many results are false positives for acronyms like "an mtime", since
-    it's pronounced "an em-time". However, the total amount of output isn't
-    that large given how simple the grep pattern is.
-    
-    Change-Id: Iaa2ca69e42f4587a9e3137d6c5ed758887906ca6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210678
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Zach Jones <zachj1@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I069521093e2bff8b1fcd41ffd3f9799f3108bc61
+    GitHub-Last-Rev: e6844c57f979ddb8418643d9c5244a5d1b4578ba
+    GitHub-Pull-Request: golang/go#33876
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191966
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- doc/articles/go_command.html          | 2 +-
- src/archive/tar/reader.go             | 2 +-
- src/cmd/link/internal/ld/deadcode.go  | 2 +-
- src/cmd/link/internal/ld/deadcode2.go | 2 +-
- src/cmd/pprof/readlineui.go           | 2 +-
- src/crypto/elliptic/p256.go           | 2 +-
- src/encoding/gob/gobencdec_test.go    | 2 +-
- src/io/io_test.go                     | 2 +-
- src/io/multi_test.go                  | 2 +-
- src/reflect/type.go                   | 2 +-
- src/runtime/alg.go                    | 2 +-
- src/runtime/runtime1.go               | 2 +-
- 12 files changed, 12 insertions(+), 12 deletions(-)
+ src/net/url/url_test.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

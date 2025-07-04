@@ -1,21 +1,20 @@
-commit b15fd6b39e29edfe7f4b332458ddc71cffdaacc4
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Dec 26 18:19:58 2019 -0500
+commit 83feeedaecd2a367a2855d5fca5829ded5c52930
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 19 12:49:05 2019 -0400
 
-    cmd/go: convert TestCgoConsistentResults to the script framework
+    cmd/go: change the gccgo 'package m' regression test to run in GOPATH mode
     
-    The call to tooSlow is rewritten into a check for [short].
+    This test is failing in the builders due to the deployed versions of
+    gccgo not supporting module mode. However, the bug reproduced in
+    GOPATH mode too, so that mode should be fine for a regression test.
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Updates #34358
     
-    Updates #36320
-    Updates #17751
-    
-    Change-Id: I1f3e7664d575219b6fc525bd88babed15d1bd3b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212622
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I954132a96849e80e8783d4de10389fcab7b14af2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196518
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/go_test.go                              | 32 ----------------------
- .../script/build_cgo_consistent_results.txt        | 19 +++++++++++++
- 2 files changed, 19 insertions(+), 32 deletions(-)
+ src/cmd/go/testdata/script/{mod_m.txt => gccgo_m.txt} | 4 ++++
+ 1 file changed, 4 insertions(+)

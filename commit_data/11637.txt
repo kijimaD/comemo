@@ -1,34 +1,33 @@
-commit cb0de68a089fd2b05bcf87c4f487b30b96392b5e
-Author: Kyle Lemons <kyle@kylelemons.net>
-Date:   Mon Feb 6 14:10:03 2012 +1100
+commit 5be24046c7b40d0ed522cba8d38c45e406269b28
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 6 14:09:00 2012 +1100
 
-                cmd/go: build: print import errors when invoked on files
+    all: avoid bytes.NewBuffer(nil)
+    The practice encourages people to think this is the way to
+    create a bytes.Buffer when new(bytes.Buffer) or
+    just var buf bytes.Buffer work fine.
+    (html/token.go was missing the point altogether.)
     
-          This fix makes the goFilesPackage helper function print the errors from
-          package imports and exit similar to how the packagesForBuild function does.
-    
-          Without this change, when invoking "go build *.go" with, for example,
-          an old import path, the following stack trace is generated:
-    
-          panic: runtime error: invalid memory address or nil pointer dereference
-    
-          goroutine 1 [running]:
-          go/build.(*Tree).PkgDir(...)
-                  /opt/go/src/pkg/go/build/path.go:52 +0xfb
-          main.(*builder).action(...)
-                  /opt/go/src/cmd/go/build.go:327 +0xb8
-          main.(*builder).action(...)
-                  /opt/go/src/cmd/go/build.go:335 +0x208
-          main.runBuild(...)
-                  /opt/go/src/cmd/go/build.go:129 +0x386
-          main.main()
-                  /opt/go/src/cmd/go/main.go:126 +0x2d8
-    
-    Fixes #2865.
-    
-    R=rsc, dvyukov, r
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5624052
+    https://golang.org/cl/5637043
 
- src/cmd/go/build.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/bufio/bufio_test.go            | 2 +-
+ src/pkg/compress/flate/deflate_test.go | 6 +++---
+ src/pkg/compress/lzw/reader_test.go    | 6 +++---
+ src/pkg/compress/zlib/writer_test.go   | 4 ++--
+ src/pkg/encoding/asn1/marshal.go       | 2 +-
+ src/pkg/encoding/gob/encoder_test.go   | 5 ++---
+ src/pkg/encoding/hex/hex.go            | 4 ++--
+ src/pkg/encoding/hex/hex_test.go       | 4 ++--
+ src/pkg/encoding/pem/pem.go            | 4 ++--
+ src/pkg/encoding/pem/pem_test.go       | 4 ++--
+ src/pkg/exp/html/escape.go             | 4 ++--
+ src/pkg/exp/html/parse_test.go         | 4 ++--
+ src/pkg/exp/html/token.go              | 3 +--
+ src/pkg/exp/html/token_test.go         | 4 ++--
+ src/pkg/html/escape.go                 | 4 ++--
+ src/pkg/image/jpeg/writer_test.go      | 6 +++---
+ src/pkg/image/png/writer_test.go       | 6 +++---
+ src/pkg/old/template/template_test.go  | 4 ++--
+ 18 files changed, 37 insertions(+), 39 deletions(-)

@@ -1,18 +1,22 @@
-commit cbd6c34131a138c25e33ef038fb7485190637793
+commit 989e611a7b0bf6589b5b70575150d479613e3df6
 Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 14:31:08 2012 +1100
+Date:   Fri Feb 10 14:30:44 2012 +1100
 
-    testing/script: delete
-    Dead code.
+    unicode: various documentation tweaks
     
-    Fixes #2961.
+    The comment on IsOneOf regarding Latin-1 was an implementation detail:
+    when the function is called internally, that condition is true. It used to matter,
+    but now the comment is a dreg. The function works fine if the character is
+    Latin-1, so we just delete the comment.
+    
+    Fixes #2966.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5650053
+    https://golang.org/cl/5655047
 
- doc/go1.html                          |  11 ++
- doc/go1.tmpl                          |  11 ++
- src/pkg/testing/script/script.go      | 358 ----------------------------------
- src/pkg/testing/script/script_test.go |  75 -------
- 4 files changed, 22 insertions(+), 433 deletions(-)
+ src/pkg/unicode/graphic.go    | 3 +--
+ src/pkg/unicode/letter.go     | 6 +++---
+ src/pkg/unicode/maketables.go | 2 +-
+ src/pkg/unicode/tables.go     | 2 +-
+ 4 files changed, 6 insertions(+), 7 deletions(-)

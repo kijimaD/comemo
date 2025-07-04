@@ -1,16 +1,16 @@
-commit 6624771c8346d69ef41526b1134c505bca399340
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 27 17:33:01 2021 -0700
+commit 8badef4cf64b5ace52b3e76b40f4702363a93b8a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 8 21:03:18 2020 -0500
 
-    doc/go1.17: mention testing.[TB].Setenv methods
+    doc/articles/race_detector.html: add darwin/arm64
     
-    For #41260
-    For #44513
+    Updates #38485.
     
-    Change-Id: I47ac0c751dafeb05abfe66fdf77938774164915f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323353
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Change-Id: I46f515973c0a31d7c3e0e05ce006121c60c4041e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268497
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.17.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ doc/articles/race_detector.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

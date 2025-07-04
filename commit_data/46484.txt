@@ -1,22 +1,80 @@
-commit 07b30a4f77cf89a283c45c338f0cfcb68e15aab1
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Sep 2 08:47:40 2021 -0700
+commit f24e40c14a0a767b6663c85dc900bb9e6b7c2d8e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 3 20:14:00 2021 -0800
 
-    cmd/compile: delay transformAssign if lhs/rhs have typeparam
+    [dev.regabi] cmd/compile: remove Name.Class_ accessors
     
-    This also requires that we sometimes delay transformSelect(), if the
-    assignments in the Comm part of the select have not been transformed.
+    These aren't part of the Node interface anymore, so no need to keep
+    them around.
     
-    Fixes #48137
+    Passes toolstash -cmp.
     
-    Change-Id: I163aa1f999d1e63616280dca807561b12b2aa779
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347915
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    [git-generate]
+    cd src/cmd/compile/internal/ir
+    
+    : Fix one off case that causes trouble for rf.
+    sed -i -e 's/n.SetClass(ir.PAUTO)/n.Class_ = ir.PAUTO/' ../ssa/export_test.go
+    
+    pkgs=$(go list . ../...)
+    rf '
+            ex '"$(echo $pkgs)"' {
+                    var n *Name
+                    var c Class
+                    n.Class() -> n.Class_
+                    n.SetClass(c) -> n.Class_ = c
+            }
+    
+            rm Name.Class
+            rm Name.SetClass
+            mv Name.Class_ Name.Class
+    '
+    
+    Change-Id: Ifb304bf4691a8c455456aabd8aa77178d4a49500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281294
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/noder/stencil.go |  3 +++
- src/cmd/compile/internal/noder/stmt.go    | 20 ++++++++++++++++----
- test/typeparam/issue48137.go              | 25 +++++++++++++++++++++++++
- 3 files changed, 44 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go      | 24 ++++++-------
+ src/cmd/compile/internal/escape/escape.go       | 26 +++++++-------
+ src/cmd/compile/internal/gc/abiutilsaux_test.go |  2 +-
+ src/cmd/compile/internal/gc/compile.go          |  2 +-
+ src/cmd/compile/internal/gc/export.go           |  2 +-
+ src/cmd/compile/internal/gc/obj.go              |  2 +-
+ src/cmd/compile/internal/inline/inl.go          | 24 ++++++-------
+ src/cmd/compile/internal/ir/expr.go             |  6 ++--
+ src/cmd/compile/internal/ir/func.go             |  4 +--
+ src/cmd/compile/internal/ir/name.go             |  8 ++---
+ src/cmd/compile/internal/ir/scc.go              |  2 +-
+ src/cmd/compile/internal/liveness/plive.go      | 14 ++++----
+ src/cmd/compile/internal/noder/noder.go         |  6 ++--
+ src/cmd/compile/internal/pkginit/init.go        |  4 +--
+ src/cmd/compile/internal/pkginit/initorder.go   | 10 +++---
+ src/cmd/compile/internal/reflectdata/reflect.go |  8 ++---
+ src/cmd/compile/internal/ssa/deadstore.go       |  8 ++---
+ src/cmd/compile/internal/ssa/export_test.go     |  2 +-
+ src/cmd/compile/internal/ssagen/nowb.go         |  2 +-
+ src/cmd/compile/internal/ssagen/pgen.go         | 14 ++++----
+ src/cmd/compile/internal/ssagen/pgen_test.go    |  4 +--
+ src/cmd/compile/internal/ssagen/ssa.go          | 48 ++++++++++++-------------
+ src/cmd/compile/internal/staticdata/data.go     |  6 ++--
+ src/cmd/compile/internal/staticinit/sched.go    |  6 ++--
+ src/cmd/compile/internal/typecheck/dcl.go       |  4 +--
+ src/cmd/compile/internal/typecheck/export.go    |  2 +-
+ src/cmd/compile/internal/typecheck/func.go      |  4 +--
+ src/cmd/compile/internal/typecheck/iexport.go   |  8 ++---
+ src/cmd/compile/internal/typecheck/iimport.go   |  2 +-
+ src/cmd/compile/internal/typecheck/syms.go      |  2 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 +--
+ src/cmd/compile/internal/typecheck/universe.go  |  2 +-
+ src/cmd/compile/internal/walk/assign.go         |  4 +--
+ src/cmd/compile/internal/walk/closure.go        |  6 ++--
+ src/cmd/compile/internal/walk/complit.go        |  8 ++---
+ src/cmd/compile/internal/walk/convert.go        |  6 ++--
+ src/cmd/compile/internal/walk/expr.go           |  2 +-
+ src/cmd/compile/internal/walk/order.go          |  2 +-
+ src/cmd/compile/internal/walk/race.go           |  2 +-
+ src/cmd/compile/internal/walk/stmt.go           |  2 +-
+ src/cmd/compile/internal/walk/walk.go           |  6 ++--
+ 41 files changed, 149 insertions(+), 151 deletions(-)

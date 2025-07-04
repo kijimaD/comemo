@@ -1,17 +1,14 @@
-commit 23410ced69b90ded4aacde12e40c162c6568e8db
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 10 11:26:04 2011 -0800
+commit 2b0a27612923b87309fc49ffde767ba99a9ba892
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Sun Jan 9 12:11:16 2011 -0500
 
-    go/ast: correct end position for Index and TypeAssert expressions
+    bytes: fix TrimSpace typo
     
-    - added position information for [ and ] brackets of Index and Slice expression nodes
-    - removed a TODO in go/printer
+    Fixes #1401.
     
-    R=r, rsc
+    R=golang-dev, agl1
     CC=golang-dev
-    https://golang.org/cl/3867045
+    https://golang.org/cl/3937041
 
- src/pkg/go/ast/ast.go       | 49 +++++++++++++++++++++++++++------------------
- src/pkg/go/parser/parser.go | 21 ++++++++++---------
- src/pkg/go/printer/nodes.go | 20 +++++++-----------
- 3 files changed, 47 insertions(+), 43 deletions(-)
+ src/pkg/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

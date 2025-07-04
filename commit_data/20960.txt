@@ -1,13 +1,12 @@
-commit 8ea28028e8e7bdb4f0c54903e4dfec483330e5ed
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 11 09:11:08 2014 +1100
+commit ca230d2d6ffeaef0be2f58fd46ba6ed34a8dbf46
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 21:02:58 2014 -0400
 
-    doc: remove TODO from go1.4 release notes
+    cmd/objdump: disable test failing on arm5
     
-    LGTM=bradfitz
-    R=iant, rsc, bradfitz
+    TBR=adg
     CC=golang-codereviews
-    https://golang.org/cl/191750043
+    https://golang.org/cl/167890043
 
- doc/go1.4.html | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/objdump/objdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,44 +1,21 @@
-commit 577bb3d0ce576b2ca311e58dd942f189838b80fc
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Mar 14 10:50:25 2025 -0400
+commit 414161ebfaa58218ffac7907b4d8ef2babb236cb
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Feb 7 04:56:26 2024 +0000
 
-    runtime: only set isExtraInC if there are no Go frames left
+    encoding/xml: rewrite func procInst
     
-    mp.isExtraInC is intended to indicate that this M has no Go frames at
-    all; it is entirely executing in C.
+    This CL tries to make function procInst more exact,
+    also adds test cases, however, including tricky ones.
     
-    If there was a cgocallback to Go and then a cgocall to C, such that the
-    leaf frames are C, that is fine. e.g., traceback can handle this fine
-    with SetCgoTraceback (or by simply skipping the C frames).
-    
-    However, we currently mismanage isExtraInC, unconditionally setting it
-    on return from cgocallback. This means that if there are two levels of
-    cgocallback, we end up running Go code with isExtraInC set.
-    
-    1. C-created thread calls into Go function 1 (via cgocallback).
-    2. Go function 1 calls into C function 1 (via cgocall).
-    3. C function 1 calls into Go function 2 (via cgocallback).
-    4. Go function 2 returns back to C function 1 (returning via the remainder of cgocallback).
-    5. C function 1 returns back to Go function 1 (returning via the remainder of cgocall).
-    6. Go function 1 is now running with mp.isExtraInC == true.
-    
-    The fix is simple; only set isExtraInC on return from cgocallback if
-    there are no more Go frames. There can't be more Go frames unless there
-    is an active cgocall out of the Go frames.
-    
-    Fixes #72870.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Change-Id: I6a6a636c4e7ba75a29639d7036c5af3738033467
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658035
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Commit-Queue: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: If421299fc84d136e56a25dba7a4919c4424702c8
+    GitHub-Last-Rev: b9a3192718ae5535d66fddd260c27b48d93b4af1
+    GitHub-Pull-Request: golang/go#64336
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544475
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/cgocall.go                             |   4 +-
- src/runtime/crash_cgo_test.go                      |  13 ++
- src/runtime/runtime2.go                            |   2 +-
- src/runtime/testdata/testprogcgo/callback_pprof.go | 138 +++++++++++++++++++++
- 4 files changed, 155 insertions(+), 2 deletions(-)
+ src/encoding/xml/xml.go      | 25 ++++++++++++++++++-------
+ src/encoding/xml/xml_test.go |  7 +++++++
+ 2 files changed, 25 insertions(+), 7 deletions(-)

@@ -1,13 +1,19 @@
-commit f1489ac2511eda7c9eaca6bac83d329410b3ce92
-Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
-Date:   Sun Mar 1 10:09:27 2015 -0500
+commit 56e8f8e8224a718ae005321b65986e72a695e7f2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:07:10 2014 -0500
 
-    build: update Windows make.bat to use CC_FOR_TARGET.
+    runtime: darwin/arm support
     
-    Change-Id: Ie4d8bedb9408372dff64e9a7fd857e1be4ee59e1
-    Reviewed-on: https://go-review.googlesource.com/6401
+    Change-Id: I63110daad2d62ae72ab1f33a40464d76e6205627
+    Reviewed-on: https://go-review.googlesource.com/2121
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/make.bat | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/runtime/defs_darwin_arm.go   | 245 ++++++++++++++++++++
+ src/runtime/os_darwin_arm.go     |  17 ++
+ src/runtime/rt0_darwin_arm.s     |  18 ++
+ src/runtime/signal_darwin_arm.go |  44 ++++
+ src/runtime/stack.h              |  22 +-
+ src/runtime/stack2.go            |   6 +-
+ src/runtime/sys_darwin_arm.s     | 481 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/tls_arm.s            |   7 +-
+ 8 files changed, 829 insertions(+), 11 deletions(-)

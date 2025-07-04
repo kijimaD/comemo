@@ -1,15 +1,19 @@
-commit 3a6a41868eb620912235f2dd3f9738c76035e731
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 27 16:30:03 2016 -0400
+commit ac8d97b6796aad8ca33db9d377064ddb3952a834
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Apr 1 23:28:14 2016 -0500
 
-    doc: mention frame pointers in Go 1.7 release notes
+    cmd/compile: fix inlining of switch issue
     
-    For #15840.
+    The issue was seen when inlining an exported function that contained
+    a fallthrough statement.
     
-    Change-Id: I2ecf5c7b00afc2034cf3d7a1fd78636a908beb67
-    Reviewed-on: https://go-review.googlesource.com/23517
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #15071
+    
+    Change-Id: I1e8215ad49d57673dba7e8f8bd2ed8ad290dc452
+    Reviewed-on: https://go-review.googlesource.com/21452
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- doc/go1.7.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/gc/fmt.go       |  1 +
+ test/fixedbugs/issue15071.dir/exp/exp.go | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue15071.dir/main.go    | 14 ++++++++++++++
+ 3 files changed, 39 insertions(+)

@@ -1,17 +1,18 @@
-commit 7b3c38045b4c3cb7a4f1f451bdfab93f97dc5315
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Tue Apr 9 03:34:59 2024 +0000
+commit ac9d777caf06364524ce9c67203a14a899f71a57
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 14 15:59:40 2023 +0000
 
-    cmd/link: close cpu profile
+    path/filepath,cmd/go: skip tests involving double-symlinks on ios
     
-    Change-Id: Ieaf1c165307a98d58c40d4d970eecfd6d74b2411
-    GitHub-Last-Rev: bd7271097896a4003b08c28e8ea11c6ab74077d9
-    GitHub-Pull-Request: golang/go#66736
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577416
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #59586.
+    
+    Change-Id: I092f7a4abce1074b8eef64a3ecf9fc187914709b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484755
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/main.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/list_goroot_symlink.txt | 1 +
+ src/path/filepath/path_test.go                     | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

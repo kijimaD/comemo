@@ -1,37 +1,26 @@
-commit dd323fe205b04da837e12aabf0bebfbe171aa7c2
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jul 13 20:22:53 2022 -0700
+commit 65ffee6f9a949023f10e5b6b918a7a218d9836a1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 1 11:52:56 2021 -0400
 
-    cmd/compile,runtime: redo growslice calling convention
+    cmd/go: insert goroot to the hash of build cache when the packages include C files
     
-    Instead of passing the original length and the new length, pass
-    the new length and the length increment. Also use the new length
-    in all the post-growslice calculations so that the original length
-    is dead and does not need to be spilled/restored around the growslice.
+    This reverts CL 351851, which itself reverted CL 348991.
     
-    old: growslice(typ, oldPtr, oldLen, oldCap, newLen) (newPtr, newLen, newCap)
-    new: growslice(oldPtr, newLen, oldCap, inc, typ) (newPtr, newLen, newCap)
+    The problem with the original CL, as far as I can tell, was due to a
+    bug in the Go project's builder infrastructure (#33598) and not the
+    change itself. Once the build infrastructure is fixed, this change
+    can be resubmitted.
     
-    where inc = # of elements added = newLen-oldLen
+    Fixes #48319
+    Updates #33598
     
-    Also move the element type to the end of the call. This makes register
-    allocation more efficient, as oldPtr and newPtr can often be in the
-    same register (e.g. AX on amd64) and thus the phi takes no instructions.
-    
-    Makes the go binary 0.3% smaller.
-    
-    Change-Id: I7295a60227dbbeecec2bf039eeef2950a72df760
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418554
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I0fdbcc241eb2bdeb350944aad58bf58774fb591e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353352
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go             | 114 ++++++++--------
- src/cmd/compile/internal/typecheck/builtin.go      |   2 +-
- .../compile/internal/typecheck/builtin/runtime.go  |   2 +-
- src/cmd/compile/internal/walk/assign.go            | 149 ++++++++++++---------
- src/cmd/compile/internal/walk/builtin.go           |  73 ++++++----
- src/runtime/slice.go                               |  92 ++++++++-----
- 6 files changed, 247 insertions(+), 185 deletions(-)
+ src/cmd/go/internal/work/exec.go                |  34 ++++--
+ src/cmd/go/testdata/script/build_issue48319.txt | 153 ++++++++++++++++++++++++
+ 2 files changed, 177 insertions(+), 10 deletions(-)

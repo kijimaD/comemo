@@ -1,17 +1,29 @@
-commit 210f70e298cf7e45a2b2638545228a44c78740de
-Author: Ryuji Iwata <qt.luigi@gmail.com>
-Date:   Tue Jan 26 12:53:08 2021 +0000
+commit 6265ed745241da6c04ac8b9463c6feaaf332087b
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu May 21 07:16:29 2020 -0400
 
-    doc/go1.16: fix closing brace in .Export format
+    [dev.link] cmd/compile: emit fewer R_USETYPE relocations
     
-    A parenthesis of go list "-f" flag format is double curly braces.
+    Background: when compiling a function, it's possible that a local
+    variable will be optimized away, which could potentially degrade the
+    debugging experience if the compiler fails to emit DWARF information
+    for the variable's type. To mitigate this situation, the compiler
+    emits R_USETYPE relocations for the function's auto/param variables as
+    a signal to the linker to generate DWARF for the types in question,
+    even if the type is not specifically attached to a DWARF param or var.
     
-    Change-Id: Ifd38e0b0ae3c46272a4acd65584818228168b7c6
-    GitHub-Last-Rev: b46030492b5caf18fe127621fdf92cbec4c03ad5
-    GitHub-Pull-Request: golang/go#43924
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/286752
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    This patch change the logic in the compiler to avoid emitting a
+    R_USETYPE relocation if the type in question is already referenced by
+    a concrete DWARF param or auto record. This cuts down on the amount of
+    work the linker has to do, also makes object files a bit smaller on
+    average (about 1% for the runtime package).
+    
+    Change-Id: I4d24da458d0658edf90c5dca0bf21d5ddc3961d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234837
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.16.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)

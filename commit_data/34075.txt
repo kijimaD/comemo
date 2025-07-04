@@ -1,29 +1,14 @@
-commit 29461ccc7f7b6a73bc0104731cfbe0c2cbe86733
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 22 16:29:36 2017 -0800
+commit 66fa4fc8b9feb7f636955e630977b8862c0862aa
+Author: Guilherme Rezende <guilhermebr@gmail.com>
+Date:   Mon Sep 4 09:28:27 2017 -0300
 
-    go/parser: simplify code to read from an io.Reader (cleanup)
+    net/http: use canonicalAddr on shouldCopyHeaderOnRedirect
     
-    ioutil.ReadAll didn't exist when we wrote that parser code
-    originally (in 2009). Now it does, so use it. This may also
-    make that code path slightly more efficient.
-    
-    Also, now that we are guaranteed to have a fast path for reading
-    from an io.Reader (and thus an io.ReadCloser), simplify setup
-    code for parser.ParseFile calls in srcimporter.Importer.ParseFiles.
-    
-    Remove the associated TODO since we cannot reproduce any significant
-    performance differences when running go test -run ImportStdLib for
-    the case where we used to read directly from a file (even before the
-    change to the parser).
-    
-    Fixes #19281.
-    
-    Change-Id: I816459d092bb9e27fdc85089b8f21d57ec3fd79a
-    Reviewed-on: https://go-review.googlesource.com/85395
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic3f7f575d3640706adb7d64545ed8027add6c58f
+    Reviewed-on: https://go-review.googlesource.com/61350
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/go/build/deps_test.go                  |  2 +-
- src/go/internal/srcimporter/srcimporter.go | 29 +++++++++++++----------------
- src/go/parser/interface.go                 |  6 +-----
- 3 files changed, 15 insertions(+), 22 deletions(-)
+ src/net/http/client.go      | 12 ++----------
+ src/net/http/client_test.go |  8 ++++++--
+ 2 files changed, 8 insertions(+), 12 deletions(-)

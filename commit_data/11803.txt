@@ -1,12 +1,18 @@
-commit 2233942e3c030acffda5952ee3677bedaebf6079
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 10 21:47:18 2012 -0800
+commit 77aaa3555dd420c79bafa88de60dee31717949c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 11 00:34:01 2012 -0500
 
-    gofmt: fix error message in test
+    gc: fix import of struct type in struct literal
     
-    R=golang-dev, dsymonds
+    Fixes #2716.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5652066
+    https://golang.org/cl/5652065
 
- src/cmd/gofmt/long_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/go.y                   |  18 +-
+ src/cmd/gc/y.tab.c                | 342 ++++++++++++++++++++------------------
+ test/fixedbugs/bug415.dir/main.go |   9 +
+ test/fixedbugs/bug415.dir/p.go    |  14 ++
+ test/fixedbugs/bug415.go          |   9 +
+ 5 files changed, 228 insertions(+), 164 deletions(-)

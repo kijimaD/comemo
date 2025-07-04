@@ -1,13 +1,16 @@
-commit 87054c4704edbfc5c16e109e9c3f12f0f57a9a13
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Apr 21 21:43:25 2015 -0400
+commit a4374c1de1d4fd924a11e055ca55efde11b258da
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 20 13:21:51 2015 -0400
 
-    runtime: fix more vet reported issues
+    runtime: fix another out of date comment in GC
     
-    Change-Id: Ie8dfdb592ee0bfc736d08c92c3d8413a37b6ac03
-    Reviewed-on: https://go-review.googlesource.com/9241
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    gcDrain used to be passed a *workbuf to start draining from, but now
+    it takes a gcWork, which hides whether or not there's an initial
+    workbuf. Update the comment to match this.
+    
+    Change-Id: I976b58e5bfebc451cfd4fa75e770113067b5cc07
+    Reviewed-on: https://go-review.googlesource.com/8246
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/asm_ppc64x.s       |  4 ++--
- src/runtime/sys_darwin_amd64.s | 14 +++++++-------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

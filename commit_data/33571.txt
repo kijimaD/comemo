@@ -1,21 +1,28 @@
-commit c4c3f2a1f2d9ee0735aba1583bb2a3301ec790d3
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 14 13:23:10 2017 -0500
+commit f04d5836181dec3ec1b7e427607f02fa7a204a2d
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jun 5 10:37:37 2017 +0200
 
-    encoding/csv: rename ParseError.RecordLine to .StartLine
+    testing: parallelize tests over count
     
-    A record can span multiple lines (the whole reason for the extra field),
-    so the important fact is that it's the _start_ of the record.
-    Make that clear in the name.
+    Currently all package tests are executed once
+    with Parallel tests executed in parallel.
+    Then this process is repeated count*cpu times.
+    Tests are not parallelized over count*cpu.
+    Parallelizing over cpu is not possible as
+    GOMAXPROCS is a global setting. But it is
+    possible for count.
     
-    (This API was added during the Go 1.10 cycle so it can still be cleaned up.)
+    Parallelize over count.
     
-    Change-Id: Id95b3ceb7cdfc4aa0ed5a053cb84da8945fa5496
-    Reviewed-on: https://go-review.googlesource.com/78119
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Brings down testing of my package with -count=100
+    form 10s to 0.3s.
+    
+    Change-Id: I76d8322adeb8c5c6e70b99af690291fd69d6402a
+    Reviewed-on: https://go-review.googlesource.com/44830
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/csv/reader.go      | 20 ++++++++++----------
- src/encoding/csv/reader_test.go | 24 ++++++++++++------------
- 2 files changed, 22 insertions(+), 22 deletions(-)
+ src/testing/benchmark.go | 76 +++++++++++++++++++++++++-----------------------
+ src/testing/testing.go   | 50 +++++++++++++++----------------
+ 2 files changed, 63 insertions(+), 63 deletions(-)

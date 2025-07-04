@@ -1,65 +1,17 @@
-commit e252dcf9d38ce9192bccacb7e33867cbfbd22b6c
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Oct 18 12:01:18 2022 -0400
+commit 3404ee3e86b9f4eab55d2451dcd9db5b4cd9ed4a
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 19:29:13 2021 -0500
 
-    runtime: always keep global reference to mp until mexit completes
+    go/types: move match function to end of file (cleanup)
     
-    Ms are allocated via standard heap allocation (`new(m)`), which means we
-    must keep them alive (i.e., reachable by the GC) until we are completely
-    done using them.
+    This is a port of CL 363669 from types2 to go/types.
     
-    Ms are primarily reachable through runtime.allm. However, runtime.mexit
-    drops the M from allm fairly early, long before it is done using the M
-    structure. If that was the last reference to the M, it is now at risk of
-    being freed by the GC and used for some other allocation, leading to
-    memory corruption.
-    
-    Ms with a Go-allocated stack coincidentally already keep a reference to
-    the M in sched.freem, so that the stack can be freed lazily. This
-    reference has the side effect of keeping this Ms reachable. However, Ms
-    with an OS stack skip this and are at risk of corruption.
-    
-    Fix this lifetime by extending sched.freem use to all Ms, with the value
-    of mp.freeWait determining whether the stack needs to be freed or not.
-    
-    Fixes #56243.
-    
-    Change-Id: Ic0c01684775f5646970df507111c9abaac0ba52e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443716
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id1f375ff5708dab528144e30ce16d24d6fdf7d00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364900
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/os3_solaris.go         |  3 ++-
- src/runtime/os_aix.go              |  3 ++-
- src/runtime/os_js.go               |  3 ++-
- src/runtime/os_openbsd_syscall2.go |  5 ++--
- src/runtime/os_plan9.go            |  2 +-
- src/runtime/os_windows.go          |  2 +-
- src/runtime/proc.go                | 48 ++++++++++++++++++++++----------------
- src/runtime/runtime2.go            |  9 ++++++-
- src/runtime/stubs2.go              |  9 ++++---
- src/runtime/sys_darwin.go          |  3 ++-
- src/runtime/sys_dragonfly_amd64.s  |  2 +-
- src/runtime/sys_freebsd_386.s      |  2 +-
- src/runtime/sys_freebsd_amd64.s    |  2 +-
- src/runtime/sys_freebsd_arm.s      |  2 +-
- src/runtime/sys_freebsd_arm64.s    |  2 +-
- src/runtime/sys_freebsd_riscv64.s  |  2 +-
- src/runtime/sys_linux_386.s        |  2 +-
- src/runtime/sys_linux_amd64.s      |  2 +-
- src/runtime/sys_linux_arm.s        |  2 +-
- src/runtime/sys_linux_arm64.s      |  2 +-
- src/runtime/sys_linux_loong64.s    |  2 +-
- src/runtime/sys_linux_mips64x.s    |  2 +-
- src/runtime/sys_linux_mipsx.s      |  2 +-
- src/runtime/sys_linux_ppc64x.s     |  2 +-
- src/runtime/sys_linux_riscv64.s    |  2 +-
- src/runtime/sys_linux_s390x.s      |  2 +-
- src/runtime/sys_netbsd_386.s       |  2 +-
- src/runtime/sys_netbsd_amd64.s     |  2 +-
- src/runtime/sys_netbsd_arm.s       |  2 +-
- src/runtime/sys_netbsd_arm64.s     |  2 +-
- src/runtime/sys_openbsd2.go        |  3 ++-
- src/runtime/sys_openbsd_mips64.s   |  2 +-
- 32 files changed, 78 insertions(+), 54 deletions(-)
+ src/go/types/type.go | 58 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

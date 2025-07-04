@@ -1,25 +1,14 @@
-commit db1c218d4f2ce63196aa162ca0743e08e4ae9c9c
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Thu Apr 25 18:12:09 2013 +0200
+commit 2bd17bca0776ff8bb661259d2ed6de6a325ac197
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 25 13:23:24 2013 +0900
 
-    undo CL 8954044 / ad3c2ffb16d7
+    net: deflake raw IP protocol entry test on Windows
     
-    It works on i386, but fails on amd64 and arm.
+    Update #5344
     
-    ««« original CL description
-    runtime: prevent the GC from seeing the content of a frame in runfinq()
-    
-    Fixes #5348.
-    
-    R=golang-dev, dvyukov
+    R=golang-dev, dave, r, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/8954044
-    »»»
-    
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/8695051
+    https://golang.org/cl/8934043
 
- src/pkg/runtime/mgc0.c      |  2 +-
- test/fixedbugs/issue5348.go | 37 -------------------------------------
- 2 files changed, 1 insertion(+), 38 deletions(-)
+ src/pkg/net/ipraw_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

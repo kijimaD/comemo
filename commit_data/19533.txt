@@ -1,12 +1,11 @@
-commit e209a0fa06f03f098b16381fc79aa6aea9210b18
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 12 17:19:33 2014 -0700
+commit 3a6de21ae1ff4b6a701f0f62fee21f7289ded519
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 12 20:06:16 2014 -0400
 
-    time: micro symbol for microseconds
+    doc: add go1.4.txt
     
-    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/105930043
+    https://golang.org/cl/103340046
 
- doc/go1.4.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go1.4.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)

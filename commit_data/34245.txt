@@ -1,22 +1,69 @@
-commit 284a4a734662b3c1a93f993ef55c8c2f42513c06
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Jan 21 10:25:07 2018 +0100
+commit edcf2d0cd604062cdd3b28d7e679b8b271ddc2ec
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 10 14:44:15 2017 -0400
 
-    cmd/compile: replace misleading variable name
+    cmd/compile: add line numbers to values & blocks in ssa.html
     
-    One of the variables declared in cleantempnopop named 'kill'
-    does not hold a OVARKILL node but an OVARLIVE node.
-    Rename that variable to 'live' to differentiate it from the other
-    variable named kill that holds a OVARKILL node.
+    In order to improve the line numbering for debuggers,
+    it's necessary to trace lines through compilation.
+    This makes it (much) easier to follow.
     
-    Passes toolstash -cmp.
+    The format of the last column of the ssa.html output was
+    also changed to reduce the spamminess of the file name,
+    which is usually the same and makes it far harder to read
+    instructions and line numbers, and to make it wider and also
+    able to break words when wrapping (long path names still
+    can push off the end otherwise; side-to-side scrolling was
+    tried but was more annoying than the occasional wrapped
+    line).
     
-    Change-Id: I34c8729e5c303b8cdabe44c9af980d4f16000e4b
-    Reviewed-on: https://go-review.googlesource.com/88816
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Sample output now, where [...] is elision for sake of making
+    the CL character-counter happy -- and the (##) line numbers
+    are rendered in italics and a smaller font (11 point) under
+    control of a CSS class "line-number".
+    
+    genssa
+          # /Users/drchase/[...]/ssa/testdata/hist.go
+          00000 (35) TEXT   "".main(SB)
+          00001 (35) FUNCDATA       $0, gclocals·7be4bb[...]1e8b(SB)
+          00002 (35) FUNCDATA       $1, gclocals·9ab98a[...]4568(SB)
+    v920  00003 (36) LEAQ   ""..autotmp_31-640(SP), DI
+    v858  00004 (36) XORPS  X0, X0
+    v6    00005 (36) LEAQ   -48(DI), DI
+    v6    00006 (36) DUFFZERO       $277
+    v576  00007 (36) LEAQ   ""..autotmp_31-640(SP), AX
+    v10   00008 (36) TESTB  AX, (AX)
+    b1    00009 (36) JMP    10
+    
+    and from an earlier phase:
+    
+    b18: ← b17
+    v242 (47) = Copy <mem> v238
+    v243 (47) = VarKill <mem> {.autotmp_16} v242
+    v244 (48) = Addr <**bufio.Scanner> {scanner} v2
+    v245 (48) = Load <*bufio.Scanner> v244 v243
+    [...]
+    v279 (49) = Store <mem> {int64} v277 v276 v278
+    v280 (49) = Addr <*error> {.autotmp_18} v2
+    v281 (49) = Load <error> v280 v279
+    v282 (49) = Addr <*error> {err} v2
+    v283 (49) = VarDef <mem> {err} v279
+    v284 (49) = Store <mem> {error} v282 v281 v283
+    v285 (47) = VarKill <mem> {.autotmp_18} v284
+    v286 (47) = VarKill <mem> {.autotmp_17} v285
+    v287 (50) = Addr <*error> {err} v2
+    v288 (50) = Load <error> v287 v286
+    v289 (50) = NeqInter <bool> v288 v51
+    If v289 → b21 b22 (line 50)
+    
+    Change-Id: I3f46310918f965761f59e6f03ea53067237c28a8
+    Reviewed-on: https://go-review.googlesource.com/69591
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/order.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/fmt_test.go          |  3 ++-
+ src/cmd/compile/internal/gc/ssa.go   | 17 ++++++++++++----
+ src/cmd/compile/internal/ssa/html.go | 35 +++++++++++++++++++++++++++++----
+ src/cmd/internal/obj/util.go         | 38 +++++++++++++++++++++++++++++++++++-
+ 4 files changed, 83 insertions(+), 10 deletions(-)

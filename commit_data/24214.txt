@@ -1,37 +1,15 @@
-commit e6ee26a03b79d0e8b658463bdb29349ca68e1460
-Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 8 14:58:12 2015 -0700
+commit 2b9e5a7165bce1058de7a144ca9d166df4484d02
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 15 14:42:14 2015 -0700
 
-    text/template: provide a way to trim leading and trailing space between actions
+    A+C: more updates, including Medium corporate CLA
     
-    Borrowing a suggestion from the issue listed below, we modify the lexer to
-    trim spaces at the beginning (end) of a block of text if the action immediately
-    before (after) is marked with a minus sign. To avoid parsing/lexing ambiguity,
-    we require an ASCII space between the minus sign and the rest of the action.
-    Thus:
+    Updates #10639
     
-            {{23 -}}
-            <
-            {{- 45}}
-    
-    produces the output
-            23<45
-    
-    All the work is done in the lexer. The modification is invisible to the parser
-    or any outside package (except I guess for noticing some gaps in the input
-    if one tracks error positions). Thus it slips in without worry in text/template
-    and html/template both.
-    
-    Fixes long-requested issue #9969.
-    
-    Change-Id: I3774be650bfa6370cb993d0899aa669c211de7b2
-    Reviewed-on: https://go-review.googlesource.com/14391
+    Change-Id: I0958e150f6eab122095bfc148746a38028b72dbc
+    Reviewed-on: https://go-review.googlesource.com/12263
     Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/text/template/doc.go              | 25 +++++++++
- src/text/template/example_test.go     |  9 ++--
- src/text/template/exec_test.go        | 29 +++++------
- src/text/template/parse/lex.go        | 96 ++++++++++++++++++++++++++++++++---
- src/text/template/parse/lex_test.go   | 15 +++++-
- src/text/template/parse/parse_test.go |  7 +++
- 6 files changed, 153 insertions(+), 28 deletions(-)
+ AUTHORS      | 3 +++
+ CONTRIBUTORS | 3 +++
+ 2 files changed, 6 insertions(+)

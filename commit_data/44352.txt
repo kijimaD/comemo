@@ -1,18 +1,14 @@
-commit 6525abddcee2886ca0095decdfe1e97de19d06f2
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jan 16 03:09:15 2021 +1100
+commit 96354f15167dd20c1d1cb4a4a55f8c3330ef3bd8
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 16 16:58:28 2020 -0400
 
-    cmd/internal/obj/riscv: clean up branch tests
+    [dev.link] cmd/internal/goobj2: fix comment
     
-    Address review comments from earlier changes, which would have previously
-    caused unwanted conflicts.
+    Fix a stale comment.
     
-    Change-Id: If2c61ffe977d721cccf276f931825b003521fda1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284116
-    Trust: Joel Sing <joel@sing.id.au>
+    Change-Id: Ic14616310cd8e8703cfc7b1ce50c411be34488fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238243
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- .../obj/riscv/testdata/testbranch/branch_test.go   | 117 ++++++++++-----------
- .../obj/riscv/testdata/testbranch/branch_test.s    |  28 ++---
- 2 files changed, 67 insertions(+), 78 deletions(-)
+ src/cmd/internal/goobj2/objfile.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

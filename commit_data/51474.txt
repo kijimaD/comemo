@@ -1,28 +1,31 @@
-commit 791f7580758d9e4ea2c393dbe91b5f89fa16da18
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Dec 1 09:02:16 2022 -0800
+commit f9b761aa76d0cf439a0c996e1b7c06a0fe49314e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jan 31 16:37:40 2022 -0500
 
-    archive/zip: tolerate compressed directories with zero uncompressed size
+    runtime: regression test for issue 50936
     
-    In CL 449955 we made reading of directories with associated file data
-    an error, since it is a "must not" in the zip specification. It turns
-    out that a number of implementations make the mistake of not setting
-    the correct compression method on directories (in particular the Java
-    jar tool does this when storing the META-INF directory). If the
-    compression method used is not 0 (stored) then the compressed size of
-    the directory can be > 0, despite the uncompressed size still being 0.
+    Add a regression test for issue 50936 which coerces the runtime into
+    frequent execution of the cgocall dropg/execute curg assignment race by
+    making many concurrent cgo calls eligible for P retake by sysmon. This
+    results in no P during exitsyscall, at which point they will update curg
+    and will crash if SIGPROF arrives in between updating mp.curg and
+    mp.curg.m.
     
-    Since this mistake is not uncommon, we are forced to tolerate it. We
-    still fail if the recorded uncompressed size is > 0, which should be
-    a significantly harder mistake to make.
+    This test is conceptually similar to the basic cgo callback test in
+    aprof.go but with additional concurrency and a sleep in C.
     
-    Change-Id: Ia732b10787f26ab937ac9cf9869ac3042efb8118
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454475
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    On my machine this test fails ~5% of the time prior to CL 382079.
+    
+    For #50936.
+    
+    Change-Id: I21b6c7f2594f9a615a64580ef70a88b692505678
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382244
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/archive/zip/reader.go      | 11 ++++++-
- src/archive/zip/reader_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 76 insertions(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go                      | 13 ++++
+ src/runtime/testdata/testprogcgo/aprof.go          |  7 +-
+ src/runtime/testdata/testprogcgo/pprof_callback.go | 89 ++++++++++++++++++++++
+ 3 files changed, 107 insertions(+), 2 deletions(-)

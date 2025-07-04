@@ -1,25 +1,29 @@
-commit 9becf401de6080cb9edd524def7e77aeaede4126
-Author: aimuz <mr.imuz@gmail.com>
-Date:   Fri Aug 9 07:33:36 2024 +0000
+commit 3fce1115359c4ab7d67fbf4efef1341e52b354b7
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Jun 27 23:22:04 2023 +0800
 
-    bytes, strings: add Lines, SplitSeq, SplitAfterSeq, FieldsSeq, FieldsFuncSeq
+    cmd/compile: fix FMA negative commutativity of riscv64
     
-    Fixes #61901.
+    According to RISCV manual 11.6:
     
-    Change-Id: I4db21c91fd21079f2aa3bc81fb03dd6f40423a38
-    GitHub-Last-Rev: ed3df560a40ea10cdcb8ad476ba6849463f3c761
-    GitHub-Pull-Request: golang/go#67543
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587095
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    FMADD x,y,z computes x*y+z and
+    FNMADD x,y,z => -x*y-z
+    FMSUB x,y,z => x*y-z
+    FNMSUB x,y,z => -x*y+z respectively
+    
+    However our implement of SSA convert FMADD -x,y,z to FNMADD x,y,z which
+    is wrong and should be convert to FNMSUB according to manual.
+    
+    Change-Id: Ib297bc83824e121fd7dda171ed56ea9694a4e575
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506575
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/61901.txt                          |  10 ++
- doc/next/6-stdlib/99-minor/bytes/61901.md   |  12 +++
- doc/next/6-stdlib/99-minor/strings/61901.md |  12 +++
- src/bytes/bytes_test.go                     |  57 +++++++++++
- src/bytes/iter.go                           | 148 ++++++++++++++++++++++++++++
- src/strings/iter.go                         | 148 ++++++++++++++++++++++++++++
- src/strings/strings_test.go                 |  52 ++++++++++
- 7 files changed, 439 insertions(+)
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 10 +++++-----
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 16 ++++++++--------
+ test/codegen/math.go                            |  8 ++++----
+ 3 files changed, 17 insertions(+), 17 deletions(-)

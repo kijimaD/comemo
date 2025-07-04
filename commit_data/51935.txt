@@ -1,18 +1,19 @@
-commit 9ddf748d8770b1f98874ba8bb6e81eb4e50b5a8d
-Author: sslime336 <sslime@yeah.net>
-Date:   Mon Feb 6 19:15:52 2023 +0000
+commit f25631b490c7ccb8e555b4031dc12046b2534c11
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 26 00:46:17 2022 +0700
 
-    go/token: delete a blank line
+    cmd/compile/internal/ir: remove NewClosureExpr
     
-    Change-Id: Ia46da0a6497452df76b770d3c0d16b4b4f135e89
-    GitHub-Last-Rev: 6a37858ea2de0cc5b89726225c29035a2287c7b9
-    GitHub-Pull-Request: golang/go#58360
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465616
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    The only usage of NewClosureExpr is inside NewClosureFunc, which is its
+    alternative version. So just remove NewClosureExpr and inline it there.
+    
+    Change-Id: I1900f4fbb48d7b4f6e6a857f7f7760cd27302671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395855
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/token/position.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/ir/expr.go | 8 --------
+ src/cmd/compile/internal/ir/func.go | 4 +++-
+ 2 files changed, 3 insertions(+), 9 deletions(-)

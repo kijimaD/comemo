@@ -1,24 +1,21 @@
-commit d2b512160e4fc9dd69947ad9566c2dab1a135694
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Oct 31 10:37:15 2021 -0700
+commit ba9168bd07bfed6071e3eadcaae40b5481c52c24
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Jan 31 17:37:20 2021 +0100
 
-    cmd/compile/internal/types2: differently named types are not assignable
+    syscall: add support for proc thread attribute lists
     
-    When checking assignability, a value of a named type (incl. a type parameter)
-    can never be assigned to a variable of a differently named type. Specifically,
-    if the types are two differently named type parameters, then values of one are
-    never assignable to variables of the other.
+    This will allow us to pass additional attributes when starting
+    processes.
     
-    This CL clarifies the assignabiliy rules and simplifies the implementation.
+    Updates #44011.
     
-    Fixes #49242.
-    
-    Change-Id: Id72a2c9bed5cdb726855e7a707137db1009e7953
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360274
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I4af365c5544a6d421830f247593ec970200e5e03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288296
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/types2/operand.go         | 66 ++++++++++------------
- .../types2/testdata/fixedbugs/issue49242.go2       | 27 +++++++++
- .../types2/testdata/spec/assignability.go2         | 46 ++++++++++++---
- 3 files changed, 94 insertions(+), 45 deletions(-)
+ src/syscall/syscall_windows.go  | 23 +++++++++++++++++++++++
+ src/syscall/types_windows.go    | 16 ++++++++++++++++
+ src/syscall/zsyscall_windows.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 63 insertions(+)

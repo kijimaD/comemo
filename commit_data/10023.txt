@@ -1,15 +1,23 @@
-commit 7242052bc71f02734b1902f13c490f1791df1c76
+commit 1d687c742ddad0be83314019c03e17bad7235535
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 09:45:36 2011 -0400
+Date:   Tue Oct 18 09:41:32 2011 -0400
 
-    gofix: add mapdelete
+    gc: add delete(m, x) but leave in m[x] = 0, false.
     
-    R=golang-dev, r
+    The old m[x] = 0, false syntax will be deleted
+    in a month or so, once people have had time to
+    change their code (there is a gofix in a separate CL).
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5286043
+    https://golang.org/cl/5265048
 
- src/cmd/gofix/Makefile          |  1 +
- src/cmd/gofix/fix.go            |  1 +
- src/cmd/gofix/mapdelete.go      | 84 +++++++++++++++++++++++++++++++++++++++++
- src/cmd/gofix/mapdelete_test.go | 43 +++++++++++++++++++++
- 4 files changed, 129 insertions(+)
+ src/cmd/gc/builtin.c.boot |  1 +
+ src/cmd/gc/go.h           |  4 +++-
+ src/cmd/gc/lex.c          |  1 +
+ src/cmd/gc/runtime.go     |  1 +
+ src/cmd/gc/subr.c         |  1 +
+ src/cmd/gc/typecheck.c    | 37 ++++++++++++++++++++++++++++++++++---
+ src/cmd/gc/walk.c         | 31 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/hashmap.c | 22 ++++++++++++++++++++++
+ 8 files changed, 94 insertions(+), 4 deletions(-)

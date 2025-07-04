@@ -1,19 +1,19 @@
-commit 16328513bfb12d96e8f33fc37f816e1441027135
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Thu Aug 27 13:08:44 2020 +0000
+commit e48a83f077e47bd015d4b57e63e9b6fb5e77dc8b
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Fri Feb 28 20:14:18 2020 +0800
 
-    flag: add Func
+    internal/cpu: add MIPS64x feature detection
     
-    Fixes #39557
-    
-    Change-Id: Ida578f7484335e8c6bf927255f75377eda63b563
-    GitHub-Last-Rev: b97294f7669c24011e5b093179d65636512a84cd
-    GitHub-Pull-Request: golang/go#39880
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240014
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iacdad1758aa15e4703fccef38c08ecb338b95fd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200579
+    Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/flag/example_func_test.go | 41 +++++++++++++++++++++++++++++++++++
- src/flag/flag.go              | 22 ++++++++++++++++++-
- src/flag/flag_test.go         | 50 +++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 110 insertions(+), 3 deletions(-)
+ src/internal/cpu/cpu.go          |  8 ++++++++
+ src/internal/cpu/cpu_mips64.go   |  7 -------
+ src/internal/cpu/cpu_mips64le.go |  7 -------
+ src/internal/cpu/cpu_mips64x.go  | 32 ++++++++++++++++++++++++++++++++
+ src/internal/cpu/cpu_no_init.go  |  2 ++
+ src/runtime/os_linux_mips64x.go  |  6 ++++++
+ 6 files changed, 48 insertions(+), 14 deletions(-)

@@ -1,20 +1,27 @@
-commit 0456036e28b718d215f49abe83d3c49101f8a4c7
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Jan 16 09:03:57 2019 +0100
+commit 7ab4b5586d37513bfa48f769773007ff8e9b732d
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Jun 15 10:20:00 2018 +0000
 
-    net: increase TestNotTemporaryRead server sleep
+    cmd/internal/obj/arm64: add CONSTRAINED UNPREDICTABLE behavior check for some load/store
     
-    On aix/ppc64, if the server closes before the client calls Accept,
-    this test will fail.
+    According to ARM64 manual, it is "constrained unpredictable behavior"
+    if the src and dst registers of some load/store instructions are same.
+    In order to completely prevent such unpredictable behavior, adding the
+    check for load/store instructions that are supported by the assembler
+    in the assembler.
     
-    Increasing the time before the server closes should resolve this
-    timeout.
+    Add test cases.
     
-    Updates #29685
+    Update #25823
     
-    Change-Id: Iebb849d694fc9c37cf216ce1f0b8741249b98016
-    Reviewed-on: https://go-review.googlesource.com/c/158038
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I64c14ad99ee543d778e7ec8ae6516a532293dbb3
+    Reviewed-on: https://go-review.googlesource.com/120660
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/net_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  1 +
+ src/cmd/asm/internal/asm/testdata/arm64enc.s   |  4 +-
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 34 +++++++++----
+ src/cmd/internal/obj/arm64/asm7.go             | 68 +++++++++++++++++++++++++-
+ 4 files changed, 95 insertions(+), 12 deletions(-)

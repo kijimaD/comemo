@@ -1,21 +1,18 @@
-commit 3048a4c7b35cd8af0d8d0fe97a4a970e7ffe6478
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 13 17:37:37 2013 -0400
+commit 8883c484cf42b2addb8559e2a4e24383b5c083d1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 13 16:12:38 2013 -0400
 
-    cmd/vet: make struct tag literal test work better with no go/types
+    cmd/gc: silence valgrind error
     
-    Eliminate false positives when you can tell even without
-    type information that the literal does not need field tags.
+    valgrind complained that under some circumstances,
     
-    Far too noisy otherwise.
+        *nr = *nc
     
-    R=golang-dev, r
+    was being called when nr and nc were the same *Node. The suggestion my Rémy was to introduce a tmp node to avoid the potential for aliasing in subnode.
+    
+    R=remyoudompheng, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7797043
+    https://golang.org/cl/7780044
 
- src/cmd/vet/Makefile       |  5 ++++-
- src/cmd/vet/taglit.go      | 33 ++++++++++++++++++++++++++++++++-
- src/cmd/vet/test_taglit.go | 34 ++++++++++++++++++++++++++++++++++
- src/cmd/vet/types.go       | 18 ++++++++----------
- src/cmd/vet/typestub.go    |  2 +-
- 5 files changed, 79 insertions(+), 13 deletions(-)
+ src/cmd/gc/cplx.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

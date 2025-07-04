@@ -1,18 +1,16 @@
-commit 18ff727487422d73c8dd609d229c3dda7539d9a9
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Fri Apr 12 14:05:14 2013 -0700
+commit 696901204f2e7a5180ed4beb4046fbfea05841b2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 12 13:21:17 2013 -0700
 
-    cmd/go: quote command line arguments in debug output
+    cmd/ld: always do external link for -linkmode=external
     
-    Debug output from go test -x may contain empty arguments.
-    This CL quotes arguments if needed. E.g. the output of
-    go test -x is now
-      .../6g -o ./_go_.6 -p testmain -complete -D "" -I . -I $WORK ./_testmain.go
-    which is easier to grasp.
+    There are tests in run.bash for -linkmode=external.
     
-    R=golang-dev, bradfitz, minux.ma, r
+    Fixes #5238.
+    
+    R=golang-dev, bradfitz, remyoudompheng, r
     CC=golang-dev
-    https://golang.org/cl/8633043
+    https://golang.org/cl/8716044
 
- src/cmd/go/build.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/ld/lib.c | 32 +++++++++++++++++++++++---------
+ 1 file changed, 23 insertions(+), 9 deletions(-)

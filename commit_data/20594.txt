@@ -1,18 +1,14 @@
-commit a6abe22eb6f85f1df9d0f34da82b45ef11759815
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 30 12:31:18 2014 -0400
+commit 5f739d9dcd01730e10d829968755c7b1a7b5f2b7
+Author: Marko Tiikkaja <marko@joh.to>
+Date:   Mon Sep 22 09:19:27 2014 -0400
 
-    compress/*: note that NewReader may introduce buffering
+    database/sql: Close per-tx prepared statements when the associated tx ends
     
-    Fixes #8309.
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews, iant
-    https://golang.org/cl/147380043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, mattn.jp
+    CC=golang-codereviews
+    https://golang.org/cl/131650043
 
- src/compress/bzip2/bzip2.go   | 2 ++
- src/compress/flate/inflate.go | 8 +++++---
- src/compress/gzip/gunzip.go   | 3 ++-
- src/compress/lzw/reader.go    | 2 ++
- 4 files changed, 11 insertions(+), 4 deletions(-)
+ src/database/sql/sql.go      | 41 ++++++++++++++++++++++++++++++++++++-----
+ src/database/sql/sql_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 5 deletions(-)

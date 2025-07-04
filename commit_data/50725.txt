@@ -1,16 +1,21 @@
-commit 679640aee8e0df8eaed8ac56226b8b7ed69d225e
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Thu Sep 29 20:32:25 2022 +0800
+commit cfb3dc7710ba35d9932ba9f5242730a97f9ae603
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 4 12:50:25 2021 -0700
 
-    cmd/cover: use io.SeekStart, io.SeekCurrent
+    cmd/compile/internal/types2: clearer object string for type parameters
     
-    Change-Id: Ie3b593f7f0c71334dc8c446d545bf441f2ae81f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436695
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Than McIntosh <thanm@google.com>
+    - print "type parameter" rather than just "type"
+    - print the type bound rather than the underlying type
+    - added an object string test
+    
+    Change-Id: Ibb572ff35b74f2c6ccb27641154f096770541130
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361401
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/cover/cover.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/object.go          | 21 ++++--
+ src/cmd/compile/internal/types2/object_test.go     | 78 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typestring_test.go |  7 +-
+ 3 files changed, 98 insertions(+), 8 deletions(-)

@@ -1,18 +1,19 @@
-commit da4d58587e0e4028ea384580053c3c455127e446
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Dec 7 16:52:10 2019 +0100
+commit 1a432f27d5da052d6e9bae1e0534fa2dc0c44059
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 2 15:24:54 2019 +0700
 
-    doc: add missing p in install from source page
+    cmd/compile: eliminate usage of global Fatalf in ssa.go
     
-    The last paragraph in golang.org/doc/install/source#fetch is missing a
-    p tag, so it doesn't get formatted with the 'max-width: 50rem' like
-    all the other text in the page.
+    state and ssafn both have their own Fatalf, so use them instead of
+    global Fatalf.
     
-    Add it.
+    Updates #19683
     
-    Change-Id: I1a981dd2afde561b4ab21bd90ad99b3a146111f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210122
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie02a961d4285ab0a3f3b8d889a5b498d926ed567
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188539
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/install-source.html | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

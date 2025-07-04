@@ -1,14 +1,34 @@
-commit 2182bb097dc5cacf556f89e4e7d2cfdd96882237
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Sep 27 19:29:39 2018 -0400
+commit 9ab5154f6ceb0211d8a29005c0f4d4851f0d4e4f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 29 14:11:46 2018 -0700
 
-    .github: don't render author-facing text in ISSUE_TEMPLATE
+    go/types: correctly compute cycle length
     
-    Fixes #27914
+    The existing algorithm assumed that the length of a cycle was simply
+    the number of elements in the cycle slice starting at the start object.
+    However, we use a special "indir" indirection object to indicate
+    pointer and other indirections that break the inline placement of
+    types in composite types. These indirection objects don't exist as
+    true named type objects, so don't count them anymore.
     
-    Change-Id: Ic359a099661e959eb25d0f763ea16a6f48a3d4c7
-    Reviewed-on: https://go-review.googlesource.com/c/138295
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    This removes an unnecessary cycle error in one of the existing tests
+    (testdata/issues.src:100).
+    
+    Also:
+    - added more tracing support (only active if tracing is enabled)
+    - better documentation in parts
+    - r/check.typ/check.typExpr/ in a few of places where we don't
+      need to record a type indirection
+    
+    Found while investigating #26124.
+    
+    Change-Id: I45341743225d979a72af3fbecfa05012b32fab67
+    Reviewed-on: https://go-review.googlesource.com/121755
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- .github/ISSUE_TEMPLATE | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/go/types/check.go            |  9 +-------
+ src/go/types/decl.go             | 45 +++++++++++++++++++++++++++++++++-------
+ src/go/types/expr.go             |  2 +-
+ src/go/types/testdata/issues.src |  2 +-
+ 4 files changed, 40 insertions(+), 18 deletions(-)

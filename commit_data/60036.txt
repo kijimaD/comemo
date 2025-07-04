@@ -1,0 +1,66 @@
+commit 2f6426834c150c37cdb1330b48e9903963d4329c
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 13 01:07:10 2023 -0700
+
+    os: make use of pidfd on linux
+    
+    Use Process.handle field to store pidfd, and make use of it. Only use
+    pidfd functionality if all the needed syscalls are available.
+    
+    1. Add/use pidfdWorks, which checks that all needed pidfd-related
+       functionality works.
+    
+    2. os.StartProcess: obtain the pidfd from the kernel, if possible, using
+       the functionality added by CL 520266. Note we could not modify
+       syscall.StartProcess to return pidfd directly because it is a public
+       API and its callers do not expect it, so we have to use ensurePidfd
+       and getPidfd.
+    
+    3. (*Process).Kill: use pidfdSendSignal, if available and the pidfd is
+       known. Otherwise, fall back to the old implementation.
+    
+    4. (*Process).Wait: use pidfdWait, if available, otherwise fall back to
+       using waitid/wait4. This is more complicated than expected due to
+       struct siginfo_t idiosyncrasy.
+    
+    NOTE pidfdSendSignal and pidfdWait are used without a race workaround
+    (blockUntilWaitable and sigMu, added by CL 23967) because with pidfd,
+    PID recycle issue doesn't exist (IOW, pidfd, unlike PID, is guaranteed
+    to refer to one particular process) and thus the race doesn't exist
+    either.
+    
+    Rework of CL 528438 (reverted in CL 566477 because of #65857).
+    
+    For #62654.
+    Updates #13987.
+    
+    Change-Id: If5ef8920bd8619dc428b6282ffe4fb8c258ca224
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570036
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/syscall/unix/pidfd_linux.go          |   8 ++
+ src/internal/syscall/unix/siginfo_linux.go        |  64 ++++++++++
+ src/internal/syscall/unix/siginfo_linux_mipsx.go  |  12 ++
+ src/internal/syscall/unix/siginfo_linux_other.go  |  12 ++
+ src/internal/syscall/unix/siginfo_linux_test.go   |  59 +++++++++
+ src/internal/syscall/unix/sysnum_linux_386.go     |   1 +
+ src/internal/syscall/unix/sysnum_linux_amd64.go   |   1 +
+ src/internal/syscall/unix/sysnum_linux_arm.go     |   1 +
+ src/internal/syscall/unix/sysnum_linux_generic.go |   1 +
+ src/internal/syscall/unix/sysnum_linux_mips64x.go |   1 +
+ src/internal/syscall/unix/sysnum_linux_mipsx.go   |   1 +
+ src/internal/syscall/unix/sysnum_linux_ppc64x.go  |   1 +
+ src/internal/syscall/unix/sysnum_linux_s390x.go   |   1 +
+ src/os/exec.go                                    |   6 +-
+ src/os/exec_posix.go                              |  11 +-
+ src/os/exec_unix.go                               |  38 ++++--
+ src/os/export_linux_test.go                       |   1 +
+ src/os/pidfd_linux.go                             | 143 ++++++++++++++++++++++
+ src/os/pidfd_linux_test.go                        |  20 +++
+ src/os/pidfd_other.go                             |  27 ++++
+ 20 files changed, 393 insertions(+), 16 deletions(-)

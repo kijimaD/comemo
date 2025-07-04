@@ -1,38 +1,20 @@
-commit 0e54d28ff7ff63450356811b675a02e0afe610d6
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Aug 2 09:09:27 2019 -0700
+commit b1a783df87069e395f0fb1a033a685b35d34b2ee
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 5 12:01:18 2019 -0500
 
-    all: remove os.ErrTimeout
+    test/bench/go1: add go.mod file
     
-    It is unclear whether the current definition of os.IsTimeout is
-    desirable or not. Drop ErrTimeout for now so we can consider adding it
-    (or some other error) in a future release with a corrected definition.
+    cmd/dist executes 'go test' within this directory, so it needs a
+    go.mod file to tell the compiler what package path to use in
+    diagnostic and debug information.
     
-    Fixes #33411
+    Updates #30228
     
-    Change-Id: I8b880da7d22afc343a08339eb5f0efd1075ecafe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188758
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: Ia313ac06bc0ec4631d415faa20c56cce2ac8dbc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165498
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/go1.13.txt                      |  3 ---
- src/context/context.go              |  4 ----
- src/context/context_test.go         |  5 -----
- src/go/build/deps_test.go           |  2 +-
- src/internal/oserror/errors.go      | 28 ------------------------
- src/internal/oserror/errors_test.go | 43 -------------------------------------
- src/internal/poll/fd.go             |  5 -----
- src/net/cgo_unix.go                 |  9 --------
- src/net/http/transport.go           | 12 -----------
- src/net/net.go                      | 16 --------------
- src/net/pipe.go                     |  5 -----
- src/net/timeout_test.go             |  5 -----
- src/net/url/url.go                  |  9 ++++++--
- src/os/error.go                     |  2 --
- src/syscall/syscall_js.go           |  2 --
- src/syscall/syscall_nacl.go         |  2 --
- src/syscall/syscall_plan9.go        |  2 --
- src/syscall/syscall_unix.go         |  2 --
- src/syscall/syscall_windows.go      |  2 --
- 19 files changed, 8 insertions(+), 150 deletions(-)
+ test/bench/go1/go.mod | 3 +++
+ 1 file changed, 3 insertions(+)

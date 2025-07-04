@@ -1,90 +1,41 @@
-commit de86d02c32f6690391ed79b99d0f763bb06606d5
-Author: Julian Zhu <jz531210@gmail.com>
-Date:   Fri Apr 25 21:03:53 2025 +0800
+commit 99522de1c38e4915e061cd2dac7d34ee888c8318
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Mar 7 00:18:02 2024 +0100
 
-    crypto/internal/fips140/subtle: add assembly implementation of xorBytes for arm
+    crypto/rand: use arc4random(3) on macOS and iOS
     
-    goos: linux
-    goarch: arm
-    pkg: crypto/subtle
-                                         │       o        │                  n                  │
-                                         │     sec/op     │    sec/op     vs base               │
-    ConstantTimeByteEq-4                    5.353n ±  88%   4.012n ± 67%        ~ (p=0.381 n=8)
-    ConstantTimeEq-4                        4.151n ±   1%   4.078n ±  0%   -1.76% (p=0.000 n=8)
-    ConstantTimeLessOrEq-4                  4.010n ±  15%   4.154n ±  3%        ~ (p=0.584 n=8)
-    XORBytes/8Bytes-4                       85.69n ±  13%   44.02n ±  1%  -48.64% (p=0.000 n=8)
-    XORBytes/128Bytes-4                    164.85n ±   9%   84.62n ±  5%  -48.67% (p=0.000 n=8)
-    XORBytes/2048Bytes-4                   1374.0n ±   1%   741.2n ± 15%  -46.05% (p=0.000 n=8)
-    XORBytes/8192Bytes-4                    4.357µ ±   0%   2.801µ ±  0%  -35.71% (p=0.000 n=8)
-    XORBytes/32768Bytes-4                   16.67µ ±   0%   11.96µ ±  0%  -28.26% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes0Offset-4       83.28n ±   0%   42.77n ±  1%  -48.65% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes1Offset-4       61.52n ±   1%   50.30n ± 16%  -18.24% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes2Offset-4       61.75n ±   1%   42.72n ±  1%  -30.82% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes3Offset-4       61.53n ±   1%   42.70n ±  1%  -30.60% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes4Offset-4       83.28n ±   0%   42.71n ±  1%  -48.72% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes5Offset-4       61.53n ±   0%   42.73n ±  1%  -30.55% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes6Offset-4       61.58n ±   0%   42.69n ±  1%  -30.68% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes7Offset-4       61.63n ±   1%   42.70n ±  1%  -30.72% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes0Offset-4    154.15n ±   4%   83.48n ±  0%  -45.84% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes1Offset-4    265.25n ±   0%   91.70n ±  8%  -65.43% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes2Offset-4    265.20n ±   0%   98.09n ± 13%  -63.01% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes3Offset-4    265.20n ±   0%   85.48n ±  0%  -67.77% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes4Offset-4    150.05n ±   0%   83.52n ± 15%  -44.34% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes5Offset-4    265.20n ±   0%   85.48n ± 15%  -67.77% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes6Offset-4    265.20n ±   0%   96.16n ± 11%  -63.74% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes7Offset-4    265.20n ±   0%   85.49n ±  0%  -67.76% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes0Offset-4   1114.0n ±   0%   739.5n ±  0%  -33.62% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes1Offset-4   3285.0n ±  15%   783.5n ±  0%  -76.15% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes2Offset-4   3288.0n ±  15%   783.6n ± 25%  -76.17% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes3Offset-4   3286.0n ±   0%   783.5n ±  0%  -76.15% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes4Offset-4   1116.0n ± 115%   742.9n ±  0%  -33.43% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes5Offset-4   3285.0n ±   0%   785.0n ±  0%  -76.10% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes6Offset-4   3284.0n ±   0%   784.8n ±  0%  -76.10% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes7Offset-4   3283.0n ±   0%   784.9n ±  0%  -76.09% (p=0.000 n=8)
-    geomean                                 269.5n          129.5n        -51.93%
+    It's been good since Sierra: it never fails, it's faster, it's available
+    on iOS (see #47812), and it still handles forks and reseeding.
     
-                                         │       o       │                   n                    │
-                                         │      B/s      │      B/s        vs base                │
-    XORBytes/8Bytes-4                      89.08Mi ± 11%   173.34Mi ±  1%   +94.58% (p=0.000 n=8)
-    XORBytes/128Bytes-4                    741.9Mi ± 10%   1442.6Mi ± 13%   +94.45% (p=0.000 n=8)
-    XORBytes/2048Bytes-4                   1.388Gi ±  0%    2.573Gi ± 13%   +85.40% (p=0.000 n=8)
-    XORBytes/8192Bytes-4                   1.751Gi ±  1%    2.724Gi ±  0%   +55.57% (p=0.000 n=8)
-    XORBytes/32768Bytes-4                  1.830Gi ±  0%    2.551Gi ±  0%   +39.38% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes0Offset-4      91.61Mi ±  0%   178.40Mi ±  1%   +94.75% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes1Offset-4      124.0Mi ±  1%    152.2Mi ± 18%   +22.73% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes2Offset-4      123.6Mi ±  1%    178.6Mi ± 14%   +44.54% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes3Offset-4      124.0Mi ±  1%    178.6Mi ±  1%   +44.10% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes4Offset-4      91.61Mi ±  0%   178.65Mi ±  1%   +95.01% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes5Offset-4      124.0Mi ±  1%    178.5Mi ±  1%   +43.98% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes6Offset-4      123.9Mi ±  1%    178.7Mi ±  1%   +44.23% (p=0.000 n=8)
-    XORBytesAlignment/8Bytes7Offset-4      123.8Mi ±  6%    178.7Mi ±  1%   +44.33% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes0Offset-4    792.5Mi ±  4%   1462.3Mi ± 13%   +84.51% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes1Offset-4    460.2Mi ±  0%   1337.2Mi ±  8%  +190.56% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes2Offset-4    460.2Mi ±  0%   1244.6Mi ± 15%  +170.42% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes3Offset-4    460.3Mi ±  0%   1428.1Mi ±  0%  +210.27% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes4Offset-4    813.5Mi ±  0%   1461.6Mi ± 13%   +79.67% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes5Offset-4    460.3Mi ±  0%   1428.0Mi ± 13%  +210.25% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes6Offset-4    460.3Mi ±  0%   1285.1Mi ± 11%  +179.16% (p=0.000 n=8)
-    XORBytesAlignment/128Bytes7Offset-4    460.2Mi ±  0%   1427.9Mi ± 18%  +210.25% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes0Offset-4   1.711Gi ±  0%    2.579Gi ±  0%   +50.71% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes1Offset-4   594.5Mi ± 13%   2493.0Mi ± 20%  +319.35% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes2Offset-4   594.0Mi ± 13%   2492.7Mi ± 20%  +319.63% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes3Offset-4   594.4Mi ± 53%   2492.8Mi ±  0%  +319.35% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes4Offset-4   1.710Gi ± 53%    2.567Gi ±  0%   +50.17% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes5Offset-4   594.5Mi ±  0%   2487.9Mi ±  0%  +318.47% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes6Offset-4   594.8Mi ±  0%   2488.6Mi ±  0%  +318.41% (p=0.000 n=8)
-    XORBytesAlignment/2048Bytes7Offset-4   594.9Mi ±  0%   2488.3Mi ±  0%  +318.28% (p=0.000 n=8)
-    geomean                                414.2Mi          921.5Mi        +122.46%
+    On a M2 with macOS 14.3.1:
     
-    Change-Id: I0ac50135de2e69fcf802be31e5175d666c93ad4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667817
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+                  │   sec/op    │   sec/op     vs base                │
+        Read/32-8   413.7n ± 3%   249.7n ± 3%  -39.65% (p=0.000 n=10)
+        Read/4K-8   7.097µ ± 6%   1.261µ ± 2%  -82.24% (p=0.000 n=10)
+    
+                  │     B/s      │      B/s       vs base                 │
+        Read/32-8   73.76Mi ± 3%   122.25Mi ± 3%   +65.73% (p=0.000 n=10)
+        Read/4K-8   550.5Mi ± 6%   3099.0Mi ± 2%  +462.99% (p=0.000 n=10)
+    
+    arc4random(3) would be a good replacement for getentropy(2) on FreeBSD
+    and NetBSD as well, but we don't get as easy access to libc there.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest,gotip-darwin-amd64-nocgo,gotip-darwin-arm64_13,gotip-darwin-amd64_11,gotip-darwin-amd64_12,gotip-darwin-amd64_13,gotip-darwin-amd64_14
+    Change-Id: Ia76824853be92b4d1786e23592a1d2ef24d8907d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569655
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
 
- src/crypto/internal/fips140/subtle/xor_arm.s      | 149 ++++++++++++++++++++++
- src/crypto/internal/fips140/subtle/xor_asm.go     |   2 +-
- src/crypto/internal/fips140/subtle/xor_generic.go |   2 +-
- 3 files changed, 151 insertions(+), 2 deletions(-)
+ src/crypto/rand/rand.go                        | 15 +++++++-------
+ src/crypto/rand/rand_darwin.go                 | 19 +++++++++++++++++
+ src/crypto/rand/rand_getentropy.go             |  4 ++--
+ src/crypto/rand/rand_test.go                   | 19 +++++++++++++++++
+ src/internal/syscall/unix/arc4random_darwin.go | 24 ++++++++++++++++++++++
+ src/internal/syscall/unix/asm_darwin.s         |  1 +
+ src/internal/syscall/unix/getentropy_darwin.go | 28 --------------------------
+ src/internal/syscall/unix/getentropy_darwin.s  |  9 ---------
+ 8 files changed, 73 insertions(+), 46 deletions(-)

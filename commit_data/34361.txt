@@ -1,27 +1,24 @@
-commit 99843e22e81045ba5e6776095a2cb3ef5704c70e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 22 10:43:35 2018 -0800
+commit 6738c494ad675c0fdd309c9b5c6b7f0c08f00022
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Oct 7 13:28:51 2017 -0400
 
-    go/types: type-check embedded methods in correct scope (regression)
+    cmd/link: move FlagLinkshared global to ctxt
     
-    Change https://go-review.googlesource.com/79575 fixed the computation
-    of recursive method sets by separating the method set computation from
-    type computation. However, it didn't track an embedded method's scope
-    and as a result, some methods' signatures were typed in the wrong
-    context.
+    For #22095
     
-    This change tracks embedded methods together with their scope and
-    uses that scope for the correct context setup when typing those
-    method signatures.
-    
-    Fixes #23914.
-    
-    Change-Id: If3677dceddb43e9db2f9fb3c7a4a87d2531fbc2a
-    Reviewed-on: https://go-review.googlesource.com/96376
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ica6b3391541fe5a0355620d7c4a5107cf53eee82
+    Reviewed-on: https://go-review.googlesource.com/70833
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/interfaces.go             | 21 ++++++++++++---------
- src/go/types/testdata/importdecl1a.src | 11 +++++++++++
- src/go/types/testdata/importdecl1b.src |  4 ++++
- src/go/types/typexpr.go                | 13 +++++++++----
- 4 files changed, 36 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/ld/config.go   |  2 +-
+ src/cmd/link/internal/ld/data.go     |  2 +-
+ src/cmd/link/internal/ld/deadcode.go |  2 +-
+ src/cmd/link/internal/ld/elf.go      |  2 +-
+ src/cmd/link/internal/ld/ld.go       |  4 ++--
+ src/cmd/link/internal/ld/lib.go      | 14 +++++++-------
+ src/cmd/link/internal/ld/link.go     |  5 +++--
+ src/cmd/link/internal/ld/main.go     |  4 ++--
+ 8 files changed, 18 insertions(+), 17 deletions(-)

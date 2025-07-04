@@ -1,14 +1,12 @@
-commit 07db252222253ac103ff46ed85a1cccc1f33b73d
-Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 22 15:16:06 2011 -0800
+commit 102c1a7c961c503379cdfe09476fa26662792c77
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 23 09:46:30 2011 +1100
 
-    fmt: make the malloc test check its counts
-    Discover than %g is now down to 1 malloc from 2 from 4.
-    Have fun with funcs.
+    go/build: (*Tree).BinDir should not return path with / in it on windows
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5504077
+    https://golang.org/cl/5502064
 
- src/pkg/fmt/fmt_test.go | 98 ++++++++++++++++---------------------------------
- 1 file changed, 31 insertions(+), 67 deletions(-)
+ src/pkg/go/build/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

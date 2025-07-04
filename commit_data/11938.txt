@@ -1,13 +1,13 @@
-commit d531ea85b1a7957fcc3a56ac9704475f77e6ca1f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 15 14:36:12 2012 -0500
+commit 53d94a7220aa2ff67f29621dc6fd7d450e945229
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 15 13:26:50 2012 -0500
 
-    A+C: David du Colombier (individual CLA)
+    cmd/go: suggest 'go test -i [args to test]'
+            Fixes #3023.
     
-    R=golang-dev, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5672055
+    https://golang.org/cl/5674055
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/go/test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

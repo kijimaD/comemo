@@ -1,16 +1,21 @@
-commit 5423f6023cff995f1077ac83e132705893a8af79
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 16 21:24:09 2021 -0700
+commit 0c3bf27b9789e6e6e7d10c47f08163111ce6d9de
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 22 23:26:32 2020 +0700
 
-    test: add bug that failed when run with gccgo
+    test: remove nacl checking condition
     
-    Change-Id: Ie52d70d2ae8a21acacf0745a4093650b03ac43f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302371
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    go1.14 drop nacl support, as go1.15 was released, go1.13 is not
+    supported anymore, nacl is absolutely gone.
+    
+    Change-Id: I05efb46891ec875b08da8f2996751a8e9cb57d0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249977
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/bug512.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 52 insertions(+)
+ test/fixedbugs/issue13268.go  | 6 ------
+ test/fixedbugs/issue21317.go  | 2 +-
+ test/fixedbugs/issue22660.go  | 2 +-
+ test/fixedbugs/issue22662b.go | 2 +-
+ test/fixedbugs/issue9355.go   | 2 +-
+ 5 files changed, 4 insertions(+), 10 deletions(-)

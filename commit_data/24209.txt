@@ -1,12 +1,40 @@
-commit e9089e4ab6f5090092e416fa4d2c33d5279c0d72
-Author: Austin Clements <austin@google.com>
-Date:   Sat Aug 29 00:35:25 2015 -0400
+commit 078ba138d370d1752e78c558e795ea9d01d6d1db
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Jul 5 18:23:25 2015 -0500
 
-    runtime: add high-level description of how stack barriers work
+    [dev.ssa] cmd/compile/internal : Implement Lengauer-Tarjan for dominators
     
-    Change-Id: I6affe75b5fa9dbf513c16200bff4fd7aa5f3a985
-    Reviewed-on: https://go-review.googlesource.com/14051
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Implements the simple Lengauer-Tarjan algorithm for dominator
+    and post-dominator calculation.
+    
+    benchmark                           old ns/op     new ns/op     delta
+    BenchmarkDominatorsLinear-8         1403862       1292741       -7.92%
+    BenchmarkDominatorsFwdBack-8        1270633       1428285       +12.41%
+    BenchmarkDominatorsManyPred-8       225932354     1530886       -99.32%
+    BenchmarkDominatorsMaxPred-8        445994225     1393612       -99.69%
+    BenchmarkDominatorsMaxPredVal-8     447235248     1246899       -99.72%
+    BenchmarkNilCheckDeep1-8            829           1259          +51.87%
+    BenchmarkNilCheckDeep10-8           2199          2397          +9.00%
+    BenchmarkNilCheckDeep100-8          57325         29405         -48.70%
+    BenchmarkNilCheckDeep1000-8         6625837       2933151       -55.73%
+    BenchmarkNilCheckDeep10000-8        763559787     319105541     -58.21%
+    
+    benchmark                           old MB/s     new MB/s     speedup
+    BenchmarkDominatorsLinear-8         7.12         7.74         1.09x
+    BenchmarkDominatorsFwdBack-8        7.87         7.00         0.89x
+    BenchmarkDominatorsManyPred-8       0.04         6.53         163.25x
+    BenchmarkDominatorsMaxPred-8        0.02         7.18         359.00x
+    BenchmarkDominatorsMaxPredVal-8     0.02         8.02         401.00x
+    BenchmarkNilCheckDeep1-8            1.21         0.79         0.65x
+    BenchmarkNilCheckDeep10-8           4.55         4.17         0.92x
+    BenchmarkNilCheckDeep100-8          1.74         3.40         1.95x
+    BenchmarkNilCheckDeep1000-8         0.15         0.34         2.27x
+    BenchmarkNilCheckDeep10000-8        0.01         0.03         3.00x
+    
+    Change-Id: Icec3d774422a9bc64914779804c8c0ab73aa72bf
+    Reviewed-on: https://go-review.googlesource.com/11971
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mstkbar.go | 99 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 99 insertions(+)
+ src/cmd/compile/internal/ssa/dom.go      | 200 +++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/dom_test.go | 124 +++++++++++++++++--
+ 2 files changed, 304 insertions(+), 20 deletions(-)

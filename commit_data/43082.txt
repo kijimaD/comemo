@@ -1,19 +1,16 @@
-commit bc320fc1f5bc5d6019e3d8d62aa32eac3417bb7f
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed Sep 23 12:52:27 2020 -0400
+commit 4d03b6543ff1aaa7909e8ef1a5302916e5475482
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 5 21:22:06 2020 -0500
 
-    doc: update overview for authentication
+    [dev.link] cmd/link: convert domacho to new style
     
-    The instructions have already been updated in greater
-    detail in "Step 2: Configure git authentication", but
-    the overview needs updated to reflect the new workflow.
-    
-    Change-Id: I6f411a3dc500a9058036a4a828403c0153e4220a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256857
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I6e009d01e490534fe1d7d0acd39746158bfcfa24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222301
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/contribute.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/macho.go             | 73 +++++++++++++++------------
+ src/cmd/link/internal/ld/main.go              | 32 +++++++-----
+ src/cmd/link/internal/loader/symbolbuilder.go |  6 ++-
+ 3 files changed, 65 insertions(+), 46 deletions(-)

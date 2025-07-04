@@ -1,17 +1,13 @@
-commit 21de1ab359f198fff172f5e2bbaa29ab955a4688
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jul 2 20:55:08 2012 +0400
+commit 435a001d6880798931bad881e36cba820592bb3c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jul 1 23:12:42 2012 -0400
 
-    reflect: set GOMAXPROCS=1 in the malloc test
-    Occasionally I see:
-    --- FAIL: TestAllocations-15 (0.00 seconds)
-            all_test.go:1575: 6 mallocs after 100 iterations
-    Tested:
-    $ go test -cpu=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 reflect
+    image: fix doc typo
+         Fixes #3789.
     
-    R=golang-dev, dsymonds, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6354063
+    https://golang.org/cl/6357058
 
- src/pkg/reflect/all_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/image/names.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

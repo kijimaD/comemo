@@ -1,14 +1,12 @@
-commit dc8d9031550e4adc5c83dadd48d9e1e8d0f7ea6d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 3 09:18:47 2013 -0400
+commit 45b830ed319ee1d82ff9d41c35d6145ab7ecbb82
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Oct 3 13:32:07 2013 +1000
 
-    doc/faq: add a FAQ about versioning
+    misc/vim: Autocompletion for :Godoc command
     
-    Fixes #5633.
-    
-    R=golang-dev, r, tommi.virtanen, adg, nj
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/14283044
+    https://golang.org/cl/14259043
 
- doc/go_faq.html | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ misc/vim/autoload/go/complete.vim | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

@@ -1,20 +1,21 @@
-commit 94b0342f17eece0287601918526351733e8b29c4
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Thu Dec 8 17:07:13 2011 -0500
+commit 60f564fc3759a2d4cb2216ed643a65aa963f06b3
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 8 16:46:19 2011 -0500
 
-    math: document more special cases
+    crypto/dsa: don't truncate input hashes.
     
-    Acosh, Asinh, Atanh, Ceil, Floor, Trunc, Mod and Remainder affected. These changes add some non-finite arguments and results (and -0.0 results).
+    Although FIPS 186-3 says that we should truncate the hashes, at least
+    one other library (libgcrypt) doesn't. This means that it's impossible
+    to interoperate with code using gcrypt if we enforce the truncation
+    inside of crypto/dsa.
     
-    R=rsc, golang-dev
+    This change shouldn't actually affect anything because nearly
+    everybody pairs DSA with SHA1, which doesn't need to be truncated in
+    either case.
+    
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5469046
+    https://golang.org/cl/5471043
 
- src/pkg/math/acosh.go     | 1 +
- src/pkg/math/asinh.go     | 1 +
- src/pkg/math/atanh.go     | 3 ++-
- src/pkg/math/floor.go     | 3 +++
- src/pkg/math/mod.go       | 7 +++++--
- src/pkg/math/nextafter.go | 1 +
- src/pkg/math/remainder.go | 6 +++---
- 7 files changed, 16 insertions(+), 6 deletions(-)
+ src/pkg/crypto/dsa/dsa.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

@@ -1,28 +1,23 @@
-commit 16b3675bc808095b81ee14dc4f89fb346ff1a0b0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Sep 19 18:24:16 2015 -0700
+commit 317226e61c7269b97dafe8fd7524559ed64c64a2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 22 21:04:25 2015 -0700
 
-    math/big: optimize Float.Parse by reducing powers of 10 to powers of 2 and 5
+    [dev.ssa] cmd/compile: use v.Args[x].Op in CSE key
     
-    Instead of computing the final adjustment factor as a power of 10,
-    it's more efficient to split 10**e into 2**e * 5**e . Powers of 2
-    are trivially added to the Float exponent, and powers of 5 are
-    smaller and thus faster to compute.
+    Experimentally, the Ops of v.Args do a good job
+    of differentiating values that will end up in
+    different partitions.
     
-    Also, use a table of uint64 values rather than float64 values for
-    initial power value. uint64 values appear to be faster to convert
-    to Floats (useful for small exponents).
+    Most values have at most two args, so use them.
     
-    Added two small benchmarks to confirm that there's no regresssion.
+    This reduces the wall time to run test/slice3.go
+    on my laptop from ~20s to ~12s.
     
-    benchmark                         old ns/op     new ns/op     delta
-    BenchmarkParseFloatSmallExp-8     17543         16220         -7.54%
-    BenchmarkParseFloatLargeExp-8     60865         59996         -1.43%
+    Credit to Todd Neal for the idea.
     
-    Change-Id: I3efd7556b023316f86f334137a67fe0c6d52f8ef
-    Reviewed-on: https://go-review.googlesource.com/14782
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I55d08f09eb678bbe8366924ca2fabcd32526bf41
+    Reviewed-on: https://go-review.googlesource.com/12565
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/floatconv.go      | 110 +++++++++++++++++++++++++++--------------
- src/math/big/floatconv_test.go |  64 ++++++++++++++++++++++++
- 2 files changed, 137 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 68ca584ffaf3f647eda2706500fba5280f2ad19c
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon Apr 28 13:17:31 2025 -0400
+
+    pkgbits: alias the Index type to clarify it is section relative
+    
+    Change-Id: I214eb97ef3b11a6de8584498f2df4baff1903e1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668537
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/pkgbits/decoder.go | 30 +++++++++++++++---------------
+ src/internal/pkgbits/encoder.go | 22 +++++++++++-----------
+ src/internal/pkgbits/reloc.go   | 10 +++++++---
+ 3 files changed, 33 insertions(+), 29 deletions(-)

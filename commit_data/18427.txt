@@ -1,13 +1,33 @@
-commit f95a311c9b2fda14da2c2303ffe7003b7baf9f38
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Feb 7 15:43:40 2014 +0100
+commit da7cf0ba5d5aed78f07c82508f0fa88e6dd69ea7
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 6 17:43:22 2014 -0800
 
-    cmd/gc: fix nil pointer dereference
+    runtime: faster memclr on x86.
     
-    LGTM=iant
-    R=golang-codereviews, dave, iant
+    Use explicit SSE writes instead of REP STOSQ.
+    
+    benchmark               old ns/op    new ns/op    delta
+    BenchmarkMemclr5               22            5  -73.62%
+    BenchmarkMemclr16              27            5  -78.49%
+    BenchmarkMemclr64              28            6  -76.43%
+    BenchmarkMemclr256             34            8  -74.94%
+    BenchmarkMemclr4096           112           84  -24.73%
+    BenchmarkMemclr65536         1902         1920   +0.95%
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/60740044
+    https://golang.org/cl/60090044
 
- src/cmd/gc/typecheck.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/8a/lex.c                |   1 +
+ src/cmd/8l/8.out.h              |   1 +
+ src/liblink/asm8.c              |   1 +
+ src/pkg/runtime/alg.c           |   5 ++
+ src/pkg/runtime/asm_386.s       |  15 -----
+ src/pkg/runtime/asm_amd64.s     |  15 -----
+ src/pkg/runtime/export_test.go  |   4 ++
+ src/pkg/runtime/memclr_386.s    | 125 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/memclr_amd64.s  | 114 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/memclr_arm.s    |   6 --
+ src/pkg/runtime/memmove_test.go |  99 ++++++++++++++++++++++---------
+ 11 files changed, 324 insertions(+), 62 deletions(-)

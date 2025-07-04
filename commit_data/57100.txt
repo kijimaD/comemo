@@ -1,31 +1,22 @@
-commit 5bd442aba31c1720bb333dafbb65cf977091d292
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 1 11:16:27 2024 -0700
+commit 261e26761805e03c126bf3934a8f39302e8d85fb
+Author: Moritz Poldrack <git@moritz.sh>
+Date:   Fri Jun 16 21:12:25 2023 +0000
 
-    go/types, types2: avoid spurious "undefined" errors" for invalid identifiers
+    os/exec: document a method to check if a process is alive
     
-    The syntax parser complains about invalid identifiers.
-    Don't report a typechecker error when such an identifier
-    cannot be found in the current scope.
+    Fixes #34396
     
-    For now add a local test for types2 only because the
-    go/parser behaves differently than the syntax parser
-    which leads to slightly different error positions.
-    
-    Fixes #68183.
-    
-    Change-Id: Idbfe62fafcd704886069182744ec5e6b37ffc4e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602476
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I35c4e3447f84e349adf7edba92ccb19b324bfe14
+    GitHub-Last-Rev: 4f06764109ddd9bdfbe4841fc1bebebe026eeb29
+    GitHub-Pull-Request: golang/go#60763
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502815
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/call.go            |  6 +++--
- src/cmd/compile/internal/types2/predicates.go      | 12 +++++++++
- .../internal/types2/testdata/local/issue68183.go   | 29 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/typexpr.go         |  2 +-
- src/go/types/call.go                               |  6 +++--
- src/go/types/predicates.go                         | 12 +++++++++
- src/go/types/typexpr.go                            |  2 +-
- 7 files changed, 63 insertions(+), 6 deletions(-)
+ src/os/exec.go           |  4 +++-
+ src/os/exec_unix_test.go | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

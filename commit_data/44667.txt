@@ -1,37 +1,26 @@
-commit bd6aeca9686d5e672ffda1ea0cfeac7a3e7a20a4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 16 21:57:32 2020 +0000
+commit 861a9483357a1a13609430ec6684b3dc9209e80c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun May 3 19:58:10 2020 +0200
 
-    runtime: prepare arenas for use incrementally
+    encoding/asn1: speed up marshal by reducing allocations
     
-    This change moves the call of sysMap from (*mheap).sysAlloc into
-    (*mheap).grow, so we only sysMap what we're going to use in the near
-    future (thanks to the curArena mechanism). The purpose of this change is
-    to better support systems with strict overcommit rules which generally
-    accept reserved memory but not prepared memory (see malloc.go for exact
-    descriptions of these states).
+    Replace strings.Split by strings.IndexByte and explicit
+    slicing to avoid the allocation of the return slice
+    of strings.Split.
     
-    This move requires changing linearAlloc to only optionally map memory.
-    In one case, with mheap.heapArenaAlloc, we do want it to map memory. But
-    now in the other case, with mheap.arena, we don't, because we want grow
-    to take care of it.
+    name     old time/op    new time/op    delta
+    Marshal    43.3µs ± 1%    36.7µs ± 1%  -15.23%  (p=0.000 n=9+9)
     
-    The risk with this change is we may make more syscalls than before on
-    systems with 64 MiB arenas, but because heap growth is relatively rare
-    this is unlikely to be a noticable issue. We also bound the amount of
-    syscalls made by only extending curArena (and thus mapping) by
-    pallocChunkPages*pageSize which is 4 MiB.
+    name     old alloc/op   new alloc/op   delta
+    Marshal    10.7kB ± 0%     9.2kB ± 0%  -13.96%  (p=0.000 n=10+10)
     
-    Fixes #42612.
+    name     old allocs/op  new allocs/op  delta
+    Marshal       444 ± 0%       366 ± 0%  -17.57%  (p=0.000 n=10+10)
     
-    Change-Id: I736df696afe78ddb1a747a896caa0db8726027e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270537
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I9e727defa23f7e5fc684f246de0136fe28cf8d25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231738
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/export_test.go |  3 ---
- src/runtime/malloc.go      | 30 +++++++++++++++++-------------
- src/runtime/mheap.go       | 43 ++++++++++++++++++++++++++++++++-----------
- 3 files changed, 49 insertions(+), 27 deletions(-)
+ src/encoding/asn1/common.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

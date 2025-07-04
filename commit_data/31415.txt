@@ -1,34 +1,50 @@
-commit 65119318100915eb99bc726693951a982a3f130a
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Wed Apr 26 19:07:15 2017 -0400
+commit 4498b6839042fd0eb0e2854bc93fbf26c3f78046
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 17 13:27:09 2017 -0800
 
-    cmd/go/internal/get: allow go get on github.com/ import paths with Unicode letters
+    math/bits: faster Reverse, ReverseBytes
     
-    More specifically, allow Unicode letters in the directories of GitHub
-    repositories, which can occur and don't have a valid reason to be
-    disallowed by go get.
+    - moved from: x&m>>k | x&^m<<k to: x&m>>k | x<<k&m
+      This permits use of the same constant m twice (*) which may be
+      better for machines that can't use large immediate constants
+      directly with an AND instruction and have to load them explicitly.
+      *) CPUs don't usually have a &^ instruction, so x&^m becomes x&(^m)
     
-    Do so by using a predefined character class, the Unicode character
-    property class \p{L} that describes the Unicode characters that are
-    letters:
+    - simplified returns
+      This improves the generated code because the compiler recognizes
+      x>>k | x<<k as ROT when k is the bitsize of x.
     
-            http://www.regular-expressions.info/unicode.html#category
+    The 8-bit versions of these instructions can be significantly faster
+    still if they are replaced with table lookups, as long as the table
+    is in cache. If the table is not in cache, table-lookup is probably
+    slower, hence the choice of an explicit register-only implementation
+    for now.
     
-    Since it's not possible to create GitHub usernames or repositories
-    containing Unicode letters at this time, those parts of the import path
-    are still restricted to ASCII letters only.
+    BenchmarkReverse-8            8.50          6.86          -19.29%
+    BenchmarkReverse8-8           2.17          1.74          -19.82%
+    BenchmarkReverse16-8          2.89          2.34          -19.03%
+    BenchmarkReverse32-8          3.55          2.95          -16.90%
+    BenchmarkReverse64-8          6.81          5.57          -18.21%
+    BenchmarkReverseBytes-8       3.49          2.48          -28.94%
+    BenchmarkReverseBytes16-8     0.93          0.62          -33.33%
+    BenchmarkReverseBytes32-8     1.55          1.13          -27.10%
+    BenchmarkReverseBytes64-8     2.47          2.47          +0.00%
     
-    Fix name of tested func in t.Errorf messages.
+    Reverse-8         8.50ns ± 0%  6.86ns ± 0%   ~             (p=1.000 n=1+1)
+    Reverse8-8        2.17ns ± 0%  1.74ns ± 0%   ~             (p=1.000 n=1+1)
+    Reverse16-8       2.89ns ± 0%  2.34ns ± 0%   ~             (p=1.000 n=1+1)
+    Reverse32-8       3.55ns ± 0%  2.95ns ± 0%   ~             (p=1.000 n=1+1)
+    Reverse64-8       6.81ns ± 0%  5.57ns ± 0%   ~             (p=1.000 n=1+1)
+    ReverseBytes-8    3.49ns ± 0%  2.48ns ± 0%   ~             (p=1.000 n=1+1)
+    ReverseBytes16-8  0.93ns ± 0%  0.62ns ± 0%   ~             (p=1.000 n=1+1)
+    ReverseBytes32-8  1.55ns ± 0%  1.13ns ± 0%   ~             (p=1.000 n=1+1)
+    ReverseBytes64-8  2.47ns ± 0%  2.47ns ± 0%   ~     (all samples are equal)
     
-    Fixes #18660.
-    
-    Change-Id: Ia0ef4742bfd8317d989ef1eb1d7065e382852fe2
-    Reviewed-on: https://go-review.googlesource.com/41822
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0064de8c7e0e568ca7885d6f7064344bef91a06d
+    Reviewed-on: https://go-review.googlesource.com/37215
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/get/vcs.go      |  2 +-
- src/cmd/go/internal/get/vcs_test.go | 14 +++++++++++---
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/math/bits/bits.go | 57 ++++++++++++++++++++++-----------------------------
+ 1 file changed, 24 insertions(+), 33 deletions(-)

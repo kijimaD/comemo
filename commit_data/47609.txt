@@ -1,20 +1,20 @@
-commit 67dd9ee92c454ded14f117e2d958db9ee56e8b02
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 22 19:02:56 2021 -0800
+commit 5d6581d74796ac748441c94e84eefdaf338d266c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 31 12:41:20 2021 -0400
 
-    cmd/compile/internal/types2: produce empty type set for invalid ~T
+    cmd/compile: deduplicate OpArg's across types
     
-    If ~T is not permitted because the underlying type of T is not the
-    same as T, there is no type that satisfies ~T. Besides reporting an
-    error, also ensure that the corresponding type set is empty.
+    For in-register arguments, it must have only a single copy of it
+    present in the function. If there are multiple copies, it confuses
+    the register allocator, as they are in the same register.
     
-    For #49739.
-    
-    Change-Id: I127f75f170902e7989f7fe7b352dabda9f72e2a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366278
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I55cb06746f08aa7c9168026d0f411bce0a9f93f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306330
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- .../types2/testdata/fixedbugs/issue49739.go2       | 23 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/typeset.go         | 16 +++++++++------
- 2 files changed, 33 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 37 ++++++++++++++++++++-
+ test/abi/defer_aggregate.go                  | 48 ++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+), 1 deletion(-)

@@ -1,24 +1,21 @@
-commit e00a38c89a4e0afa985072bdffe5dd30de7eccda
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri Jun 16 11:19:01 2017 +0000
+commit 6f4a4585f2080c74e7e6a409d275cbcd5e0136a5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 23 10:56:58 2017 +1100
 
-    cmd/internal/obj/arm: fix setting U bit in shifted register offset of MOVBS
+    cmd/internal/obj/mips: standardize on sys.MIPS and sys.MIPS64 constants
     
-    "MOVBS.U R0<<0(R1), R2" is assembled to 0xe19120d0 (ldrsb r2, [r1, r0]),
-    but it is expected to be 0xe11120d0 (ldrsb r2, [r1, -r0]).
+    CL 38446 introduced the use of the sys.ArchFamily type into the
+    cmd/internal/obj/mips package and redefined the mips.Mips32 and
+    mips.Mips64 constants in terms of their sys.ArchFamily counterparts.
+    This CL removes these local declarations and consolidates on sys.MIPS
+    and sys.MIPS64 respectively.
     
-    This patch fixes it and adds more encoding tests.
-    
-    fixes #20701
-    
-    Change-Id: Ic1fb46438d71a978dbef06d97494a70c95fcbf3a
-    Reviewed-on: https://go-review.googlesource.com/45996
+    Change-Id: Id7aab6c7fd0de42ff43dde605df6bd4c85a3d895
+    Reviewed-on: https://go-review.googlesource.com/38287
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm.s      | 282 ++++++++++++++++++++++++++-
- src/cmd/asm/internal/asm/testdata/armerror.s |  75 +++++++
- src/cmd/asm/internal/asm/testdata/armv6.s    |  43 ++++
- src/cmd/internal/obj/arm/asm5.go             |   5 +-
- 4 files changed, 398 insertions(+), 7 deletions(-)
+ src/cmd/internal/obj/mips/a.out.go |   6 -
+ src/cmd/internal/obj/mips/asm0.go  | 284 ++++++++++++++++++-------------------
+ 2 files changed, 142 insertions(+), 148 deletions(-)

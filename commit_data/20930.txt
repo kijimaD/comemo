@@ -1,8 +1,20 @@
-commit 258f53dee33b9055ea168cb186f8c076edee5905
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Dec 8 13:50:49 2014 +1100
+commit c8f50b298cdf378889cff2a1b7355f7a1cb08a0a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 28 15:08:09 2014 -0400
 
-    remove .hgtags.
+    [dev.power64] 9a: correct generation of four argument ops
+    
+    The "to" field was the penultimate argument to outgcode,
+    instead of the last argument, which swapped the third and
+    fourth operands.  The argument order was correct in a.y, so
+    just swap the meaning of the arguments in outgcode.  This
+    hadn't come up because we hadn't used these more obscure
+    operations in any hand-written assembly until now.
+    
+    LGTM=rsc, dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/160690043
 
- .hgtags | 140 ----------------------------------------------------------------
- 1 file changed, 140 deletions(-)
+ src/cmd/9a/lex.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

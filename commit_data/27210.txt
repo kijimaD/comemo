@@ -1,51 +1,18 @@
-commit 5f9a870bf1bf461ca3609502608b12cc4aab189a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 27 14:18:29 2016 -0700
+commit c8b148e7a57c829c3525ecb30634ab31524ae712
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Mar 15 19:26:21 2016 -0500
 
-    cmd/cgo, runtime, runtime/cgo: use cgo context function
+    cmd/compile: fold constants from lsh/rsh/lsh and rsh/lsh/rsh
     
-    Add support for the context function set by runtime.SetCgoTraceback.
-    The context function was added in CL 17761, without support.
-    This CL is the support.
+    Fixes #14825
     
-    This CL has not been tested for real C code, as a working context
-    function for C code requires unwind support that does not seem to exist.
-    I wanted to get the CL out before the freeze.
-    
-    I apologize for the length of this CL.  It's mostly plumbing, but
-    unfortunately the plumbing is processor-specific.
-    
-    Change-Id: I8ce11a0de9b3dafcc29efd2649d776e93bff0e90
-    Reviewed-on: https://go-review.googlesource.com/22508
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib44d80579a55c15d75ea2ad1ef54efa6ca66a9a6
+    Reviewed-on: https://go-review.googlesource.com/20745
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cgo/doc.go                                |   8 +-
- src/cmd/cgo/out.go                                |  30 ++--
- src/runtime/asm_386.s                             |  20 ++-
- src/runtime/asm_amd64.s                           |  18 +-
- src/runtime/asm_arm.s                             |  17 +-
- src/runtime/asm_arm64.s                           |  17 +-
- src/runtime/asm_ppc64x.s                          |  15 +-
- src/runtime/asm_s390x.s                           |  15 +-
- src/runtime/cgo.go                                |   2 +
- src/runtime/cgo/asm_386.s                         |  13 +-
- src/runtime/cgo/asm_amd64.s                       |  93 +++++------
- src/runtime/cgo/asm_arm.s                         |  13 +-
- src/runtime/cgo/asm_arm64.s                       |  91 ++++++-----
- src/runtime/cgo/asm_ppc64x.s                      |  11 +-
- src/runtime/cgo/asm_s390x.s                       |  17 +-
- src/runtime/cgo/callbacks.go                      |  16 +-
- src/runtime/cgo/gcc_context.c                     |  27 +++
- src/runtime/cgo/gcc_libinit.c                     |  11 +-
- src/runtime/cgo/gcc_libinit_openbsd.c             |  13 +-
- src/runtime/cgo/gcc_libinit_windows.c             |  12 +-
- src/runtime/cgo/libcgo.h                          |  12 +-
- src/runtime/cgocall.go                            |  35 +++-
- src/runtime/crash_cgo_test.go                     |  11 ++
- src/runtime/runtime2.go                           |   3 +-
- src/runtime/symtab.go                             |  68 +++++++-
- src/runtime/testdata/testprogcgo/tracebackctxt.go | 191 ++++++++++++++++++++++
- src/runtime/traceback.go                          | 162 +++++++++++++-----
- 27 files changed, 714 insertions(+), 227 deletions(-)
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go |  79 +++++++
+ src/cmd/compile/internal/ssa/gen/generic.rules    |  12 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go    | 264 ++++++++++++++++++++++
+ 3 files changed, 355 insertions(+)

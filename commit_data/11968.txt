@@ -1,25 +1,12 @@
-commit 85d33918a0c4ad56b2f40b052963e2c1dafb7014
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Feb 16 22:43:41 2012 +1100
+commit fa8bc8a6483cae53460810a797a8ef322d1cca64
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 16 17:39:04 2012 +1100
 
-    cmd, pkg/go/*: fix "go vet" warnings for go/ast and go/printer
-    struct literals.
+    os: fix build
     
-    R=gri
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5653073
+    https://golang.org/cl/5674070
 
- src/cmd/fix/httpfs.go              |  10 +-
- src/cmd/fix/main.go                |   4 +-
- src/cmd/fix/reflect.go             |   2 +-
- src/cmd/godoc/codewalk.go          |   2 +-
- src/cmd/godoc/godoc.go             |   2 +-
- src/cmd/godoc/parser.go            |   2 +-
- src/cmd/godoc/snippet.go           |  16 ++-
- src/cmd/gofmt/gofmt.go             |   2 +-
- src/cmd/gofmt/long_test.go         |   2 +-
- src/pkg/go/doc/reader.go           |  10 +-
- src/pkg/go/parser/parser.go        | 253 ++++++++++++++++++++++++-------------
- src/pkg/go/printer/nodes.go        |   2 +-
- src/pkg/go/printer/printer_test.go |   8 +-
- 13 files changed, 203 insertions(+), 112 deletions(-)
+ src/pkg/os/path_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

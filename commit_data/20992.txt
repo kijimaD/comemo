@@ -1,15 +1,18 @@
-commit fccd9428032dca77e7fc511c6698353c0b3d35a1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 16 17:14:25 2014 +1100
+commit 473bfae5ae3c4adccebc14bca40d0fb0a2ff09ab
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 3 17:24:13 2014 -0500
 
-    runtime: gofmt
+    [dev.power64] liblink: fix printing of branch targets
     
-    Fixes #9339
+    Print PC stored in target Prog* of branch instructions when
+    available instead of the offset stored in the branch
+    instruction.  The offset tends to be wrong after code
+    transformations, so previously this led to confusing listings.
     
-    Change-Id: I22faf2593cb73f42612c2c2bfe38de001fb2746b
-    Reviewed-on: https://go-review.googlesource.com/1630
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/168980043
 
- src/runtime/debug/heapdump_test.go | 5 ++---
- src/runtime/malloc2.go             | 2 +-
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ src/liblink/list9.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

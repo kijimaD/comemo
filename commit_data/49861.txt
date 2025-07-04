@@ -1,18 +1,20 @@
-commit 98e16488237b7f091ec35cbec12030a95b9f8f1b
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jul 19 14:19:09 2022 -0400
+commit 7f36ef0aff702f2598390d0349f9c9632942d40b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 17 11:12:31 2021 -0700
 
-    runtime: print irrelevant IDs as nil in schedtrace
+    cmd/compile/internal/noder: hide TestUnifiedCompare behind -cmp flag
     
-    We currently print these as -1, but some are technically uint64. We can
-    be more explicit about their irrelevance by printing 'nil' rather than
-    -1.
+    This test is fragile and is starting to impede others' work. This CL
+    disables it until I have time to either find a solution for the issues
+    or decide to just delete the test altogether.
     
-    Change-Id: I267fd8830564c75032bfe9176af59047f5a90202
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419441
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: Icefabb6d3fbedec5d16536de78be4ca20d63133c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350729
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/proc.go | 54 ++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 31 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/noder/unified_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

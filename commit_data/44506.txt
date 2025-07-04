@@ -1,22 +1,17 @@
-commit 2d30c94874c127d9028e29b77fadeb284c23e89a
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Nov 3 10:35:34 2020 -0600
+commit 8696ae82c94f0a7707cbbbdf2cec44e93edf5b23
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 24 15:13:43 2020 -0700
 
-    cmd/internal: Add 6 args to ppc64 optab
+    syscall: use correct file descriptor in dup2 fallback path
     
-    This is a preparatory patch to support 6 arg opcodes on POWER10,
-    and simplify 5 arg opcode processing (e.g RLWNM and similar).
+    This fixes a mistake in CL 220422. This changes code that is only
+    executed on Linux kernel versions earlier than 2.6.27.
     
-    This expands the optab structure, and renames a4 arguments to a6.
-    No actual change in functionality is made.
-    
-    Change-Id: I785e4177778e4bf1326cf8e46e8aeaaa0e4d406b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295031
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Carlos Eduardo Seo <carlos.seo@linaro.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Keith Randall <khr@golang.org>
+    Change-Id: I01280184f4d7b75e06387c38f1891e8f0a81f793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244630
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/internal/obj/ppc64/asm9.go | 915 +++++++++++++++++++------------------
- 1 file changed, 465 insertions(+), 450 deletions(-)
+ src/syscall/exec_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

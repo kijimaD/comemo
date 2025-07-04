@@ -1,15 +1,19 @@
-commit 35e25ef62efc5917481e11ff6e7a5cc12468b0e2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jul 20 10:18:23 2016 -0700
+commit 8955745bfb9a3682e78b71fb8cb343abc4bd72a6
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Apr 15 08:56:01 2016 +0200
 
-    cmd/internal/obj/x86: minor code cleanup
+    image/color: order color computation to match rgb
     
-    Update #16415
+    The order of computation was switched unintentionally
+    in https://go-review.googlesource.com/21910.
     
-    Change-Id: I83e0966931ada2f1ed02304685bb45effdd71268
-    Reviewed-on: https://go-review.googlesource.com/26665
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Revert the order to first compute g then b.
+    
+    Change-Id: I8cedb5e45fbad2679246839f609bcac4f9052403
+    Reviewed-on: https://go-review.googlesource.com/22016
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go | 27 +++++++++++----------------
- 1 file changed, 11 insertions(+), 16 deletions(-)
+ src/image/color/ycbcr.go             | 16 ++++-----
+ src/image/internal/imageutil/gen.go  | 16 ++++-----
+ src/image/internal/imageutil/impl.go | 64 ++++++++++++++++++------------------
+ 3 files changed, 48 insertions(+), 48 deletions(-)

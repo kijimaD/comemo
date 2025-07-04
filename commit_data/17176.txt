@@ -1,12 +1,12 @@
-commit f7ab3917f93b7eabf2d642d5241f225a3207d803
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Aug 13 15:08:10 2013 +1000
+commit 306c29e963c6d236f0fcfa4fb82cdb85837add26
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 13 13:39:45 2013 +1000
 
-    doc: release notes for go1.1.2
+    doc/go1.2.txt: bufio.{Writer,Reader}.Reset
     
-    R=golang-dev, go.peter.90, rsc, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12016043
+    https://golang.org/cl/12830043
 
- doc/devel/release.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

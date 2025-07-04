@@ -1,18 +1,62 @@
-commit 8c5de667d3b1349a3058e4c57b01f0309502a118
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri Aug 30 05:36:14 2019 +0000
+commit a734601bdf8a3e26c76afc42ffdc918ced687b7a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 14 11:35:53 2019 +0100
 
-    cmd/compile: update README for rulegen
+    internal/bytealg: use word-wise comparison for Equal on arm
     
-    Update cmd/compile/internal/ssa/gen/README, suggest using go-1.13
-    and above for rulegen.
+    Follow CL 165338 and use word-wise comparison for aligned buffers in
+    Equal on arm, otherwise fall back to the current byte-wise comparison.
     
-    Change-Id: I5256d6f1bb4273b5eb7d5122a4364add52fc42c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192517
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    name                 old time/op    new time/op    delta
+    Equal/0-4              25.7ns ± 1%    23.5ns ± 1%    -8.78%  (p=0.000 n=10+10)
+    Equal/1-4              65.8ns ± 0%    60.1ns ± 1%    -8.69%  (p=0.000 n=10+9)
+    Equal/6-4              82.9ns ± 1%    86.7ns ± 0%    +4.59%  (p=0.000 n=10+10)
+    Equal/9-4              90.0ns ± 0%   101.0ns ± 0%   +12.18%  (p=0.000 n=9+10)
+    Equal/15-4              108ns ± 0%     119ns ± 0%   +10.19%  (p=0.000 n=8+8)
+    Equal/16-4              111ns ± 0%      82ns ± 0%   -26.37%  (p=0.000 n=8+10)
+    Equal/20-4              124ns ± 1%      87ns ± 1%   -29.94%  (p=0.000 n=9+10)
+    Equal/32-4              160ns ± 1%      97ns ± 1%   -39.40%  (p=0.000 n=10+10)
+    Equal/4K-4             14.0µs ± 0%     3.6µs ± 1%   -74.57%  (p=0.000 n=9+10)
+    Equal/4M-4             12.8ms ± 1%     3.2ms ± 0%   -74.93%  (p=0.000 n=9+9)
+    Equal/64M-4             204ms ± 1%      51ms ± 0%   -74.78%  (p=0.000 n=10+10)
+    EqualPort/1-4          47.0ns ± 1%    46.8ns ± 0%    -0.40%  (p=0.015 n=10+6)
+    EqualPort/6-4          82.6ns ± 1%    81.9ns ± 1%    -0.87%  (p=0.002 n=10+10)
+    EqualPort/32-4          232ns ± 0%     232ns ± 0%      ~     (p=0.496 n=8+10)
+    EqualPort/4K-4         29.0µs ± 1%    29.0µs ± 1%      ~     (p=0.604 n=9+10)
+    EqualPort/4M-4         24.0ms ± 1%    23.8ms ± 0%    -0.65%  (p=0.001 n=9+9)
+    EqualPort/64M-4         383ms ± 1%     382ms ± 0%      ~     (p=0.218 n=10+10)
+    CompareBytesEqual-4    61.2ns ± 1%    61.0ns ± 1%      ~     (p=0.539 n=10+10)
+    
+    name                 old speed      new speed      delta
+    Equal/1-4            15.2MB/s ± 0%  16.6MB/s ± 1%    +9.52%  (p=0.000 n=10+9)
+    Equal/6-4            72.4MB/s ± 1%  69.2MB/s ± 0%    -4.40%  (p=0.000 n=10+10)
+    Equal/9-4             100MB/s ± 0%    89MB/s ± 0%   -11.40%  (p=0.000 n=9+10)
+    Equal/15-4            138MB/s ± 1%   125MB/s ± 1%    -9.41%  (p=0.000 n=10+10)
+    Equal/16-4            144MB/s ± 1%   196MB/s ± 0%   +36.41%  (p=0.000 n=10+10)
+    Equal/20-4            162MB/s ± 1%   231MB/s ± 1%   +42.98%  (p=0.000 n=9+10)
+    Equal/32-4            200MB/s ± 1%   331MB/s ± 1%   +65.64%  (p=0.000 n=10+10)
+    Equal/4K-4            292MB/s ± 0%  1149MB/s ± 1%  +293.19%  (p=0.000 n=9+10)
+    Equal/4M-4            328MB/s ± 1%  1307MB/s ± 0%  +298.87%  (p=0.000 n=9+9)
+    Equal/64M-4           329MB/s ± 1%  1306MB/s ± 0%  +296.56%  (p=0.000 n=10+10)
+    EqualPort/1-4        21.3MB/s ± 1%  21.4MB/s ± 0%    +0.42%  (p=0.002 n=10+9)
+    EqualPort/6-4        72.6MB/s ± 1%  73.2MB/s ± 1%    +0.87%  (p=0.003 n=10+10)
+    EqualPort/32-4        138MB/s ± 0%   138MB/s ± 0%      ~     (p=0.953 n=9+10)
+    EqualPort/4K-4        141MB/s ± 1%   141MB/s ± 1%      ~     (p=0.382 n=10+10)
+    EqualPort/4M-4        175MB/s ± 1%   176MB/s ± 0%    +0.65%  (p=0.001 n=9+9)
+    EqualPort/64M-4       175MB/s ± 1%   176MB/s ± 0%      ~     (p=0.225 n=10+10)
+    
+    The 5-12% decrease in performance on Equal/{6,9,15} are due to the
+    benchmarks splitting the bytes buffer in half. The b argument to Equal
+    then ends up being unaligned and thus the fast word-wise compare doesn't
+    kick in.
+    
+    Updates #29001
+    
+    Change-Id: I73be501c18e67d211ed19da7771b4f254254e609
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167557
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/README | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/bytealg/equal_arm.s | 57 +++++++++++++++++++++++++++++++++-------
+ 1 file changed, 48 insertions(+), 9 deletions(-)

@@ -1,27 +1,14 @@
-commit d7f5c0360f1c305a7de6b3f7c648fe657323425f
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Fri Apr 20 06:50:29 2018 +0000
+commit acc1ec9b9d2724e58babf533068ac2d23225f8cb
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Dec 19 15:21:05 2017 -0500
 
-    cmd/internal/obj/arm64: reorder the assembler's optab entries
+    doc/debugging_with_gdb: mention delve as an alternative.
     
-    Current optab entries are unordered, because the new instructions
-    are added at the end of the optab. The patch reorders them by comments
-    in optab, such as arithmetic operations, logical operations and a
-    series of load/store etc.
+    Fixes #23108
     
-    The patch removes the VMOVS opcode because FMOVS already has the same
-    operation.
-    
-    Change-Id: Iccdf89ecbb3875b9dfcb6e06be2cc19c7e5581a2
-    Reviewed-on: https://go-review.googlesource.com/109896
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I9b3d0f0c399c0b4cb488adaf3c002bc55d5d21d9
+    Reviewed-on: https://go-review.googlesource.com/84795
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64.s |  15 +-
- src/cmd/internal/obj/arm64/a.out.go       |   1 -
- src/cmd/internal/obj/arm64/anames.go      |   1 -
- src/cmd/internal/obj/arm64/asm7.go        | 290 ++++++++++++++----------------
- src/cmd/internal/obj/arm64/doc.go         |   2 +
- src/crypto/sha1/sha1block_arm64.s         |   4 +-
- 6 files changed, 152 insertions(+), 161 deletions(-)
+ doc/debugging_with_gdb.html | 43 +++++++++++++++++++++++++++++++------------
+ 1 file changed, 31 insertions(+), 12 deletions(-)

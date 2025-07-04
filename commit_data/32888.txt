@@ -1,20 +1,31 @@
-commit a2993456bb765e9a4c556e3529a01975764d28ae
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Sep 28 20:44:21 2017 +0100
+commit 6914b0e3e3c4e3f2512bf4860c2ec2896f3d1f1f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jun 10 20:08:18 2017 -0700
 
-    cmd/compile: add reflect to TestIntendedInlining
+    runtime, unicode: use consistent banner for generated code
     
-    Add the package to the table and start it off with a few small, basic
-    functions. Inspired by CL 66331, which added flag.ro.
+    Per golang.org/s/generatedcode
     
-    Updates #21851.
+    Updates #nnn
     
-    Change-Id: I3995cde1ff7bb09a718110473bed8b193c2232a5
-    Reviewed-on: https://go-review.googlesource.com/66990
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: Ia7513ef6bd26c20b62b57b29f7770684a315d389
+    Reviewed-on: https://go-review.googlesource.com/45470
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/runtime/duff_386.s       | 2 +-
+ src/runtime/duff_amd64.s     | 2 +-
+ src/runtime/duff_arm.s       | 2 +-
+ src/runtime/duff_arm64.s     | 2 +-
+ src/runtime/duff_mips64x.s   | 2 +-
+ src/runtime/duff_ppc64x.s    | 2 +-
+ src/runtime/mkduff.go        | 2 +-
+ src/runtime/mknacl.sh        | 2 +-
+ src/runtime/mksizeclasses.go | 2 +-
+ src/runtime/sizeclasses.go   | 2 +-
+ src/runtime/syscall_nacl.h   | 2 +-
+ src/unicode/maketables.go    | 4 ++--
+ src/unicode/tables.go        | 4 ++--
+ 13 files changed, 15 insertions(+), 15 deletions(-)

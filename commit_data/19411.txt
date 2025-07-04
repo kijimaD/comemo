@@ -1,24 +1,15 @@
-commit b28aa1f1ecfd54178e4074670a4f2fa708ef0cf0
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue May 20 10:56:50 2014 -0700
+commit 7ef0eb1cba873c0d3d1da6df9b6c98ab2882d35d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 20 13:38:45 2014 -0400
 
-    debug/plan9obj: cleanup api
+    doc/go1.3.html: mention cgo [0]byte bug fix fallout
     
-    - Don't export Prog structure.
-    - Remove ProgHeader and ExecTable structures.
-    - Add Magic, Bss and Entry fields in FileHeader.
-    - Replace ?_MAGIC variables with constants.
-    - Ignore final EOF from ReadAt.
-    - Improve documentation.
+    Fixes #7958.
     
-    Fixes #7989.
-    
-    LGTM=rsc
-    R=rsc, bradfitz
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/91400044
+    https://golang.org/cl/91590044
 
- src/pkg/debug/plan9obj/file.go      | 107 +++++++++++++++---------------------
- src/pkg/debug/plan9obj/file_test.go |   4 +-
- src/pkg/debug/plan9obj/plan9obj.go  |  63 ++-------------------
- 3 files changed, 49 insertions(+), 125 deletions(-)
+ doc/go1.3.html | 73 ++++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 53 insertions(+), 20 deletions(-)

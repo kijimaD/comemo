@@ -1,29 +1,24 @@
-commit 0994cc1af63ce084712d6257f9993f9cefa2d441
-Author: Pantelis Sampaziotis <psampaz@gmail.com>
-Date:   Tue Nov 5 17:42:30 2019 +0000
+commit cbdf9ade5604917593af3ce5ce576a465edfca83
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed May 15 02:12:10 2019 +0000
 
-    testing/iotest: add missing tests
+    runtime: save/restore callee saved registers in arm64's sigtramp
     
-    Adds missing tests for all the types:
-    * OneByteReader
-    * HalfReader
-    * DataErrReader
-    * TimeoutReader
-    * TruncateWriter
-    * writeLogger
-    * readLogger
+    ARM64's R19-R29 and F8-F15 are callee saved registers, which
+    should be saved in the beginning of sigtramp, and restored at
+    the end.
     
-    Fixes #33650
+    fixes #31827
     
-    Change-Id: I1c773f9f1625ff33a1d0b5a045c72a73a9eca9ce
-    GitHub-Last-Rev: 2ab650677bb9cad43ea2ce620c9898123c7ec396
-    GitHub-Pull-Request: golang/go#33651
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190259
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I622e03f1a13fec969d3a11b6a303a8a492e02bcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177045
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/testing/iotest/logger_test.go | 160 +++++++++++++++++++++++++++
- src/testing/iotest/reader_test.go | 226 ++++++++++++++++++++++++++++++++++++++
- src/testing/iotest/writer_test.go |  39 +++++++
- 3 files changed, 425 insertions(+)
+ misc/cgo/testsanitizers/tsan_test.go |   4 -
+ src/runtime/sys_darwin_arm64.s       | 148 +++++++++++++++++++----------------
+ src/runtime/sys_linux_arm64.s        |  46 ++++++++++-
+ src/runtime/sys_netbsd_arm64.s       |  46 ++++++++++-
+ src/runtime/sys_openbsd_arm64.s      |  46 ++++++++++-
+ 5 files changed, 215 insertions(+), 75 deletions(-)

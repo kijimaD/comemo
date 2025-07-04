@@ -1,22 +1,35 @@
-commit be855e3f28507dd3e34eb4699c84493eeaae68db
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 19 22:59:56 2017 +0000
+commit 2e29eb57dbd2bc7b022fadc33943b0a5ee69324d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 18 15:55:41 2017 +0000
 
-    net/http: update bundled http2
+    runtime: remove unused *chantype parameters
     
-    Updates http2 to x/net/http2 git rev 3d7ac2a5d for:
+    The chanrecv funcs don't use it at all. The chansend ones do, but the
+    element type is now part of the hchan struct, which is already a
+    parameter.
     
-        http2: fix Server race
-        https://golang.org/cl/20704
+    hchan can be nil in chansend when sending to a nil channel, so when
+    instrumenting we must copy to the stack to be able to read the channel
+    type.
     
-    Fixes #20704
+    name             old time/op  new time/op  delta
+    ChanUncontended  6.42µs ± 1%  6.22µs ± 0%  -3.06%  (p=0.000 n=19+18)
     
-    Change-Id: I803288f94a8a462ad0960b0c29c2dfee27b9f1ae
-    Reviewed-on: https://go-review.googlesource.com/46093
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Tom Bergan <tombergan@google.com>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Initially found by github.com/mvdan/unparam.
+    
+    Fixes #19591.
+    
+    Change-Id: I3a5e8a0082e8445cc3f0074695e3593fd9c88412
+    Reviewed-on: https://go-review.googlesource.com/38351
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/h2_bundle.go | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 127 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |  12 +--
+ src/cmd/compile/internal/gc/order.go           |   8 +-
+ src/cmd/compile/internal/gc/select.go          |   6 +-
+ src/cmd/compile/internal/gc/walk.go            |   8 +-
+ src/reflect/value.go                           |   8 +-
+ src/runtime/chan.go                            |  43 ++++-----
+ 7 files changed, 106 insertions(+), 106 deletions(-)

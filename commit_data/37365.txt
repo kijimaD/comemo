@@ -1,58 +1,29 @@
-commit 685aca45dc8435df7b7e8059a42a8a98efdaf22c
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 1 12:30:23 2018 -0400
+commit 0ba03b8f42dc09212dfa28baa374577168a2bce7
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jul 19 10:41:54 2018 +0200
 
-    cmd/compile, cmd/link: separate stable and internal ABIs
+    cmd/go: fix TestScript on Plan 9
     
-    This implements compiler and linker support for separating the
-    function calling ABI into two ABIs: a stable and an internal ABI. At
-    the moment, the two ABIs are identical, but we'll be able to evolve
-    the internal ABI without breaking existing assembly code that depends
-    on the stable ABI for calling to and from Go.
+    CL 123577 added TestScript. The install_rebuild_gopath
+    test was failing on Plan 9 because it defines a GOPATH
+    using the ':' separator, while Plan 9 expects the '\000'
+    separator in environment variables.
     
-    The Go compiler generates internal ABI symbols for all Go functions.
-    It uses the symabis information produced by the assembler to create
-    ABI wrappers whenever it encounters a body-less Go function that's
-    defined in assembly or a Go function that's referenced from assembly.
+    This change fixes the script engine by defining a new
+    ":" environment variable set to OS-specific path list
+    separator.
     
-    Since the two ABIs are currently identical, for the moment this is
-    implemented using "ABI alias" symbols, which are just forwarding
-    references to the native ABI symbol for a function. This way there's
-    no actual code involved in the ABI wrapper, which is good because
-    we're not deriving any benefit from it right now. Once the ABIs
-    diverge, we can eliminate ABI aliases.
+    The install_rebuild_gopath test has been updated to use
+    "${:}" instead of ":".
     
-    The linker represents these different ABIs internally as different
-    versions of the same symbol. This way, the linker keeps us honest,
-    since every symbol definition and reference also specifies its
-    version. The linker is responsible for resolving ABI aliases.
+    Fixes #26421.
     
-    Fixes #27539.
-    
-    Change-Id: I197c52ec9f8fc435db8f7a4259029b20f6d65e95
-    Reviewed-on: https://go-review.googlesource.com/c/147160
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I58a97f882cdb48cc0836398b0d98a80ea58041ba
+    Reviewed-on: https://go-review.googlesource.com/124435
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/gen.go          | 11 +++++
- src/cmd/compile/internal/gc/gsubr.go        | 63 ++++++++++++++++++++++++++++-
- src/cmd/compile/internal/gc/noder.go        | 13 ++++++
- src/cmd/compile/internal/gc/pgen.go         |  4 +-
- src/cmd/compile/internal/gc/reflect.go      |  4 +-
- src/cmd/compile/internal/gc/ssa.go          | 40 +++++++++---------
- src/cmd/compile/internal/types/sym.go       |  6 +++
- src/cmd/internal/obj/arm/asm5.go            |  1 +
- src/cmd/internal/obj/wasm/wasmobj.go        |  2 +
- src/cmd/internal/obj/x86/asm6.go            |  1 +
- src/cmd/internal/objabi/symkind.go          |  7 ++++
- src/cmd/internal/objabi/symkind_string.go   |  4 +-
- src/cmd/link/internal/ld/deadcode.go        | 12 +++++-
- src/cmd/link/internal/ld/go.go              | 16 ++++++++
- src/cmd/link/internal/ld/lib.go             | 32 ++++++++++++++-
- src/cmd/link/internal/ld/symtab.go          |  2 +-
- src/cmd/link/internal/ppc64/asm.go          |  2 +-
- src/cmd/link/internal/sym/symbols.go        |  2 +
- src/cmd/link/internal/sym/symkind.go        |  4 ++
- src/cmd/link/internal/sym/symkind_string.go |  4 +-
- 20 files changed, 196 insertions(+), 34 deletions(-)
+ src/cmd/go/script_test.go                             | 1 +
+ src/cmd/go/testdata/script/README                     | 2 +-
+ src/cmd/go/testdata/script/install_rebuild_gopath.txt | 3 +--
+ 3 files changed, 3 insertions(+), 3 deletions(-)

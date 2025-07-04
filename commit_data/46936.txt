@@ -1,21 +1,30 @@
-commit ee92daae25029882979eb694bd7246491e364d3c
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Mon Sep 20 20:44:50 2021 +0800
+commit 7b679617f3bb532fe65d8e83365b9f1f41b01b00
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 11 11:54:46 2021 -0500
 
-    runtime: ensure at least 1 tick between events
+    [dev.typeparams] go/types: conversions to type parameters are not constant
     
-    ticks might be same after tick division, although the real cputicks
-    is linear growth
+    This is a port of CL 290471 to go/types. However, this change preserves
+    the existing check for constant types in recordTypeAndValue, which uses
+    is(..., isConstType) rather than the isConstType predicate. In types2,
+    this code path is not hit with type parameters because convertUntyped
+    walks the type list in order before calling updateExprType with the type
+    parameter, at which point the expression type would have already been
+    recorded as the first element of the type list -- probably something
+    that should be corrected.
     
-    Fixes #46737
+    Longer term, I believe we actually could allow const type parameters if
+    the optype is a sum of constant types.
     
-    Change-Id: I1d98866fbf21b426c6c1c96cc9cf802d7f440f18
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330849
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Iaa91ffa740b5f08a5696bd96918a866bffd7aef6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291323
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/trace.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/go/types/check.go           |  4 +++-
+ src/go/types/examples/types.go2 | 17 +++++++++++++++++
+ src/go/types/predicates.go      |  9 +++++++--
+ 3 files changed, 27 insertions(+), 3 deletions(-)

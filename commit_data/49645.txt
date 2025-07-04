@@ -1,25 +1,23 @@
-commit 2aa473cc54128c1498f80263763a2a876308e565
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 13 15:18:41 2022 -0400
+commit d13d62c49adca86f2101bc0b7d5a394197ece81b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 1 14:57:18 2021 +0200
 
-    go/types, types2: correct alignment of atomic.Int64
+    os, syscall: remove fallback to pipe syscall on Linux
     
-    atomic.Int64 has special logic in the compiler to ensure it's 8-byte
-    aligned on 32-bit architectures. The equivalent logic is missing in
-    go/types, which means the compiler and go/types can come to different
-    conclusions about the layout of types.
+    The minimum required Linux kernel version for Go 1.18 will be changed to
+    2.6.32, see #45964. The pipe2 syscall was added in 2.6.27, so the
+    fallback to use the pipe syscall in os.Pipe and syscall.forkExecPipe on
+    Linux can be removed.
     
-    Fix this by mirroring the compiler's logic into go/types.
+    For #45964
     
-    Fixes #53884.
-    
-    Change-Id: I3f58a56babb76634839a161ca174c8f085fe3ba4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417555
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I033a534f2b39e9bafc9980c9ce980e92f1e3a136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346789
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/types/size.go        |  2 ++
- src/cmd/compile/internal/types2/sizes.go      | 23 +++++++++++++++
- src/cmd/compile/internal/types2/sizes_test.go | 41 ++++++++++++++++++++++++++-
- src/go/types/sizes.go                         | 23 +++++++++++++++
- src/go/types/sizes_test.go                    | 41 ++++++++++++++++++++++++++-
- 5 files changed, 128 insertions(+), 2 deletions(-)
+ src/os/pipe_linux.go      | 15 +--------------
+ src/syscall/exec_linux.go | 14 +-------------
+ 2 files changed, 2 insertions(+), 27 deletions(-)

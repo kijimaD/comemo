@@ -1,19 +1,18 @@
-commit 0cb04168d3e9f2f30dc8a65b68839546c10a5d45
+commit 6e9506a7b45958665c3f48deecc8555f3ee2c42b
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Aug 7 10:09:24 2012 +0800
+Date:   Tue Aug 7 09:57:14 2012 +0800
 
-    cmd/5l: dwarf line number support for Linux/ARM
-       Part of issue 3747.
+    math, runtime: use a NaN that matches gcc's
+            our old choice is not working properly at least on VFPv2 in
+    ARM1136JF-S (it's not preserved across float64->float32 conversions).
     
-    R=dave, lvd, rsc
+            Fixes #3745.
+    
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6084044
+    https://golang.org/cl/6344078
 
- src/cmd/5l/asm.c       | 17 ++++++-----------
- src/cmd/5l/l.h         |  9 +++++++++
- src/cmd/5l/noop.c      | 31 ++++++-------------------------
- src/cmd/5l/obj.c       |  2 ++
- src/cmd/5l/softfloat.c |  1 +
- src/cmd/5l/span.c      |  8 ++++++++
- src/cmd/dist/build.c   |  9 +--------
- 7 files changed, 33 insertions(+), 44 deletions(-)
+ src/pkg/math/all_test.go | 11 +++++++++++
+ src/pkg/math/bits.go     |  2 +-
+ src/pkg/runtime/float.c  |  2 +-
+ 3 files changed, 13 insertions(+), 2 deletions(-)

@@ -1,15 +1,14 @@
-commit f9379eb3467d2b6feb8fb0c7c2c366b81408305d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Aug 20 12:28:51 2015 +1000
+commit c9372619f2b6cfc7edff790b20b67e2ce5d8e044
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 30 21:16:51 2015 -0700
 
-    make.bash: abort if $GOROOT_BOOTSTRAP == $GOROOT
+    [dev.ssa] cmd/compile/internal/gc: fix stringsym call
     
-    Fixes #12214
+    Forgot to add this in the tip merge.
     
-    Change-Id: I82586b54ac7b9c0c71055bb66b921e3efbf4977c
-    Reviewed-on: https://go-review.googlesource.com/13719
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I0e5a2681133f4ae7a7c360ae2c2d71d46420c693
+    Reviewed-on: https://go-review.googlesource.com/11793
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/make.bash | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

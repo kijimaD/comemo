@@ -1,16 +1,20 @@
-commit 35244d8fd160f6aa7614f4daa7bfccda1a518510
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Nov 16 13:27:55 2018 -0500
+commit db2f680fdfc9118013cb3996e3ea8664c196e6ba
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 24 19:10:08 2018 -0400
 
-    cmd/go: vet: provide package ID to the vet tool
+    cmd/go: allow internal imports based on module paths
     
-    This field, which matches the IDs used by go list, will enable all vet
-    drivers to produce JSON output in a consistent format (a map from
-    package ID to analysis name to result).
+    Updates #23970.
     
-    Change-Id: Icac703b944de55df42c996dc2f672005014ad57a
-    Reviewed-on: https://go-review.googlesource.com/c/149960
+    Change-Id: I2e69ad15b9d1097bfeef9947f03cfa6834a6a049
+    Reviewed-on: https://go-review.googlesource.com/125676
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/work/exec.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/internal/load/pkg.go                    | 31 ++++++++++-----
+ .../mod/golang.org_notx_useinternal_v0.1.0.txt     | 13 +++++++
+ .../testdata/mod/golang.org_x_internal_v0.1.0.txt  | 43 +++++++++++++++++++++
+ .../mod/golang.org_x_useinternal_v0.1.0.txt        | 13 +++++++
+ src/cmd/go/testdata/script/mod_internal.txt        | 44 ++++++++++++++++++++++
+ 5 files changed, 135 insertions(+), 9 deletions(-)

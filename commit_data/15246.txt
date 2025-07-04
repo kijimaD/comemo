@@ -1,21 +1,19 @@
-commit d340a89d9c872438841e9f3ff90e6baa6fa3d8ce
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 14 14:46:15 2013 -0500
+commit 2cd96806f4b04545b056ddaa53234fd15e821a1f
+Author: Michael Matloob <matloob@google.com>
+Date:   Thu Feb 14 11:26:21 2013 -0800
 
-    encoding/json: roll back Unmarshal optimization + test
+    go/parser: stop ParseFile after ten errors.
     
-    The second attempt at the Unmarshal optimization allowed
-    panics to get out of the json package. Add test for that bug
-    and remove the optimization.
+    There wil be a panic if more than ten errors are encountered. ParseFile
+    will recover and return the ErrorList.
     
-    Let's stop trying to optimize Unmarshal.
+    Fixes #3943.
     
-    Fixes #4784.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/7300108
+    https://golang.org/cl/7307085
 
- src/pkg/encoding/json/decode.go      | 20 +-------------------
- src/pkg/encoding/json/decode_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 19 deletions(-)
+ src/pkg/go/parser/error_test.go |  1 +
+ src/pkg/go/parser/interface.go  | 53 ++++++++++++++++++++++-------------------
+ src/pkg/go/parser/parser.go     |  6 +++++
+ 3 files changed, 36 insertions(+), 24 deletions(-)

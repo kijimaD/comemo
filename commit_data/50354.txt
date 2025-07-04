@@ -1,16 +1,19 @@
-commit 50bb42a46f177d117acd2050e5b498ea15f06332
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Sep 3 07:14:29 2022 +0800
+commit 2be5b846650aa4674a4eca7c11f303673b69a35a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 18 10:59:29 2021 -0700
 
-    net/http: using strings.Builder
+    cmd/compile: allow importing and exporting of ODYNAMICTYPE
     
-    Change-Id: I5d4c89a8d87a8697d038bf91b17d7ffc847a49c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428137
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2fca7a801c85ed93c002c23bfcb0cf9593f1bdf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356571
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/net/http/triv.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 13 ++++++++++
+ src/cmd/compile/internal/typecheck/iimport.go |  8 +++++++
+ test/typeparam/issue49027.dir/a.go            | 34 +++++++++++++++++++++++++++
+ test/typeparam/issue49027.dir/main.go         |  8 +++++++
+ 4 files changed, 63 insertions(+)

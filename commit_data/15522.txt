@@ -1,28 +1,14 @@
-commit 7556ccc7b1763d94b64b04fd7d1ada368397e647
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 1 00:27:57 2013 -0500
+commit df60c0a3b8128db948ee3bac6e7e69bb8832faea
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 1 14:57:59 2013 +1100
 
-    cmd/cgo, cmd/ld: new cgo object file section
+    html/template: fix doc typo
     
-    Switch to new pragma names, but leave old ones available for now.
-    Merge the three cgo-related sections in the .6 files into a single
-    cgo section.
+    Fixes #4950.
     
-    R=golang-dev, iant, ality
+    R=golang-dev, peter
     CC=golang-dev
-    https://golang.org/cl/7424048
+    https://golang.org/cl/7415046
 
- src/cmd/5c/swt.c    |  16 +--
- src/cmd/6c/swt.c    |  16 +--
- src/cmd/8c/swt.c    |  16 +--
- src/cmd/cc/cc.h     |  25 +----
- src/cmd/cc/dpchk.c  | 147 ++++++++++++++-------------
- src/cmd/cc/lex.c    |   3 +
- src/cmd/cc/lexbody  |  17 +---
- src/cmd/cc/macbody  |  12 +--
- src/cmd/cgo/doc.go  |  35 ++++---
- src/cmd/cgo/out.go  |  24 +++--
- src/cmd/ld/go.c     | 285 +++++++++++++++++++---------------------------------
- src/cmd/ld/lib.h    |   1 +
- src/cmd/ld/symtab.c |   9 ++
- 13 files changed, 240 insertions(+), 366 deletions(-)
+ src/pkg/html/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

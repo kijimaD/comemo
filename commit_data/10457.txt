@@ -1,12 +1,19 @@
-commit 29e3ef88af1aa9cf75a6a006a72b48055a49050b
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Nov 18 18:24:59 2011 -0500
+commit 10e012c85fa95ec24d039dcfa710e8d3cd75839d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 18 13:10:15 2011 -0800
 
-    cgo: document export of Go functions to C.
+    template/parse: rename Set to Parse
+    Preamble to the simplification of the template API.
+    Although the signature of Parse (nee Set) changes,
+    it's really an internal function, used only by
+    text/template.
     
-    R=mpimenov, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5376082
+    R=golang-dev, rsc, gri, r
+    CC=golang-dev
+    https://golang.org/cl/5415052
 
- src/cmd/cgo/doc.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/pkg/text/template/parse/Makefile |  1 -
+ src/pkg/text/template/parse/parse.go | 27 +++++++++++++++++++--------
+ src/pkg/text/template/parse/set.go   | 15 ---------------
+ src/pkg/text/template/set.go         |  3 ++-
+ 4 files changed, 21 insertions(+), 25 deletions(-)

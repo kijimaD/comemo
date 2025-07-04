@@ -1,17 +1,48 @@
-commit fc6280d4b01923dd377fa92a2b5dcaef5b253ef3
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Mar 22 15:00:12 2018 +0100
+commit 4fcc835971ad63cf913ebe074ef6191e35a44ab9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Nov 2 13:53:16 2017 -0700
 
-    test/codegen: port direct comparisons with memory tests
+    archive/zip: add FileHeader.NonUTF8 field
     
-    And remove them from asm_test.
+    The NonUTF8 field provides users with a way to explictly tell the
+    ZIP writer to avoid setting the UTF-8 flag.
+    This is necessary because many readers:
+            1) (Still) do not support UTF-8
+            2) And use the local system encoding instead
     
-    Change-Id: I1ca29b40546d6de06f20bfd550ed8ff87f495454
-    Reviewed-on: https://go-review.googlesource.com/102115
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Thus, even though character encodings other than CP-437 and UTF-8
+    are not officially supported by the ZIP specification, pragmatically
+    the world has permitted use of them.
+    
+    When a non-standard encoding is used, it is the user's responsibility
+    to ensure that the target system is expecting the encoding used
+    (e.g., producing a ZIP file you know is used on a Chinese version of Windows).
+    
+    We adjust the detectUTF8 function to account for Shift-JIS and EUC-KR
+    not being identical to ASCII for two characters.
+    
+    We don't need an API for users to explicitly specify that they are encoding
+    with UTF-8 since all single byte characters are compatible with all other
+    common encodings (Windows-1256, Windows-1252, Windows-1251, Windows-1250,
+    IEC-8859, EUC-KR, KOI8-R, Latin-1, Shift-JIS, GB-2312, GBK) except for
+    the non-printable characters and the backslash character (all of which
+    are invalid characters in a path name anyways).
+    
+    Fixes #10741
+    
+    Change-Id: I9004542d1d522c9137973f1b6e2b623fa54dfd66
+    Reviewed-on: https://go-review.googlesource.com/75592
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 49 ---------------------------------
- test/codegen/comparisons.go             | 39 ++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 49 deletions(-)
+ src/archive/zip/reader.go                 |  18 +++++++++
+ src/archive/zip/reader_test.go            |  65 +++++++++++++++++++++++++++++-
+ src/archive/zip/struct.go                 |  20 +++++++--
+ src/archive/zip/testdata/utf8-7zip.zip    | Bin 0 -> 146 bytes
+ src/archive/zip/testdata/utf8-infozip.zip | Bin 0 -> 162 bytes
+ src/archive/zip/testdata/utf8-osx.zip     | Bin 0 -> 138 bytes
+ src/archive/zip/testdata/utf8-winrar.zip  | Bin 0 -> 146 bytes
+ src/archive/zip/testdata/utf8-winzip.zip  | Bin 0 -> 146 bytes
+ src/archive/zip/writer.go                 |  21 ++++++----
+ src/archive/zip/writer_test.go            |   8 ++++
+ 10 files changed, 119 insertions(+), 13 deletions(-)

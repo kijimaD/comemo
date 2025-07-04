@@ -1,35 +1,13 @@
-commit eafc482d4f091c4ddd2178098d94831d1e2f25ab
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 22 22:43:49 2014 -0500
+commit 841de809bb9d36ea7949b67857978d35f4fcc2f2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 21 15:59:22 2014 +1100
 
-    runtime: change Gobuf.g to uintptr, not pointer
+    [dev.cc] runtime: windows does not use _cgo_setenv and _cgo_unsetenv
     
-    The Gobuf.g goroutine pointer is almost always updated by assembly code.
-    In one of the few places it is updated by Go code - func save - it must be
-    treated as a uintptr to avoid a write barrier being emitted at a bad time.
-    Instead of figuring out how to emit the write barriers missing in the
-    assembly manipulation, change the type of the field to uintptr, so that
-    it does not require write barriers at all.
-    
-    Goroutine structs are published in the allg list and never freed.
-    That will keep the goroutine structs from being collected.
-    There is never a time that Gobuf.g's contain the only references
-    to a goroutine: the publishing of the goroutine in allg comes first.
-    
-    Goroutine pointers are also kept in non-GC-visible places like TLS,
-    so I can't see them ever moving. If we did want to start moving data
-    in the GC, we'd need to allocate the goroutine structs from an
-    alternate arena. This CL doesn't make that problem any worse.
-    
-    Found with GODEBUG=wbshadow=1 mode.
-    Eventually that will run automatically, but right now
-    it still detects other missing write barriers.
-    
-    Change-Id: I85f91312ec3e0ef69ead0fff1a560b0cfb095e1a
-    Reviewed-on: https://go-review.googlesource.com/2065
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/175480043
 
- src/runtime/proc1.go    |  7 +++----
- src/runtime/runtime2.go | 26 +++++++++++++++++++++++++-
- 2 files changed, 28 insertions(+), 5 deletions(-)
+ src/runtime/proc.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

@@ -1,17 +1,22 @@
-commit 3cc24aa9ab06a57751c08e8bfeb9fc84e82e1ca5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 15 14:17:56 2015 -0800
+commit 97055dc1f16ef430b85fb6f8d2bd07a2695afa69
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Oct 8 22:13:44 2015 +1300
 
-    go/constant: use Float.Rat method instead of doing it manually
+    cmd/compile, cmd/internal/obj: centralize knowledge of size of fixed part of stack
     
-    Also fixed conversion bug and added corresponding test case.
+    Shared libraries on ppc64le will require a larger minimum stack frame (because
+    the ABI mandates that the TOC pointer is available at 24(R1)). Part 2a of
+    preparing for that is to have all bits of arch-independent and ppc64-specific
+    codegen that need to know call a function to find out.
     
-    Change-Id: I26f143fbc8d40a6d073ecb095e61b461495f3d68
-    Reviewed-on: https://go-review.googlesource.com/17872
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I55899f73037e92227813c491049a3bd6f30bd41f
+    Reviewed-on: https://go-review.googlesource.com/15524
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/constant/value.go      | 54 +++++++++++++++----------------------------
- src/go/constant/value_test.go |  1 +
- 2 files changed, 20 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/gc/cgen.go    | 56 ++++++----------------------------
+ src/cmd/compile/internal/gc/gsubr.go   |  4 +--
+ src/cmd/compile/internal/ppc64/ggen.go |  6 ++--
+ src/cmd/internal/obj/link.go           | 13 ++++++++
+ src/cmd/internal/obj/ppc64/asm9.go     |  4 +--
+ src/cmd/internal/obj/ppc64/obj9.go     |  6 ++--
+ 6 files changed, 32 insertions(+), 57 deletions(-)

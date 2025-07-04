@@ -1,21 +1,47 @@
-commit cf68fac7e76acc79fc55f7db5f6e7064a26afbbe
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Fri Mar 20 12:22:49 2015 +0100
+commit 77ccb16eb12f461eaea5fdf652a2e929dc154192
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 24 12:19:01 2015 -0500
 
-    mime/quotedprintable: accept badly encoded bytes
+    cmd/internal/gc: transitive inlining
     
-    RFC 2045 says:
-        An "=" followed by two hexadecimal digits, one or both
-        of which are lowercase letters in "abcdef", is formally
-        illegal. A robust implementation might choose to
-        recognize them as the corresponding uppercase letters.
+    Inlining refuses to inline bodies containing an actual function call, so that
+    if that call or a child uses runtime.Caller it cannot observe
+    the inlining.
     
-        https://tools.ietf.org/html/rfc2045#page-22
+    However, inlining was also refusing to inline bodies that contained
+    function calls that were themselves inlined away. For example:
     
-    Change-Id: Ibb4b1e4b8bf4fa65ff895ba486a931d90308bf70
-    Reviewed-on: https://go-review.googlesource.com/7891
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+            func f() int {
+                    return f1()
+            }
+    
+            func f1() int {
+                    return f2()
+            }
+    
+            func f2() int {
+                    return 2
+            }
+    
+    The f2 call in f1 would be inlined, but the f1 call in f would not,
+    because f1's call to f2 blocked the inlining, despite itself eventually
+    being inlined away.
+    
+    Account properly for this kind of transitive inlining and enable.
+    
+    Also bump the inlining budget a bit, so that the runtime's
+    heapBits.next is inlined.
+    
+    This reduces the time for '6g *.go' in html/template by around 12% (!).
+    (For what it's worth, closing Chrome reduces the time by about 17%.)
+    
+    Change-Id: If1aa673bf3e583082dcfb5f223e67355c984bfc1
+    Reviewed-on: https://go-review.googlesource.com/5952
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/mime/quotedprintable/reader.go      | 3 +++
- src/mime/quotedprintable/reader_test.go | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/internal/gc/go.go  |  1 +
+ src/cmd/internal/gc/inl.go | 71 +++++++++++++++++++++++++++++++++-------------
+ src/cmd/internal/gc/lex.go | 20 ++++++-------
+ test/escape4.go            |  8 +++---
+ test/inline.go             | 24 ++++++++++++++++
+ 5 files changed, 89 insertions(+), 35 deletions(-)

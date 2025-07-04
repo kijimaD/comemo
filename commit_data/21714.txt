@@ -1,21 +1,14 @@
-commit e31e35a0dea212bba08d85449554dad2969a2d91
-Author: Rick Hudson <rlh@golang.org>
-Date:   Tue Feb 24 17:49:55 2015 -0500
+commit 4a1756824fb609952c884b4210421ca9e315e1c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 29 14:18:52 2015 -0800
 
-    runtime: reset gcscanvalid and gcworkdone when GODEBUG=gctrace=2
+    test/closure2.go: correctly "use" tmp
     
-    When GODEBUG=gctrace=2 two gcs are preformed. During the first gc
-    the stack scan sets the g's gcscanvalid and gcworkdone flags to true
-    indicating that the stacks have to be scanned and do not need to
-    be rescanned. These need to be reset to false for the second GC so the
-    stacks are rescanned, otherwise if the only pointer to an object is
-    on the stack it will not be discovered and the object will be freed.
-    Typically this will include the object that was just allocated in
-    the mallocgc call that initiated the GC.
+    cmd/go doesn't complain (this is an open issue), but go/types does
     
-    Change-Id: Ic25163f4689905fd810c90abfca777324005c02f
-    Reviewed-on: https://go-review.googlesource.com/5861
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2caec1f7aec991a9500d2c3504c29e4ab718c138
+    Reviewed-on: https://go-review.googlesource.com/3541
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ test/closure2.go | 1 +
+ 1 file changed, 1 insertion(+)

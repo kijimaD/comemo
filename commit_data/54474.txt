@@ -1,19 +1,23 @@
-commit 7d0b611dbee183ada5e16be9884b90c3cf64fe3f
-Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
-Date:   Mon Sep 11 11:27:30 2023 -0700
+commit 99fcacfe9a09c5df0787eda15ace0f473c50363c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Oct 21 14:28:46 2022 -0400
 
-    runtime/pprof: TestVMInfo reworked to avoid test flakiness.
+    cmd/go: don't print cached output for non-build list commands
     
-    Fixes #62352.
+    If a user is running a go list command that wouldn't trigger a build
+    (for example if -export was passed), don't print the cached stdout
+    outputs for previous builds of the artifacts.
     
-    Change-Id: Ib137a5f39d4630c4737badfabe8e6740593ecbcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527276
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #56375
+    
+    Change-Id: I1d3e6c01d0eb3dada941bb2783ce2ac69aa3d5d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444836
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/pprof/vminfo_darwin_test.go | 31 +++++++++++++++++++++----------
- 1 file changed, 21 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/work/buildid.go                | 43 ++++++++++++----------
+ src/cmd/go/internal/work/exec.go                   |  6 +--
+ .../go/testdata/script/list_compiler_output.txt    | 16 ++++++++
+ 3 files changed, 43 insertions(+), 22 deletions(-)

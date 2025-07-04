@@ -1,21 +1,21 @@
-commit adc19ac5e3fc4914df4b09400686c964e379532b
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Jul 13 11:38:00 2012 +0200
+commit 37519d950d24a466ea96d7a65164ceaab17a40e0
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 12 20:53:17 2012 -0700
 
-    exp/locale/collate: adjusted contraction trie to support Myanmar (Burmese),
-    which has a rather large contraction table. The value of the next state
-    offset now starts after the current block, instead of before.  This is
-    slightly less efficient (on extra addition per state change), but gives
-    some extra range for the offsets.
-    Also introduced constants for final (0) and noIndex (0xFF).
-    tables.go is updated in a separate CL.
+    encoding/gob: reduce decoder memory
+    Gob decoding reads a whole message into memory and then
+    copies it into a bytes.Buffer. For large messages this wastes
+    an entire copy of the message. In this CL, we use a staging
+    buffer to avoid the large temporary.
     
-    R=r
+    Update #2539
+    RSS drops to 775MB from 1GB.
+    Active memory drops to 858317048 from 1027878136,
+    essentially the size of one copy of the input file.
+    
+    R=dsymonds, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6346092
+    https://golang.org/cl/6392057
 
- src/pkg/exp/locale/collate/build/contract.go      | 33 +++++++------
- src/pkg/exp/locale/collate/build/contract_test.go | 56 +++++++++++------------
- src/pkg/exp/locale/collate/contract.go            | 13 ++++--
- src/pkg/exp/locale/collate/contract_test.go       | 28 ++++++------
- 4 files changed, 70 insertions(+), 60 deletions(-)
+ src/pkg/encoding/gob/decoder.go | 37 +++++++++++++++++++++++++++----------
+ 1 file changed, 27 insertions(+), 10 deletions(-)

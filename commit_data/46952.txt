@@ -1,23 +1,15 @@
-commit 7999fd4710e7f987e86d7b32dd9af31ced4810ba
-Author: Matt T. Proud <matt.proud@gmail.com>
-Date:   Tue Oct 19 10:09:06 2021 +0200
+commit 84953420fbf8d7ecb86c3521fc585c8c383ac100
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Feb 18 16:16:29 2021 -0500
 
-    errors: mention Is methods should not call Unwrap
+    [dev.fuzz] all: add codereview.cfg
     
-    errors.Is internally unwraps the error until the error matches the
-    target. Because of this, a user-authored Is method on an error type
-    need not call errors.Unwrap on itself or the target, because that would
-    make the unwrapping operation O(N^2). It is a subtle detail to remind
-    authors for resource efficiency reasons.
+    This will enable the new "git-codereview sync-branch" command.
     
-    Change-Id: Ic1ba59a5bdbfe2c7cb51a2cba2537ab6de4a13ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356789
-    Reviewed-by: Jean de Klerk <deklerk@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Jean de Klerk <deklerk@google.com>
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Jean de Klerk <deklerk@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Id2f933f6d13e181817c56d2548172a74b1d0b629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293909
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/errors/wrap.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ codereview.cfg | 2 ++
+ 1 file changed, 2 insertions(+)

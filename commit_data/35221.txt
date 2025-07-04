@@ -1,28 +1,15 @@
-commit 60c76f7656f24074b7708369c1628835c89118da
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 30 08:42:03 2018 -0700
+commit 9f31353a6cc4c1ee3a74e6dd0ebf6c08579d50a1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jan 13 15:28:42 2018 +0000
 
-    cmd/compile: optimize bvec routines
+    cmd/go: use Windows %AppData% for build cache if %LocalAppData% is empty
     
-    The recent improvements to the prove pass
-    make it possible to provide bounds
-    hints to the compiler in some bvec routines.
+    Fixes #23190
     
-    This speeds up the compilation of the code in
-    
-    name  old time/op       new time/op       delta
-    Pkg         7.93s ± 4%        7.69s ± 3%  -2.98%  (p=0.000 n=29+26)
-    
-    While we're here, clean up some C-isms.
-    
-    Updates #13554
-    Updates #20393
-    
-    Change-Id: I47a0ec68543a9fc95c5359c3f37813fb529cb4f0
-    Reviewed-on: https://go-review.googlesource.com/110560
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I96805aaab44ddaae6098b4e3af30f9e52585eae0
+    Reviewed-on: https://go-review.googlesource.com/87675
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bv.go | 25 +++++++++++++++++++------
- 1 file changed, 19 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/cache/default.go | 5 +++++
+ 1 file changed, 5 insertions(+)

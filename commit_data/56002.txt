@@ -1,18 +1,51 @@
-commit 334835e6b3e115919068b662133b975c1de0eccb
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 20 11:25:45 2024 -0700
+commit bb44c2b54edc36e891824dc895d712a2243cc522
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 17 16:00:57 2022 -0500
 
-    cmd/compile/internal/noder: remove wrapName
+    sync: implement OnceFunc, OnceValue, and OnceValues
     
-    The OPARENs inserted here used to be necessary for better error
-    diagnostics, but now those are handled by types2.
+    This adds the three functions from #56102 to the sync package. These
+    provide a convenient API for the most common uses of sync.Once.
     
-    Change-Id: I88d50d34d9e00cdd7d0fb32f6e460a179345a787
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573115
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The performance of these is comparable to direct use of sync.Once:
+    
+    $ go test -run ^$ -bench OnceFunc\|OnceVal -count 20 | benchstat -row .name -col /v
+    goos: linux
+    goarch: amd64
+    pkg: sync
+    cpu: 11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz
+              │     Once     │                Global                 │                Local                 │
+              │    sec/op    │    sec/op     vs base                 │    sec/op     vs base                │
+    OnceFunc    1.3500n ± 6%   2.7030n ± 1%  +100.22% (p=0.000 n=20)   0.3935n ± 0%  -70.86% (p=0.000 n=20)
+    OnceValue   1.3155n ± 0%   2.7460n ± 1%  +108.74% (p=0.000 n=20)   0.5478n ± 1%  -58.35% (p=0.000 n=20)
+    
+    The "Once" column represents the baseline of how code would typically
+    express these patterns using sync.Once. "Global" binds the closure
+    returned by OnceFunc/OnceValue to global, which is how I expect these
+    to be used most of the time. Currently, this defeats some inlining
+    opportunities, which roughly doubles the cost over sync.Once; however,
+    it's still *extremely* fast. Finally, "Local" binds the returned
+    closure to a local variable. This unlocks several levels of inlining
+    and represents pretty much the best possible case for these APIs, but
+    is also unlikely to happen in practice. In principle the compiler
+    could recognize that the global in the "Global" case is initialized in
+    place and never mutated and do the same optimizations it does in the
+    "Local" case, but it currently does not.
+    
+    Fixes #56102
+    
+    Change-Id: If7355eccd7c8de7288d89a4282ff15ab1469e420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451356
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Auto-Submit: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/noder/reader.go | 19 +------------------
- src/cmd/compile/internal/noder/writer.go |  1 -
- 2 files changed, 1 insertion(+), 19 deletions(-)
+ api/next/56102.txt                        |   3 +
+ doc/go1.21.html                           |  12 ++
+ src/cmd/compile/internal/test/inl_test.go |   9 +
+ src/sync/oncefunc.go                      |  97 +++++++++++
+ src/sync/oncefunc_test.go                 | 265 ++++++++++++++++++++++++++++++
+ 5 files changed, 386 insertions(+)

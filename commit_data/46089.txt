@@ -1,20 +1,25 @@
-commit c92c2c9d625ff3957d1c9313183fd0fe8f26984e
-Author: eric fang <eric.fang@arm.com>
-Date:   Mon Aug 16 07:25:29 2021 +0000
+commit cd15a48036b7c0e8369b18d6def93a950c35ff0a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 4 13:20:06 2020 -0800
 
-    cmd/internal/obj/arm64: disable the pre and post index formats for pseudo registers
+    [dev.typeparams] cmd/compile/internal/types2: correct error position for inherited const init expression
     
-    When using the FP or SP pseudo-register to load or store, pre-index and post-index formats
-    are not supported because the RSP and pseudo registers are not allowed to be modified in this
-    way. This CL deletes the related entries in optab and adds a few test cases.
+    Enabled fixedbugs/issue8183.go for run.go with new typechecker
+    now that issue is fixed.
     
-    Change-Id: Ie30d27d0e7b959242f0e6298b950489669d07989
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342770
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Fixes #42992.
+    Updates #42991.
+    
+    Change-Id: I23451999983b740d5f37ce3fa75ee756daf1a44f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275517
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64error.s |  4 ++++
- src/cmd/internal/obj/arm64/asm7.go             | 29 ++++----------------------
- 2 files changed, 8 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/types2/check.go           |  1 +
+ src/cmd/compile/internal/types2/decl.go            | 23 ++++++++++++----
+ src/cmd/compile/internal/types2/errors.go          | 11 ++++++++
+ src/cmd/compile/internal/types2/resolver.go        | 15 ++++++-----
+ .../compile/internal/types2/testdata/constdecl.src | 31 ++++++++++++++++++++++
+ test/fixedbugs/issue8183.go                        |  6 ++---
+ test/run.go                                        |  1 -
+ 7 files changed, 72 insertions(+), 16 deletions(-)

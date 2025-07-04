@@ -1,18 +1,29 @@
-commit eb69476c66339ca494f98e65a78d315da99a9c79
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu May 12 13:55:46 2016 -0700
+commit 0bb62299b0a37b68fa3bb40a0fe449858e162809
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 23 16:17:44 2016 +0100
 
-    text/template: detect pathologically recursive template invocations
+    misc/ios: deflake tests on darwin/arm{,arm64}
     
-    Return an error message instead of eating memory and eventually
-    triggering a stack overflow.
+    A retry mechanism is in place to combat the inherent flakiness of
+    launching iOS test binaries. Before it covered just the starting of
+    lldb; expand it to cover the setup steps as well. Note that the
+    running of the binary itself is (still) not retried, to avoid
+    covering over genuine bugs.
     
-    Fixes #15618
+    On my test device (iPhone 5S, iOS 9.3) starting lldb can take longer
+    than 10 seconds, so increase the timeout for that.
+    Furthermore, some basic steps such as setting breakpoints in lldb
+    can take longer than the 1 second timeout. Increase that timeout
+    as well, to 2 seconds.
     
-    Change-Id: I3dcf1d669104690a17847a20fbfeb6d7e39e8751
-    Reviewed-on: https://go-review.googlesource.com/23091
-    Reviewed-by: Rob Pike <r@golang.org>
+    Finally, improve the error message for when ios-deploy is not
+    installed.
+    
+    For #14318
+    
+    Change-Id: Iba41d1bd9d023575b9454cb577b08f8cae081c2a
+    Reviewed-on: https://go-review.googlesource.com/21072
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/text/template/exec.go      | 19 +++++++++++++++----
- src/text/template/exec_test.go | 13 +++++++++++++
- 2 files changed, 28 insertions(+), 4 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

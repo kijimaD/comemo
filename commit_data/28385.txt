@@ -1,19 +1,20 @@
-commit f03855f40ef131de6c0881ec12996a747be05a83
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 14 16:49:44 2016 -0700
+commit d603c27c6b462f044a7079ce5113d90bb3ca4814
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 18 13:04:00 2016 -0700
 
-    cmd/compile: remove ginscon2 functions
+    cmd/compile: large ptr literals must escape
     
-    These are no longer reachable as gins dispatches to ginscon for all
-    arch-specific instructions anyway.
+    They get rewritten to NEWs, and they must be marked as escaping
+    so walk doesn't try to allocate them back onto the stack.
     
-    Change-Id: I7f34883c16058308d8afa0f960dcf554af31bfe4
-    Reviewed-on: https://go-review.googlesource.com/29211
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #15733
+    
+    Change-Id: I433033e737c3de51a9e83a5a273168dbc9110b74
+    Reviewed-on: https://go-review.googlesource.com/23223
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/arm64/gsubr.go | 35 ----------------------------
- src/cmd/compile/internal/ppc64/gsubr.go | 41 ---------------------------------
- src/cmd/compile/internal/s390x/gsubr.go | 39 -------------------------------
- 3 files changed, 115 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  2 +-
+ test/fixedbugs/issue15733.go       | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

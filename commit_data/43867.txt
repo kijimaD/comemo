@@ -1,20 +1,19 @@
-commit ba2adc21e8c416c47dec5fbce76286758f15b177
-Author: Austin Clements <austin@google.com>
-Date:   Fri Nov 20 17:09:23 2020 -0500
+commit a7e9e84716e2d39b1e7ea7f231334c88f2428260
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Mon Apr 27 09:51:01 2020 -0400
 
-    runtime/testdata/testprogcgo: refactor CrashTraceback
+    math/big: simplify hasVX checking on s390x
     
-    This moves the C part of the CrashTraceback test into its own file in
-    preparation for adding a test that transitions back into Go.
+    Originally, we use an assembly function that returns a boolean result to
+    tell whether the machine has vector facility or not. It is now no longer
+    needed when we can directly use cpu.S390X.HasVX variable.
     
-    Change-Id: I9560dcfd80bf8a1d30809fd360f958f5261ebb01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272130
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic1dae851982532bcfd9a9453416c112347f21d87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230318
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/testdata/testprogcgo/traceback.go  | 58 +++-----------------------
- src/runtime/testdata/testprogcgo/traceback_c.c | 58 ++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 53 deletions(-)
+ src/math/big/arith_decl_s390x.go |  5 +++--
+ src/math/big/arith_s390x.s       | 22 ----------------------
+ 2 files changed, 3 insertions(+), 24 deletions(-)

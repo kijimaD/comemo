@@ -1,12 +1,13 @@
-commit 606e12f9bfb1b2a6d6f5e7da73bc69c9569329e2
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri May 6 10:00:50 2011 -0700
+commit 8253edcb4c2d78e8fdfbc455beaadaa2c932b635
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 6 17:15:46 2011 +1000
 
-    http: fix typo in URL.String doc comment.
+    wingui: fix Makefile after rename
     
-    R=adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4485046
+    https://golang.org/cl/4477046
 
- src/pkg/http/url.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/wingui/Makefile   | 2 +-
+ src/pkg/exp/wingui/zwinapi.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

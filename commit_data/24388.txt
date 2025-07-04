@@ -1,19 +1,23 @@
-commit 38c5fd5cf872cf2eabad1361342097e11d292c91
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 25 16:35:54 2015 -0700
+commit b8526a83804fa3e75ee3fc2a3a55f27791f6bd8f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 22 16:40:50 2015 -0400
 
-    math/big: implement Float.Text(Un)Marshaler
+    runtime: steal the correct amount of GC assist credit
     
-    Fixes #12256.
+    GC assists are supposed to steal at most the amount of background GC
+    credit available so that background GC credit doesn't go negative.
+    However, they are instead stealing the *total* amount of their debt
+    but only claiming up to the amount of credit that was available. This
+    results in draining the background GC credit pool too quickly, which
+    results in unnecessary assist work.
     
-    Change-Id: Ie4a3337996da5c060b27530b076048ffead85f3b
-    Reviewed-on: https://go-review.googlesource.com/15040
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    The fix is trivial: steal the amount of work we meant to steal (which
+    is already computed).
+    
+    Change-Id: I837fe60ed515ba91c6baf363248069734a7895ef
+    Reviewed-on: https://go-review.googlesource.com/12643
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/floatmarsh.go      | 33 +++++++++++++++++++++++++
- src/math/big/floatmarsh_test.go | 54 +++++++++++++++++++++++++++++++++++++++++
- src/math/big/intmarsh.go        | 27 ++++++++-------------
- src/math/big/intmarsh_test.go   |  6 ++++-
- src/math/big/ratmarsh.go        |  8 +++---
- src/math/big/ratmarsh_test.go   |  4 ++-
- 6 files changed, 109 insertions(+), 23 deletions(-)
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

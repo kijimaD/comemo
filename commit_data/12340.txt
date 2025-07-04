@@ -1,14 +1,17 @@
-commit 95d7d3d658989cb2af98f753b9731a4af3e363be
-Author: Rob Pike <r@golang.org>
-Date:   Sat Mar 3 09:36:09 2012 +1100
+commit 485bf1ed1530d0fb8ee23418ae1e3434909e5942
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 2 14:15:44 2012 -0800
 
-    doc/install-source.html: update for go tool
-    Make some updates, get rid of mentions of make.
-    There remain a number of open questions.
+    Xcode: move Xcode3 specific files into sub directory
     
-    R=golang-dev, gri
+    - makes space for Xcode4 files
+    - added README
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5720057
+    https://golang.org/cl/5720059
 
- doc/install-source.html | 104 ++++++++++++++++++++++--------------------------
- 1 file changed, 48 insertions(+), 56 deletions(-)
+ misc/xcode/3/README              | 3 +++
+ misc/xcode/{ => 3}/go.pbfilespec | 0
+ misc/xcode/{ => 3}/go.xclangspec | 0
+ 3 files changed, 3 insertions(+)

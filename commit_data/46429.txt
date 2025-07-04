@@ -1,29 +1,25 @@
-commit b8c802b1161528fcf8ba78b1dff5720dd5b4eb9f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 10 07:44:02 2021 +0700
+commit 0523d525ae0dea229cffc5634caddd0acbc066af
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 28 16:01:58 2020 -0800
 
-    cmd/compile: prevent importReader reading type parameter twice
+    [dev.regabi] cmd/compile: separate out address taken computation from typechecker
     
-    The importReader always reads type parameter before declaring type stub
-    declaration. Thus, for recursive type, the type parameter is going to be
-    read twice, cause the bound more than once error.
+    This CL computes a second parallel addrtaken bit that we check
+    against the old way of doing it. A subsequent CL will rip out the
+    typechecker code and just use the new way.
     
-    To fix this, only read the type parameter after declaring stub obj, thus
-    r.doDecl can see the type was already inserted and terminate the
-    recursive call earlier.
-    
-    Fixes #48280
-    
-    Change-Id: I272e2f214f739fb8ec71a8628ba297477e1b7755
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349009
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I62b7342c44f694144844695386f80088bbd40bf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275695
+    Trust: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/importer/iimport.go | 12 ++++++------
- test/typeparam/issue48280.dir/a.go           | 11 +++++++++++
- test/typeparam/issue48280.dir/main.go        | 11 +++++++++++
- test/typeparam/issue48280.go                 |  7 +++++++
- 4 files changed, 35 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/inline/inl.go          |  1 +
+ src/cmd/compile/internal/ir/name.go             | 21 ++++++++---
+ src/cmd/compile/internal/typecheck/func.go      | 16 +++++++++
+ src/cmd/compile/internal/typecheck/subr.go      | 48 +++++++++++++++++++++++++
+ src/cmd/compile/internal/typecheck/typecheck.go | 24 ++++++++++---
+ src/cmd/compile/internal/walk/order.go          |  3 +-
+ 6 files changed, 104 insertions(+), 9 deletions(-)

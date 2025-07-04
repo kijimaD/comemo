@@ -1,26 +1,27 @@
-commit 6fa37e98ea4382bf881428ee0c150ce591500eb7
-Author: Roland Shoemaker <bracewell@google.com>
-Date:   Tue Jun 7 13:00:43 2022 -0700
+commit 62ba72b35321bd76de18aa8874b021ee02ab8a4e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 1 00:18:13 2021 +0700
 
-    encoding/gob: add a depth limit for ignored fields
+    cmd/compile: fix method expression lookup during import
     
-    Enforce a nesting limit of 10,000 for ignored fields during decoding
-    of messages. This prevents the possibility of triggering stack
-    exhaustion.
+    CL 309831 fixed importing of method expressions, by re-using the same
+    code already have for ODOTMETH. But that code does not work with
+    embedded field.
     
-    Fixes #53615
-    Fixes CVE-2022-30635
+    To fix this, we need to calculate all methods of the receiver base type
+    of method expression, before looking up the selection.
     
-    Change-Id: I05103d06dd5ca3945fcba3c1f5d3b5a645e8fb0f
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1484771
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417064
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Fixes #48088
+    
+    Change-Id: Ia244d36a3ed0f989735eb57becdfa70a81912f57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346489
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/gob/decode.go         | 19 ++++++++++++-------
- src/encoding/gob/gobencdec_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go |  6 ++++--
+ test/fixedbugs/issue48088.dir/a.go            | 22 ++++++++++++++++++++++
+ test/fixedbugs/issue48088.dir/b.go            | 11 +++++++++++
+ test/fixedbugs/issue48088.go                  |  7 +++++++
+ 4 files changed, 44 insertions(+), 2 deletions(-)

@@ -1,14 +1,47 @@
-commit 00681eec6aec03b8b2822c9220fba27c18923c01
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Mon Apr 11 11:15:00 2016 -0300
+commit bdea1d58cfc55a5156c8df392cfc3133589389db
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Fri Feb 19 12:14:42 2016 +0100
 
-    net/http: document Error does not end the request
+    [dev.ssa] cmd/compile/internal/ssa: remove proven redundant controls.
     
-    Fixes #15205
+    * It does very simple bounds checking elimination. E.g.
+    removes the second check in for i := range a { a[i]++; a[i++]; }
+    * Improves on the following redundant expression:
+    return a6 || (a6 || (a6 || a4)) || (a6 || (a4 || a6 || (false || a6)))
+    * Linear in the number of block edges.
     
-    Change-Id: Ia650806756758ca8ed2272b1696e59b809b16c61
-    Reviewed-on: https://go-review.googlesource.com/21836
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    I patched in CL 12960 that does bounds, nil and constant propagation
+    to make sure this CL is not just redundant. Size of pkg/tool/linux_amd64/*
+    (excluding compile which is affected by this change):
+    
+    With IsInBounds and IsSliceInBounds
+    -this -12960 92285080
+    +this -12960 91947416
+    -this +12960 91978976
+    +this +12960 91923088
+    
+    Gain is ~110% of 12960.
+    
+    Without IsInBounds and IsSliceInBounds (older run)
+    -this -12960 95515512
+    +this -12960 95492536
+    -this +12960 95216920
+    +this +12960 95204440
+    
+    Shaves 22k on its own.
+    
+    * Can we handle IsInBounds better with this? In
+    for i := range a { a[i]++; } the bounds checking at a[i]
+    is not eliminated.
+    
+    Change-Id: I98957427399145fb33693173fd4d5a8d71c7cc20
+    Reviewed-on: https://go-review.googlesource.com/19710
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/ssa/compile.go |   5 +
+ src/cmd/compile/internal/ssa/prove.go   | 359 ++++++++++++++++++++++++++++++++
+ test/prove.go                           | 207 ++++++++++++++++++
+ 3 files changed, 571 insertions(+)

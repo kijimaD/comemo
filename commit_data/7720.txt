@@ -1,12 +1,14 @@
-commit a16af59fd1d6daa02bd8b79c7daeb703843264cf
+commit 9e2fbe186d9bf0fabd96df5698824690a065db75
 Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 9 16:53:32 2011 -0800
+Date:   Wed Mar 9 16:47:40 2011 -0800
 
-    fmt: heaven forfend we export EOF = -1
+    Effective Go: some small cleanups.
+    Add discussion of getters.
+    Add example using a map as a set.
     
-    R=adg
+    R=golang-dev, gri, adg, iant
     CC=golang-dev
-    https://golang.org/cl/4248076
+    https://golang.org/cl/4240100
 
- src/pkg/fmt/scan.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ doc/effective_go.html | 81 ++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 60 insertions(+), 21 deletions(-)

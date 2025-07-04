@@ -1,17 +1,47 @@
-commit f7c767edc52e0989b58083c43241a1f21d82915f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 4 16:44:05 2018 -0700
+commit d929e40e9aed54ef7cd9f8853a34334f4f3c8f8e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jan 31 13:59:00 2018 +0100
 
-    cmd/go: don't give an error for an attempt to recreate a symlink
+    syscall: use SYS_GETDENTS64 on linux/mips64{,le}
     
-    When building for gccgo cmd/go uses symlinks for import maps.
-    In some cases, such as TestVendorTest, it generates the same symlink
-    multiple times. Don't give an error when this happens.
+    The getdents64 syscall is only available for mips64/mips64le starting
+    with Linux kernel 3.10. Since mips64le requires at least 4.8 according
+    to [1] (regarding #16848) using it should be fine.
     
-    Change-Id: Iecc154ea1ac53d7c5427b36795881909c5cac7e3
-    Reviewed-on: https://go-review.googlesource.com/111636
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    [1] https://golang.org/wiki/MinimumRequirements
+    
+    This CL changes the binary layout of type Dirent for mips64/mips64le,
+    but not the public API. But since the currently used layout doesn't
+    match the struct linux_dirent returned by the getdents syscall this
+    should be fine as well.
+    
+    Fixes #23624
+    
+    Change-Id: Iaa7306fa6e4442ad2fed41c60b37627a7314f117
+    Reviewed-on: https://go-review.googlesource.com/91055
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/work/exec.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/syscall/syscall_linux.go           | 2 +-
+ src/syscall/syscall_linux_386.go       | 1 -
+ src/syscall/syscall_linux_amd64.go     | 1 -
+ src/syscall/syscall_linux_arm.go       | 1 -
+ src/syscall/syscall_linux_arm64.go     | 1 -
+ src/syscall/syscall_linux_mips64x.go   | 9 +--------
+ src/syscall/syscall_linux_mipsx.go     | 1 -
+ src/syscall/syscall_linux_ppc64x.go    | 1 -
+ src/syscall/syscall_linux_s390x.go     | 1 -
+ src/syscall/zsyscall_linux_386.go      | 2 +-
+ src/syscall/zsyscall_linux_amd64.go    | 2 +-
+ src/syscall/zsyscall_linux_arm.go      | 2 +-
+ src/syscall/zsyscall_linux_arm64.go    | 2 +-
+ src/syscall/zsyscall_linux_mips.go     | 2 +-
+ src/syscall/zsyscall_linux_mips64.go   | 2 +-
+ src/syscall/zsyscall_linux_mips64le.go | 2 +-
+ src/syscall/zsyscall_linux_mipsle.go   | 2 +-
+ src/syscall/zsyscall_linux_ppc64.go    | 2 +-
+ src/syscall/zsyscall_linux_ppc64le.go  | 2 +-
+ src/syscall/zsyscall_linux_s390x.go    | 2 +-
+ src/syscall/ztypes_linux_mips64.go     | 5 +----
+ src/syscall/ztypes_linux_mips64le.go   | 5 +----
+ 22 files changed, 15 insertions(+), 35 deletions(-)

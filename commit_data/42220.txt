@@ -1,28 +1,24 @@
-commit 41f6388e70063fedf3c85f851cf7e685e4480198
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 29 01:45:59 2020 +1000
+commit 4160a71d4206e11d2122d1d9520c55a5b95c2085
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 15 12:26:09 2019 -0500
 
-    cmd/cover: include a package name in the HTML title
+    cmd/dist: fix GOROOT permissions on failure
     
-    A recent change added a title to the HTML coverage report but
-    neglected to include the package name. Add the package name here.
-    It's a little trickier than you'd think because there may be multiple
-    packages and we don't want to parse the files, so we just extract
-    a directory name from the path of the first file.  This will almost
-    always be right, and has the advantage that it gives a better result
-    for package main. There are rare cases it will get wrong, but that
-    will be no hardship.
+    While running various tests for #28387, I keep ending up with an
+    unwritable GOROOT after a failure.
     
-    If this turns out not to be good enough, we can refine it.
+    While the unwritable GOROOT is a fairly exotic condition (normally
+    only happens on builders), it's somewhat annoying when debugging, so
+    I'm switching all of the log.Fatal* call sites to use the existing
+    fatalf function, which supports general atexit-like cleanup.
     
-    Fixes #38609
+    Updates #28387
     
-    Change-Id: I2201f6caef906e0b0258b90d7de518879041fe72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230517
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I473cda7eacd9ad82bdeab647766373126dc7390e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207341
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cover/html.go         | 23 ++++++++++++++++++++++-
- src/cmd/cover/pkgname_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 31 ++++++++++++++-----------------
+ 1 file changed, 14 insertions(+), 17 deletions(-)

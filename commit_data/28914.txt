@@ -1,14 +1,23 @@
-commit ebf827ded7d6997747c96ae8f0f4871c15090d49
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 10:46:55 2016 -0400
+commit e492d9f01890cf61cb009b3b3617238a8947ebbe
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 6 15:02:49 2016 -0700
 
-    testing: wrap long comment line
+    runtime: fix map iterator concurrent map check
     
-    Requested in CL 31324 review.
+    We should check whether there is a concurrent writer at the
+    start of every mapiternext, not just in mapaccessK (which is
+    only called during certain map growth situations).
     
-    Change-Id: Ic81410e07cce07c6f3727bc46d86b6c54c15eca0
-    Reviewed-on: https://go-review.googlesource.com/31410
-    Reviewed-by: Rob Pike <r@golang.org>
+    Tests turned off by default because they are inherently flaky.
+    
+    Fixes #16278
+    
+    Change-Id: I8b72cab1b8c59d1923bec6fa3eabc932e4e91542
+    Reviewed-on: https://go-review.googlesource.com/24749
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/testing/testing.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/crash_test.go            | 37 +++++++++++++++++
+ src/runtime/hashmap.go               |  6 +--
+ src/runtime/testdata/testprog/map.go | 77 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 117 insertions(+), 3 deletions(-)

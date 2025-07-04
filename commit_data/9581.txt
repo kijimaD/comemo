@@ -1,15 +1,13 @@
-commit 2cf66c1d946e1c5646f063f07bc0bd89406a9c9a
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 2 11:00:46 2011 +1000
+commit 5edeef214d571057e360d4a51f3a9cab9b635e85
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Sep 2 10:28:00 2011 +1000
 
-    template: fix deadlock.
-    No need for lexInsideAction to loop.
-    Fixes #2217.
+    exp/template/html: non-semantics changing tweaks to js{,_test}.go
     
-    R=golang-dev, bradfitz
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/4963054
+    https://golang.org/cl/4962049
 
- src/pkg/template/parse/lex.go      | 84 +++++++++++++++++++-------------------
- src/pkg/template/parse/lex_test.go | 14 +++++++
- 2 files changed, 55 insertions(+), 43 deletions(-)
+ src/pkg/exp/template/html/js.go      |  6 ++----
+ src/pkg/exp/template/html/js_test.go | 10 +++++++---
+ 2 files changed, 9 insertions(+), 7 deletions(-)

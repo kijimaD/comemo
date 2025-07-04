@@ -1,25 +1,28 @@
-commit 40c2fbf4f2d56bc180a579d63dcfaf537984d9e5
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 20 08:18:04 2013 +0900
+commit a17c46169f59579788d0ffb82eab875e4f15fc00
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Feb 19 14:42:05 2013 -0500
 
-    net: set up IPv6 scoped addressing zone for network facilities
+    go/types: include package import path in NamedType.String().
     
-    This CL changes nothing to existing API behavior, just sets up
-    Zone in IPNet and IPAddr structures if possible.
+    This avoids ambiguity and makes the diagnostics closer to
+    those issued by gc, but it is more verbose since it qualifies
+    intra-package references.
     
-    Also does small simplification.
+    Without extra context---e.g. a 'from *Package' parameter to
+    Type.String()---we are forced to err on one side or the other.
     
-    Update #4234.
+    Also, cosmetic changes to exp/ssa:
+    - Remove package-qualification workaround in Function.FullName.
+    - Always set go/types.Package.Path field to the import path,
+      since we know the correct path at this point.
+    - In Function.DumpTo, show variadic '...' and result type info,
+      and delete now-redundant "# Type: " line.
     
-    R=rsc, dave
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/7300081
+    https://golang.org/cl/7325051
 
- src/pkg/net/interface_bsd.go     | 50 ++++++++++++++++++----------------------
- src/pkg/net/interface_darwin.go  | 22 ++++++++----------
- src/pkg/net/interface_freebsd.go | 22 ++++++++----------
- src/pkg/net/interface_linux.go   | 20 ++++++++--------
- src/pkg/net/interface_netbsd.go  |  1 +
- src/pkg/net/interface_openbsd.go |  1 +
- src/pkg/net/interface_windows.go |  4 ++++
- 7 files changed, 56 insertions(+), 64 deletions(-)
+ src/pkg/exp/ssa/builder.go | 12 +++++++-----
+ src/pkg/exp/ssa/func.go    | 41 ++++++++++++++++++++++++++---------------
+ src/pkg/go/types/errors.go |  6 +++++-
+ 3 files changed, 38 insertions(+), 21 deletions(-)

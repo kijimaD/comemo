@@ -1,19 +1,22 @@
-commit b86e8dd0f3a27bc9577690523c9feeb25593bec7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 9 10:10:54 2021 +0200
+commit e24d2f3d0513961441904afdf71cafe7808c0be9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Dec 24 18:49:35 2020 +0700
 
-    test/typeparam: fix issue48094b test build
+    [dev.regabi] cmd/compile: remove typ from RangeStmt
     
-    CL 347529 broke the longtest builders due to missing -G=3 flag when
-    compiling the added test.
+    We can use RangeStmt.X.Type() instead.
     
-    Change-Id: I73007801dd6871a8cf3554e957d247f5f56fd641
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348330
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Id63ce9cb046c3b39bcc35453b1602c986794dfe1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279437
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/typeparam/issue48094b.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/stmt.go        |  4 ----
+ src/cmd/compile/internal/typecheck/stmt.go | 17 ++++++++++-------
+ src/cmd/compile/internal/walk/order.go     |  5 +++--
+ src/cmd/compile/internal/walk/range.go     | 14 +++++++-------
+ 4 files changed, 20 insertions(+), 20 deletions(-)

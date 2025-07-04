@@ -1,38 +1,15 @@
-commit fe7ff71185cf30f9bdee3e8d8897e8b6069ad02e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Aug 3 20:11:04 2020 +0000
+commit 9669c3f36149b9ff55f32b99e23299afffb827e8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 9 14:12:17 2020 -0400
 
-    runtime: add consistent heap statistics
+    [dev.link] cmd/link: convert buildinfo pass to new style
     
-    This change adds a global set of heap statistics which are similar
-    to existing memory statistics. The purpose of these new statistics
-    is to be able to read them and get a consistent result without stopping
-    the world. The goal is to eventually replace as many of the existing
-    memstats statistics with the sharded ones as possible.
-    
-    The consistent memory statistics use a tailor-made synchronization
-    mechanism to allow writers (allocators) to proceed with minimal
-    synchronization by using a sequence counter and a global generation
-    counter to determine which set of statistics to update. Readers
-    increment the global generation counter to effectively grab a snapshot
-    of the statistics, and then iterate over all Ps using the sequence
-    counter to ensure that they may safely read the snapshotted statistics.
-    To keep statistics fresh, the reader also has a responsibility to merge
-    sets of statistics.
-    
-    These consistent statistics are computed, but otherwise unused for now.
-    Upcoming changes will integrate them with the rest of the codebase and
-    will begin to phase out existing statistics.
-    
-    Change-Id: I637a11f2439e2049d7dccb8650c5d82500733ca5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247037
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I2e1a6d2f1ef7402277c981282556c276ec0585ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227771
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/mcache.go      |   4 +
- src/runtime/mgcscavenge.go |  11 ++-
- src/runtime/mheap.go       |  34 +++++++++
- src/runtime/mstats.go      | 184 ++++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 230 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/data.go | 27 +++++++++++++++------------
+ src/cmd/link/internal/ld/main.go |  4 ++--
+ 2 files changed, 17 insertions(+), 14 deletions(-)

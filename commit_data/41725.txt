@@ -1,21 +1,23 @@
-commit 6a9d850b82172225b55bd65e830b1e325b17a724
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Mar 23 13:52:37 2020 -0400
+commit 19d2a1cc2c76a14b4d5066c871b3f3c11125e147
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 22 13:07:15 2019 +0200
 
-    cmd/go: list test packages even when the main package has an error
+    cmd/go: fix TestScript/list_ambiguous_path on Plan 9
     
-    List test packages (when list is run with -e) even when the main package
-    has an error. This is useful to get complete data for go/packages.
+    CL 198459 added TestScript/list_ambiguous_path. This
+    test is failing on Plan 9, because the expected error
+    doesn't match the error message returned on Plan 9.
     
-    Fixes #37971
+    This change fixes the test by matching the correct
+    error message on Plan 9.
     
-    Change-Id: If6ba0270a319ea5e003d1ed8b1ad39e479e95509
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224944
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Fixes #35072.
+    
+    Change-Id: If8cdb641e0e9544ae4ac24f8d0c54859a3b23a69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202447
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/list/list.go                 |  3 ---
- src/cmd/go/testdata/script/load_test_pkg_err.txt | 26 ++++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 3 deletions(-)
+ src/cmd/go/testdata/script/list_ambiguous_path.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

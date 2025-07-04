@@ -1,13 +1,22 @@
-commit 01a7487534d3f8d83a51f100fc25e6a7b08f8413
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 25 11:23:15 2018 -0400
+commit 2de98eb8de2e97ec6a187c383435025a660f2502
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 15 17:06:43 2017 -0800
 
-    cmd/vet/all: fix whitelist for CL 108557
+    go/types: rename (historic) flag "-list" used for go/types testing
     
-    Change-Id: I831775db5de92d211495acc012fc4366c7c84851
-    Reviewed-on: https://go-review.googlesource.com/109335
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Rename -list flag to -errlist to avoid confusion with the go
+    test flag -list (introduced later).
+    
+    This flag is only needed to get an error list when running the
+    go/types test harness manually on select files, e.g., as in:
+    
+            go test -run=Check -files=x.go -errlist
+    
+    Change-Id: I67febcf968d2d8f4ff00c81eea7b2df723560eac
+    Reviewed-on: https://go-review.googlesource.com/84378
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/all/whitelist/all.txt | 1 -
- 1 file changed, 1 deletion(-)
+ src/go/types/check_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

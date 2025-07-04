@@ -1,17 +1,18 @@
-commit 433be563b6246eb132aed6e9e58f46a0d46f7010
-Author: Andrew Pogrebnoy <absourd.noise@gmail.com>
-Date:   Tue Oct 4 02:39:33 2016 +0300
+commit ad8b8f644ea6cf99c81afc62ce4a5cc301df0ecc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Jul 3 12:56:29 2016 -0700
 
-    cmd/compile: fix choice of phi building algorithm
+    [dev.ssa] cmd/compile: remove dead amd64 ITab lowering rule
     
-    The algorithm for placing a phi nodes in small functions now
-    unreachable. This patch fix that.
+    ITab is handled by decomposition.
+    The rule is vestigial. Remove it.
     
-    Change-Id: I253d745b414fa12ee0719459c28e78a69c6861ae
-    Reviewed-on: https://go-review.googlesource.com/30106
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6fdf3d14d466761c7665c7ea14f34ca0e1e3e646
+    Reviewed-on: https://go-review.googlesource.com/24718
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/phi.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 22 ----------------------
+ 2 files changed, 23 deletions(-)

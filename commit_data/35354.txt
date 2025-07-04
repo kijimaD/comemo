@@ -1,15 +1,28 @@
-commit f95ef94ad5f58aef9a17bae407bf7b154caabe11
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed May 9 04:11:12 2018 +0000
+commit 945872e5ef8b1f73e2f7e23d76a91dec68f8de35
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 18 16:05:39 2018 -0800
 
-    misc/android: add more information to README
+    cmd/compile/internal/syntax: added test cases for recent fixes
     
-    Add more information to misc/android/README for developing
-    arm and arm64 with an Android environment.
+    R=go1.11.
     
-    Change-Id: I0c88996b6ab0c41946a2c7e69e9c92ec7bb3be27
-    Reviewed-on: https://go-review.googlesource.com/112276
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Now that we have a syntax error test harness, we can add the
+    proper tests for the recent parser fixes.
+    
+    For #20800.
+    For #20789.
+    For #23385.
+    For #23434.
+    
+    A test for #20789 already exists in test/fixedbugs, but this
+    is the better location for that test. But leaving the existing
+    one where it is as well.
+    
+    Change-Id: I5937b9b63bafd1efab467a00344302e717976171
+    Reviewed-on: https://go-review.googlesource.com/88336
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/android/README | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ .../internal/syntax/testdata/issue20789.src        |  9 +++++++
+ .../internal/syntax/testdata/issue23385.src        | 12 +++++++++
+ .../internal/syntax/testdata/issue23434.src        | 31 ++++++++++++++++++++++
+ 3 files changed, 52 insertions(+)

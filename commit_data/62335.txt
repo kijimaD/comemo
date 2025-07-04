@@ -1,0 +1,18 @@
+commit f062d7b10b276c1b698819f492e4b4754e160ee3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 20 22:20:38 2025 -0800
+
+    cmd/go: look at runes, not bytes, when printing env vars
+    
+    For #58508
+    Fixes #71863
+    
+    Change-Id: Ib1ebaf751bcc6900da6ffd01a9462dd237e2c89a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651295
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/internal/envcmd/env.go | 53 +++++++++++++++++++++------------------
+ 1 file changed, 29 insertions(+), 24 deletions(-)

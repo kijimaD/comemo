@@ -1,17 +1,13 @@
-commit 00061219f03d666e93947a3cb326256062a7a92c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 16 20:27:57 2013 -0400
+commit 2a5dcfafec11744d55692838912901c58ba43bd2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 17 07:41:45 2013 +1000
 
-    cmd/nm: make -S listing a bit more accurate
-    
-    Hide container symbols like text and etext so that
-    the individual pieces inside are shown instead.
-    For example, if text and main.init have the same
-    address, it was a toss-up which name was printed.
+    effective_go: add a discussion of labeled break and continue
+    Fixes #5725.
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13722046
+    https://golang.org/cl/13705044
 
- src/cmd/nm/nm.c | 35 +++++++++++++++++++++++++++++++++--
- 1 file changed, 33 insertions(+), 2 deletions(-)
+ doc/effective_go.html | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 42 insertions(+), 1 deletion(-)

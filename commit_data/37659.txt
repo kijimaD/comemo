@@ -1,19 +1,22 @@
-commit 9a11b7363589a20b8ba78a1fc02027198811b109
-Author: Julie Qiu <julie@golang.org>
-Date:   Tue Nov 20 17:42:59 2018 -0500
+commit d865e1fa483d689f1f4afae0b2b6260a5b657959
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 21 08:31:38 2018 +0200
 
-    cmd/go: link to the FAQ for errors that indicate private VCS repos.
+    syscall: add S_IRWXG and S_IRWXO on OpenBSD
     
-    Updates #25982
+    As discussed in CL 126621, these constants are already defined on Linux,
+    Darwin, FreeBSD and NetBSD. In order to ensure portability of existing
+    code using the syscall package, provide them for OpenBSD (and
+    DragonflyBSD, in a separate CL) as well.
     
-    Change-Id: I5a284e3844e944f9bfae31fa65b242060d4139c7
-    Reviewed-on: https://go-review.googlesource.com/c/150777
-    Run-TryBot: Julie Qiu <julie@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia9e07cb01f989d144a620d268daa8ec946788861
+    Reviewed-on: https://go-review.googlesource.com/130336
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/codehost.go  | 10 +++++++---
- src/cmd/go/internal/modfetch/codehost/git.go       |  5 +++++
- src/cmd/go/testdata/script/mod_get_private_vcs.txt | 10 ++++++++++
- 3 files changed, 22 insertions(+), 3 deletions(-)
+ src/syscall/types_openbsd.go        | 2 ++
+ src/syscall/ztypes_openbsd_386.go   | 2 ++
+ src/syscall/ztypes_openbsd_amd64.go | 2 ++
+ src/syscall/ztypes_openbsd_arm.go   | 2 ++
+ 4 files changed, 8 insertions(+)

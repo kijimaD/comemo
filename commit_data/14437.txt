@@ -1,16 +1,15 @@
-commit e070aeae779b641a5180c1807de19bfc9e5864c2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 19 10:40:13 2012 -0800
+commit 8f3b703323df5831d13a2492019ebe932559ae4f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 19 09:09:04 2012 -0800
 
-    net/http/cgi: more windows perl test work
+    cmd/gc: complain about invalid whitespace chars
     
-    Don't rely on finding cmd.exe in a particular spot.
+    Fixes #4405.
     
-    Fixes #4401
-    
-    R=golang-dev, krautz
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6842066
+    https://golang.org/cl/6855060
 
- src/pkg/net/http/cgi/testdata/test.cgi | 61 ++++++++++++++++++++++++----------
- 1 file changed, 44 insertions(+), 17 deletions(-)
+ src/cmd/gc/lex.c            |  8 ++------
+ test/fixedbugs/issue4405.go | 15 +++++++++++++++
+ 2 files changed, 17 insertions(+), 6 deletions(-)

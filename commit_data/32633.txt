@@ -1,29 +1,17 @@
-commit a2dfe5d278eae0864397a046a8206342a426d2bd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jul 25 17:53:30 2017 -0700
+commit 08dca4c649ba7f90f209376ba342bd46ef14ebe5
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Apr 24 11:20:09 2017 -0400
 
-    math/rand: add Shuffle
+    cmd/compile: ignore types when considering tuple select for CSE
     
-    Shuffle uses the Fisher-Yates algorithm.
+    Fixes #20097
     
-    Since this is new API, it affords us the opportunity
-    to use a much faster Int31n implementation that mostly avoids division.
-    As a result, BenchmarkPerm30ViaShuffle is
-    about 30% faster than BenchmarkPerm30,
-    despite requiring a separate initialization loop
-    and using function calls to swap elements.
-    
-    Fixes #20480
-    Updates #16213
-    Updates #21211
-    
-    Change-Id: Ib8956c4bebed9d84f193eb98282ec16ee7c2b2d5
-    Reviewed-on: https://go-review.googlesource.com/51891
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3c9626ccc8cd0c46a7081ea8650b2ff07a5d4fcd
+    Reviewed-on: https://go-review.googlesource.com/41505
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/rand/example_test.go |  32 +++++++++++
- src/math/rand/rand.go         |  54 +++++++++++++++++
- src/math/rand/rand_test.go    | 131 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 217 insertions(+)
+ src/cmd/compile/internal/ssa/cse.go | 10 +++++++---
+ test/fixedbugs/issue20097.go        | 18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+), 3 deletions(-)

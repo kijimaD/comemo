@@ -1,53 +1,21 @@
-commit 2423370136d4b1915d06bb1aaacbedaa900bc5c7
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Nov 25 14:22:36 2022 +0100
+commit de8ddd97accb417450db014d1f45723515cb5d80
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 8 11:13:37 2022 +0100
 
-    utf16: reduce utf16.Decode allocations
+    syscall: add Pipe2 on solaris and use it for forkExecPipe
     
-    This CL avoids allocating in utf16.Decode for code point sequences
-    with less than 64 elements. It does so by splitting the function in two,
-    one that can be inlined that preallocates a buffer and the other that
-    does the heavy-lifting.
+    Other platforms already define Pipe2, so add it for solaris as well.
     
-    The mid-stack inliner will allocate the buffer in the caller stack,
-    and in many cases this will be enough to avoid the allocation.
-    
-    unicode/utf16 benchmarks:
-    
-    name                         old time/op    new time/op    delta
-    DecodeValidASCII-12            60.1ns ± 3%    16.0ns ±20%   -73.40%  (p=0.000 n=8+10)
-    DecodeValidJapaneseChars-12    61.3ns ±10%    14.9ns ±39%   -75.71%  (p=0.000 n=10+10)
-    
-    name                         old alloc/op   new alloc/op   delta
-    DecodeValidASCII-12             48.0B ± 0%      0.0B       -100.00%  (p=0.000 n=10+10)
-    DecodeValidJapaneseChars-12     48.0B ± 0%      0.0B       -100.00%  (p=0.000 n=10+10)
-    
-    name                         old allocs/op  new allocs/op  delta
-    DecodeValidASCII-12              1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
-    DecodeValidJapaneseChars-12      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
-    
-    I've also benchmarked os.File.ReadDir with this change applied
-    to demonstrate that it does make a difference in the caller site, in this
-    case via syscall.UTF16ToString:
-    
-    name        old time/op    new time/op    delta
-    ReadDir-12     592µs ± 8%     620µs ±16%     ~     (p=0.280 n=10+10)
-    
-    name        old alloc/op   new alloc/op   delta
-    ReadDir-12    30.4kB ± 0%    22.4kB ± 0%  -26.10%  (p=0.000 n=8+10)
-    
-    name        old allocs/op  new allocs/op  delta
-    ReadDir-12       402 ± 0%       272 ± 0%  -32.34%  (p=0.000 n=10+10)
-    
-    Change-Id: I65cf5caa3fd3b3a466c0ed837a50a96e975bbe6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453415
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: If0d2dfc9a3613479fb4611a673a20a4aa0af0b2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390714
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Matt Layher <mdlayher@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/test/inl_test.go |  3 +++
- src/unicode/utf16/utf16.go                | 22 +++++++++++++++-------
- src/unicode/utf16/utf16_test.go           | 17 +++++++++++++++++
- 3 files changed, 35 insertions(+), 7 deletions(-)
+ src/syscall/forkpipe.go               |  2 +-
+ src/syscall/forkpipe2.go              |  2 +-
+ src/syscall/syscall_solaris.go        | 15 +++++++++++++++
+ src/syscall/zsyscall_solaris_amd64.go | 13 +++++++++++++
+ 4 files changed, 30 insertions(+), 2 deletions(-)

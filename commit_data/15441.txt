@@ -1,21 +1,12 @@
-commit fa625fb39a7547b295ac148bc000bb5884d01776
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Tue Feb 26 09:40:55 2013 -0800
+commit c14d255ac5ff06cb9258beebd5bdc6197a28fbd1
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Feb 26 08:34:47 2013 -0800
 
-    os/exec: Pass tests on Plan 9
+    cmd/go: do not print GCC environment variables on Plan 9
     
-    Adjust the exit status string for Plan 9.
-    
-    Upon allocating >100 file descriptors, Plan 9
-    raises a warning. Moreover, the Go runtime for
-    32-bit version of Plan 9 keeps /dev/bintime
-    open for its implementation of runtime.nanotime().
-    This change accounts for these things in
-    TestExtraFiles.
-    
-    R=rsc, rminnich, ality, bradfitz
+    R=seed, rminnich, r, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7363056
+    https://golang.org/cl/7397059
 
- src/pkg/os/exec/exec_test.go | 44 ++++++++++++++++++++++++++++++++++----------
- 1 file changed, 34 insertions(+), 10 deletions(-)
+ src/cmd/go/env.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

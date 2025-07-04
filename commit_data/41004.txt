@@ -1,24 +1,14 @@
-commit dcdee153cd61de47d0cabd6729a17673536b0418
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Dec 18 15:19:05 2019 -0500
+commit 9dfa4cb0260427c29137568c880aeae5e2a7f058
+Author: Eric Lagergren <eric@ericlagergren.com>
+Date:   Tue Aug 27 19:32:17 2019 -0700
 
-    runtime: use innermost frame's func name for async preemption check
+    math/big: document that Rat.Denom might modify the receiver
     
-    We don't asynchronously preempt if we are in the runtime. We do
-    this by checking the function name. However, it failed to take
-    inlining into account. If a runtime function gets inlined into
-    a non-runtime function, it can be preempted, and bad things can
-    happen. One instance of this is dounlockOSThread inlined into
-    UnlockOSThread which is in turn inlined into a non-runtime
-    function.
+    Fixes #33792
     
-    Fix this by using the innermost frame's function name.
-    
-    Change-Id: Ifa036ce1320700aaaefd829b4bee0d04d05c395d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211978
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I306a95883c3db2d674d3294a6feb50adc50ee5d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192017
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/preempt.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/math/big/rat.go | 2 ++
+ 1 file changed, 2 insertions(+)

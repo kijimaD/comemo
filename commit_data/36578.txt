@@ -1,18 +1,83 @@
-commit 24e51bbe64b4a534b096a3b0c6bfae6a732eea59
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Jun 16 06:54:23 2018 -0700
+commit 098ca846c797697ea8194ecd91be0268653a9b09
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sun Apr 29 10:42:14 2018 +0000
 
-    cmd/compile: prefer rematerializeable arg0 for HMUL
+    cmd/compile: emit more compact 386 instructions
     
-    This prevents accidental regalloc regressions
-    that otherwise can occur from unrelated changes.
+    ADDL/SUBL/ANDL/ORL/XORL can have a memory operand as destination,
+    and this CL optimize the compiler to emit such instructions on
+    386 for more compact binary.
     
-    Change-Id: Iea356fb1a24766361fce13748dc1b46e57b21cea
-    Reviewed-on: https://go-review.googlesource.com/129375
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Here is test report:
+    1. The total size of pkg/linux_386/ and pkg/tool/linux_386/ decreases
+    about 14KB.
+    (pkg/linux_386/cmd/compile/ and pkg/tool/linux_386/compile are excluded)
+    
+    2. The go1 benchmark shows little change, excluding ±2% noise.
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              3.34s ± 2%     3.38s ± 2%  +1.27%  (p=0.000 n=40+39)
+    Fannkuch11-4                3.55s ± 1%     3.51s ± 1%  -1.33%  (p=0.000 n=40+40)
+    FmtFprintfEmpty-4          46.3ns ± 3%    46.9ns ± 4%  +1.41%  (p=0.002 n=40+40)
+    FmtFprintfString-4         80.8ns ± 3%    80.4ns ± 6%  -0.54%  (p=0.044 n=40+40)
+    FmtFprintfInt-4            93.0ns ± 3%    92.2ns ± 4%  -0.88%  (p=0.007 n=39+40)
+    FmtFprintfIntInt-4          144ns ± 5%     145ns ± 2%  +0.78%  (p=0.015 n=40+40)
+    FmtFprintfPrefixedInt-4     184ns ± 2%     182ns ± 2%  -1.06%  (p=0.004 n=40+40)
+    FmtFprintfFloat-4           415ns ± 4%     419ns ± 4%    ~     (p=0.434 n=40+40)
+    FmtManyArgs-4               615ns ± 3%     619ns ± 3%    ~     (p=0.100 n=40+40)
+    GobDecode-4                7.30ms ± 6%    7.36ms ± 6%    ~     (p=0.074 n=40+40)
+    GobEncode-4                7.10ms ± 6%    7.21ms ± 5%    ~     (p=0.082 n=40+39)
+    Gzip-4                      364ms ± 3%     362ms ± 6%  -0.71%  (p=0.020 n=40+40)
+    Gunzip-4                   42.4ms ± 3%    42.2ms ± 3%    ~     (p=0.303 n=40+40)
+    HTTPClientServer-4         62.9µs ± 1%    62.9µs ± 1%    ~     (p=0.768 n=38+39)
+    JSONEncode-4               21.4ms ± 4%    21.5ms ± 5%    ~     (p=0.210 n=40+40)
+    JSONDecode-4               67.7ms ± 3%    67.9ms ± 4%    ~     (p=0.713 n=40+40)
+    Mandelbrot200-4            5.18ms ± 3%    5.21ms ± 3%  +0.59%  (p=0.021 n=40+40)
+    GoParse-4                  3.35ms ± 3%    3.34ms ± 2%    ~     (p=0.996 n=40+40)
+    RegexpMatchEasy0_32-4      98.5ns ± 5%    96.3ns ± 4%  -2.15%  (p=0.001 n=40+40)
+    RegexpMatchEasy0_1K-4       851ns ± 4%     850ns ± 5%    ~     (p=0.700 n=40+40)
+    RegexpMatchEasy1_32-4       105ns ± 7%     107ns ± 4%  +1.50%  (p=0.017 n=40+40)
+    RegexpMatchEasy1_1K-4      1.03µs ± 5%    1.03µs ± 4%    ~     (p=0.992 n=40+40)
+    RegexpMatchMedium_32-4      130ns ± 6%     128ns ± 4%  -1.66%  (p=0.012 n=40+40)
+    RegexpMatchMedium_1K-4     44.0µs ± 5%    43.6µs ± 3%    ~     (p=0.704 n=40+40)
+    RegexpMatchHard_32-4       2.29µs ± 3%    2.23µs ± 4%  -2.38%  (p=0.000 n=40+40)
+    RegexpMatchHard_1K-4       69.0µs ± 3%    68.1µs ± 3%  -1.28%  (p=0.003 n=40+40)
+    Revcomp-4                   1.85s ± 2%     1.87s ± 3%  +1.11%  (p=0.000 n=40+40)
+    Template-4                 69.8ms ± 3%    69.6ms ± 3%    ~     (p=0.125 n=40+40)
+    TimeParse-4                 442ns ± 5%     440ns ± 3%    ~     (p=0.585 n=40+40)
+    TimeFormat-4                419ns ± 3%     420ns ± 3%    ~     (p=0.824 n=40+40)
+    [Geo mean]                 67.3µs         67.2µs       -0.11%
+    
+    name                     old speed      new speed      delta
+    GobDecode-4               105MB/s ± 6%   104MB/s ± 6%    ~     (p=0.074 n=40+40)
+    GobEncode-4               108MB/s ± 7%   107MB/s ± 5%    ~     (p=0.080 n=40+39)
+    Gzip-4                   53.3MB/s ± 3%  53.7MB/s ± 6%  +0.73%  (p=0.021 n=40+40)
+    Gunzip-4                  458MB/s ± 3%   460MB/s ± 3%    ~     (p=0.301 n=40+40)
+    JSONEncode-4             90.8MB/s ± 4%  90.3MB/s ± 4%    ~     (p=0.213 n=40+40)
+    JSONDecode-4             28.7MB/s ± 3%  28.6MB/s ± 4%    ~     (p=0.679 n=40+40)
+    GoParse-4                17.3MB/s ± 3%  17.3MB/s ± 2%    ~     (p=1.000 n=40+40)
+    RegexpMatchEasy0_32-4     325MB/s ± 5%   333MB/s ± 4%  +2.44%  (p=0.000 n=40+38)
+    RegexpMatchEasy0_1K-4    1.20GB/s ± 4%  1.21GB/s ± 5%    ~     (p=0.684 n=40+40)
+    RegexpMatchEasy1_32-4     303MB/s ± 7%   298MB/s ± 4%  -1.52%  (p=0.022 n=40+40)
+    RegexpMatchEasy1_1K-4     995MB/s ± 5%   996MB/s ± 4%    ~     (p=0.996 n=40+40)
+    RegexpMatchMedium_32-4   7.67MB/s ± 6%  7.80MB/s ± 4%  +1.68%  (p=0.011 n=40+40)
+    RegexpMatchMedium_1K-4   23.3MB/s ± 5%  23.5MB/s ± 3%    ~     (p=0.697 n=40+40)
+    RegexpMatchHard_32-4     14.0MB/s ± 3%  14.3MB/s ± 4%  +2.43%  (p=0.000 n=40+40)
+    RegexpMatchHard_1K-4     14.8MB/s ± 3%  15.0MB/s ± 3%  +1.30%  (p=0.003 n=40+40)
+    Revcomp-4                 137MB/s ± 2%   136MB/s ± 3%  -1.10%  (p=0.000 n=40+40)
+    Template-4               27.8MB/s ± 3%  27.9MB/s ± 3%    ~     (p=0.128 n=40+40)
+    [Geo mean]               79.6MB/s       79.9MB/s       +0.28%
+    
+    Change-Id: I02a3efc125dc81e18fc8495eb2bf1bba59ab8733
+    Reviewed-on: https://go-review.googlesource.com/110157
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 80 ++++++++++++++++++++++++++++
- 2 files changed, 87 insertions(+)
+ src/cmd/compile/internal/ssa/gen/386.rules |  10 +-
+ src/cmd/compile/internal/ssa/gen/386Ops.go |   7 +
+ src/cmd/compile/internal/ssa/opGen.go      |  75 +++
+ src/cmd/compile/internal/ssa/rewrite386.go | 948 +++++++++++++++++++++++++++--
+ src/cmd/compile/internal/x86/ssa.go        |   3 +-
+ test/codegen/arithmetic.go                 |   6 +-
+ 6 files changed, 998 insertions(+), 51 deletions(-)

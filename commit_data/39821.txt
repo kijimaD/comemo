@@ -1,20 +1,25 @@
-commit e6ba19f9138dfaa981b281105fafabbf55250a18
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 6 20:54:36 2019 +0000
+commit b434bbf197b3683643d4d6b52bca687982e336b5
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Mar 23 14:18:19 2019 +0100
 
-    Revert "cmd/compile: improve errors for invalid conversions of consts"
+    cmd/go: add GOWASM environment variable
     
-    This reverts commit 2da9c3e0f99b72cf8f3bdca01b57e7a68a546c5b.
+    This change adds the environment variable GOWASM, which is a comma
+    separated list of experimental WebAssembly features that the compiled
+    WebAssembly binary is allowed to use. The default is to use no
+    experimental features. Initially there are no features avaiable.
     
-    Reason for revert: while the new error messages are more informative,
-    they're not strictly correct. This CL also conflicts with CL 187657.
+    More information about feature proposals can be found at
+    https://github.com/WebAssembly/proposals
     
-    Change-Id: I1c36cf7e86c2f35ee83a4f98918ee38aa1f59965
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193977
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4c8dc534c99ecff8bb075dded0186ca8f8decaef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168881
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 10 ++---
- test/fixedbugs/issue21979.go         | 75 ------------------------------------
- 2 files changed, 3 insertions(+), 82 deletions(-)
+ doc/install-source.html           | 11 +++++++++++
+ src/cmd/go/internal/cfg/cfg.go    |  1 +
+ src/cmd/go/internal/envcmd/env.go |  2 ++
+ src/cmd/internal/objabi/util.go   | 24 ++++++++++++++++++++++++
+ 4 files changed, 38 insertions(+)

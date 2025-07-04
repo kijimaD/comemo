@@ -1,35 +1,18 @@
-commit aad71d3163fdeccd9c04ebf326efd58eef3307d9
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Apr 30 14:48:02 2018 +0900
+commit c830e05a20cbc193a3b0cb4d4bc9b3acab3643b6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 14 17:23:46 2018 -0700
 
-    cmd/compile: reorganise and improve ssa/README.md
+    runtime: fix another typo in runtime-gdb.py
     
-    Since the initial version was written, I've gotten help writing
-    cmd/compile/README.md and I've also learned some more on my own, so it's
-    time to organise this document better and expand it.
+    tuple, touple,
+    gdb, gdv,
+    let's call the whole thing off.
     
-    First, split up the document in sections, starting from the simplest
-    ideas that can be explained on their own. From there, build all the way
-    up into SSA functions and how they are compiled.
-    
-    Each of the sections also gets more detail now; most ideas that were a
-    paragraph are now a section with several paragraphs. No new major
-    sections have been added in this CL.
-    
-    While at it, add a copyright notice and make better use of markdown,
-    just like in the other README.md.
-    
-    Also fix a file path in value.go, which I noticed to be stale while
-    reading godocs to write the document.
-    
-    Finally, leave a few TODO comments for areas that would benefit from
-    extra input from people familiar with the SSA package. They will be
-    taken care of in future CLs.
-    
-    Change-Id: I85e7a69a0b3260e72139991a625d926099624f71
-    Reviewed-on: https://go-review.googlesource.com/110067
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I72d12f6c75061777474e7dec2c90d2a8a3715da6
+    Reviewed-on: https://go-review.googlesource.com/100836
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/README.md | 232 +++++++++++++++++++++++++++------
- src/cmd/compile/internal/ssa/value.go  |   2 +-
- 2 files changed, 192 insertions(+), 42 deletions(-)
+ src/runtime/runtime-gdb.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

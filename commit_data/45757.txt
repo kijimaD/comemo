@@ -1,16 +1,23 @@
-commit f4901341263adf7fc177e8e5e2e79576b490bb8f
-Author: DQNEO <dqneoo@gmail.com>
-Date:   Mon May 31 12:15:12 2021 +0900
+commit 31f71506d7026595be76713af25197a8c0022ac8
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Nov 3 02:11:51 2020 +1100
 
-    spec: improve wording by choosing an official term "keyword"
+    syscall: use correct type for TIOCSPGRP/TIOCGPGRP
     
-    Replace "reserved word" by "keyword" as the latter is the official term.
+    These ioctls take a pid_t (generally a C integer aka int32) and not an int64 - we
+    currently get away with this on little endian 64 bit platforms, since the bytes
+    fall into the correct place, however this breaks on big endian 64 bit platforms
+    (like openbsd/mips64).
     
-    Change-Id: I9f269759b872026034a9f47e4a761cff2d348ca0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323729
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
+    Update #40995
+    
+    Change-Id: I622a0543fd562d97f76a7376a84fd2641e6d6a24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267605
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/syscall/exec_bsd.go       | 6 ++++--
+ src/syscall/exec_unix_test.go | 4 +++-
+ 2 files changed, 7 insertions(+), 3 deletions(-)

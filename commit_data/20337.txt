@@ -1,24 +1,17 @@
-commit 50fc0f1af626c57acaae2eb63781a6d76d7de9f0
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 7 23:40:27 2014 -0400
+commit 5dd9d582f175701fbf461c2e5ca6bbb1021cbd25
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 2 11:54:24 2014 +1000
 
-    net/http/httptest: delete TestIssue7264
+    time: update generated zoneinfo_abbrs_windows.go
     
-    Now it's failing on Windows:
+    The file in repo has been updated recently, but all these changes
+    are gone off the web site now. It seems web site gets updated once
+    in a while, so we'll update our file occasionally.
     
-    panic: httptest: failed to listen on a port: listen tcp 127.0.0.1:0:
-    listen: An operation on a socket could not be performed because the
-    system lacked sufficient buffer space or because a queue was full.
-    
-    Since we can't seem to understand what the test is trying to test,
-    and because it is causing problems on multiple systems,
-    delete it.
-    
-    Fixes #7264.
-    
-    TBR=bradfitz
-    CC=brainman, golang-codereviews
-    https://golang.org/cl/141210043
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/140780043
 
- src/pkg/net/http/httptest/server_test.go | 23 -----------------------
- 1 file changed, 23 deletions(-)
+ src/pkg/time/zoneinfo_abbrs_windows.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

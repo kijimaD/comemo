@@ -1,14 +1,23 @@
-commit 96d41786c5bd5b3597b6a28a7e8c412c33f15086
-Author: James Craig Burley <james-github@burleyarch.com>
-Date:   Wed Nov 28 18:53:16 2018 +0000
+commit 79bf7955dc225a8d5b28d8201b90aa0d6b0644aa
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Thu Aug 9 12:34:19 2018 -0400
 
-    doc: fix typo in FAQ
+    go/types: fix errors in recording type information
     
-    Change-Id: I956d6d1dbf8516cb65eb3a0686a3b0584b4a6840
-    GitHub-Last-Rev: 1c928f3c67eceae424cbcd6b0935605a78728604
-    GitHub-Pull-Request: golang/go#28991
-    Reviewed-on: https://go-review.googlesource.com/c/151324
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    In my previous change, I didn't use the correct functions for continuing
+    to record type informations after errors. Change to using the correct
+    functions, and add a comment to clarify in expr.go.
+    
+    Updates #22467
+    
+    Change-Id: I66ebb636ceb2b994db652343430f0551db0050c3
+    Reviewed-on: https://go-review.googlesource.com/128835
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_faq.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/api_test.go    | 4 ++--
+ src/go/types/assignments.go | 2 +-
+ src/go/types/call.go        | 4 +---
+ src/go/types/expr.go        | 2 ++
+ 4 files changed, 6 insertions(+), 6 deletions(-)

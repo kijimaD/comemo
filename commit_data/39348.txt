@@ -1,16 +1,21 @@
-commit 2d75c332cca28678ff61d9f7cd58a82acb75e197
-Author: Keith Randall <khr@google.com>
-Date:   Mon Jun 10 12:18:44 2019 -0700
+commit 01971b97c11cd55e9e65f628b7f1c3fc8ef81944
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Nov 10 06:58:36 2018 -0800
 
-    syscall: fix freebsd 64-bit test
+    cmd/compile: cull dead code
     
-    64 bits is 8 bytes. Duh.
+    The special case for ODOTPTR to handle zero-width fields is unneeded.
+    It is an artifact of the old backend, from which time this code dates.
+    The Node to SSA converter is careful to insert a nil check.
+    This is tested in test/nilptr2.go, among other places.
     
-    Change-Id: I991b359df6241889bdef13152f551af9db6e14c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181557
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I6c1d99f7ff5abdae9aa08ee047dc088a3fe8dc3c
+    Reviewed-on: https://go-review.googlesource.com/c/148828
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/syscall_freebsd.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)

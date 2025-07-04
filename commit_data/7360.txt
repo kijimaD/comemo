@@ -1,12 +1,12 @@
-commit 838b5ad9d6ead0c4348197978fb85647a7019013
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 3 12:27:41 2011 -0800
+commit 8bf0bc2754a4e168268a4d90a18f10063ab8c8c8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 3 11:55:33 2011 -0800
 
-    go spec: move to Unicode 6.0
+    fmt: document %%
     
-    R=r, r2
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/4128055
+    https://golang.org/cl/4130044
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/fmt/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,22 +1,31 @@
-commit 6cd698d71da92aeb4540c378213ac4a1c6687097
-Author: Lee Hinman <hinman@gmail.com>
-Date:   Mon Mar 7 22:31:31 2016 -0600
+commit 9149aa10cc2f7d3061303754ab45c55eff42ac89
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Tue Mar 15 17:14:03 2016 +0100
 
-    crypto/x509: add Admin & User Keychains to FetchPEMRoots on Darwin
+    fmt: unify array and slice formatting for bytes and other types
     
-    in root_cgo_darwin.go only certificates from the System Domain
-    were being used in FetchPEMRoots.  This patch adds support for
-    getting certificates from all three domains (System, Admin,
-    User).  Also it will only read trusted certificates from those
-    Keychains.  Because it is possible to trust a non Root certificate,
-    this patch also adds a checks to see if the Subject and Issuer
-    name are the same.
+    Make verbs b,c,o and U work for any array and slice of integer
+    type including byte and uint8.
     
-    Fixes #14514
+    Fix a bug that triggers badverb for []uint8 and []byte type
+    on the slice/array level instead of on each element like for
+    any other slice or array type.
     
-    Change-Id: Ia03936d7a61d1e24e99f31c92f9927ae48b2b494
-    Reviewed-on: https://go-review.googlesource.com/20351
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Add tests that make sure we do not accidentally alter the
+    behavior of printing []byte for []byte and []uint8 type
+    if they are used at the top level when formatting with %#v.
+    
+    name               old time/op  new time/op  delta
+    SprintfHexBytes-2   177ns ± 2%   176ns ± 2%   ~     (p=0.066 n=48+49)
+    SprintfBytes-2      330ns ± 1%   329ns ± 1%   ~     (p=0.118 n=45+47)
+    
+    Fixes #13478
+    
+    Change-Id: I99328a184973ae219bcc0f69c3978cb1ff462888
+    Reviewed-on: https://go-review.googlesource.com/20686
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/x509/root_cgo_darwin.go | 76 ++++++++++++++++++++++++++------------
- 1 file changed, 52 insertions(+), 24 deletions(-)
+ src/fmt/fmt_test.go | 59 ++++++++++++++++++-------------------------
+ src/fmt/print.go    | 73 +++++++++++++++++++++++++----------------------------
+ 2 files changed, 60 insertions(+), 72 deletions(-)

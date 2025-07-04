@@ -1,28 +1,29 @@
-commit 1f58ad5d6d2eebc1939a65a511ca84c9b997cd6a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jan 27 14:05:22 2025 -0800
+commit f67b2d8f0bcadb59461b7a33bc1c23649ce8eb85
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 17 16:45:45 2023 +0000
 
-    Revert "os: employ sendfile(2) for file-to-file copying on Linux when needed"
+    runtime: use span.elemsize for accounting in mallocgc
     
-    This reverts CL 603295.
+    Currently the final size computed for an object in mallocgc excludes the
+    allocation header. This is correct in a number of cases, but definitely
+    wrong for memory profiling because the "free" side accounts for the full
+    allocation slot.
     
-    Reason for revert: can cause child exit_group to hang.
+    This change makes an explicit distinction between the parts of mallocgc
+    that care about the full allocation slot size ("the GC's accounting")
+    and those that don't (pointer+len should always be valid). It then
+    applies the appropriate size to the different forms of accounting in
+    mallocgc.
     
-    This is not a clean revert. CL 603098 did a major refactoring of the
-    tests. That refactor is kept, just the sendfile-specific tests are
-    dropped from the linux tests.
+    For #64153.
     
-    Fixes #71375.
-    
-    Change-Id: Ic4d6535759667c69a44bd9281bbb33d5b559f591
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644895
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I481b34b2bb9ff923b59e8408ab2b8fb9025ba944
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542735
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Andy Pan <panjf2000@gmail.com>
 
- src/os/readfrom_linux_test.go    | 52 ++--------------------------------------
- src/os/readfrom_sendfile_test.go |  2 +-
- src/os/zero_copy_linux.go        | 46 ++++-------------------------------
- 3 files changed, 7 insertions(+), 93 deletions(-)
+ src/runtime/arena.go   |  2 +-
+ src/runtime/malloc.go  | 37 ++++++++++++++++++++++++++-----------
+ src/runtime/mgcmark.go |  4 ++--
+ 3 files changed, 29 insertions(+), 14 deletions(-)

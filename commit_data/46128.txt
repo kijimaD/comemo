@@ -1,22 +1,29 @@
-commit aeec6dbfe009f371021bddba13e2eb18e5d1a469
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Aug 22 12:07:14 2021 +0700
+commit 6fa06d960b5ec38867a35dc278ae318ecff1b6c6
+Author: Haoran Luo <haoran.luo@chaitin.com>
+Date:   Tue Dec 8 14:29:04 2020 +0000
 
-    spec: add example for method value in case of embedded method
+    runtime: prevent stack growth after fork in runtime.sigfillset
     
-    So it's clear to the reader that if "M" is a promoted method from
-    embedded field "T", then "x.M" will be expanded to "x.T.M" during the
-    evaluation of the method value.
+    This fixes the unexpected growth of stack in child process, which
+    is caused by stack checking code in runtime.sigfillset called from
+    runtime.sigset while clearing the signal handlers in child process.
     
-    Fixes #47863
+    The redundant stack checking code is generated due to missing
+    '//go:nosplit' directive that should be annotated for
+    runtime.sigfillset.
     
-    Change-Id: Id3b82127a2054584b6842c487f6e15c3102dc9fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344209
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #43066
+    Updates #21314
+    
+    Change-Id: I9483a962a4b0747074313991841e2440ee32198c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276173
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go_spec.html | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/runtime/os_linux_be64.go    | 1 +
+ src/runtime/os_linux_generic.go | 1 +
+ src/runtime/os_linux_mips64x.go | 1 +
+ src/runtime/os_linux_mipsx.go   | 1 +
+ 4 files changed, 4 insertions(+)

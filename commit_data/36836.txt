@@ -1,19 +1,16 @@
-commit c91ce3cc7b13fce23edae94818e505f126036bdb
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Sep 13 13:26:46 2018 -0700
+commit 424c2157392d46220213610a290a275c36ddcd97
+Author: Hana Kim <hakim@google.com>
+Date:   Thu May 31 13:16:24 2018 -0400
 
-    test: stress test for stack objects
+    cmd/pprof: fix help message formatting error
     
-    Allocate a long linked list on the stack. This tests both
-    lots of live stack objects, and lots of intra-stack pointers
-    to those objects.
+    Pprof usage message includes "%" symbols. Misuse of Fprintf caused
+    the message to be interpreted as a format string and corrupted the usage
+    message.
     
-    Change-Id: I169e067416455737774851633b1e5367e10e1cf2
-    Reviewed-on: https://go-review.googlesource.com/c/135296
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4732b491e2368cff9fdbfe070c125228d6f506fd
+    Reviewed-on: https://go-review.googlesource.com/115595
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/stackobj2.go | 83 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 83 insertions(+)
+ src/cmd/pprof/readlineui.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

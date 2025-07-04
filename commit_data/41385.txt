@@ -1,28 +1,18 @@
-commit 402ea9e4f9ddcd2ed595ac12ce1b4e39f82e128f
-Author: Changkun Ou <hi@changkun.us>
-Date:   Mon Feb 3 14:42:32 2020 +0100
+commit 9748e64fe552f484285ea6399329e6c8e696db63
+Author: Pantelis Sampaziotis <psampaz@gmail.com>
+Date:   Wed Sep 25 20:20:37 2019 +0000
 
-    time: add Ticker.Reset
+    regexp: add examples for FindSubmatchIndex and Longest
     
-    This CL implements Ticker.Reset method in time package.
+    updates #21450
     
-    Benchmark:
-    name                 time/op
-    TickerReset-12       6.41µs ±10%
-    TickerResetNaive-12  95.7µs ±12%
-    
-    Fixes #33184
-    
-    Change-Id: I4cbd31796efa012b2a297bb342158f11a4a31fef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220424
+    Change-Id: Ibffe0dadc1e1523c55cd5f5b8a69bc1c399a255d
+    GitHub-Last-Rev: 507f55508121a525de4d210e7ada1396ccaaf367
+    GitHub-Pull-Request: golang/go#33497
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189177
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/next.txt          |  1 +
- doc/go1.15.html       | 10 ++++++++++
- src/runtime/time.go   |  8 +++++++-
- src/time/sleep.go     |  1 +
- src/time/tick.go      |  9 +++++++++
- src/time/tick_test.go | 36 +++++++++++++++++++++++++++++++++---
- 6 files changed, 61 insertions(+), 4 deletions(-)
+ src/regexp/example_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

@@ -1,16 +1,12 @@
-commit a2bb0159d6442ce03f5a1f2bbc636a2f526e004a
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Aug 15 14:14:15 2011 -0300
+commit 241a262fe592911b8be3d44694429103e4ff86e4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Aug 15 21:19:07 2011 +1000
 
-    reflect: panic on Invalid Interface call
+    build: don't require hg for build
     
-    This was initially pushed as part of CL 4876046, found
-    when logic in exp/template was using the method on
-    an Invalid value.
-    
-    R=rsc
+    R=golang-dev, dsymonds, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/4890043
+    https://golang.org/cl/4873048
 
- src/pkg/reflect/value.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/version.bash | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

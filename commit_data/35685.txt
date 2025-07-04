@@ -1,12 +1,12 @@
-commit f297d165c9b6518151f50eb59cec9bd95794986b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 12 16:41:14 2018 -0700
+commit f16cc298d344d4db1b8bb3d941c83598abc6ba43
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Thu Mar 1 01:56:07 2018 +0100
 
-    encoding/gob: correct issue number typo in comment
+    test: implement negative rules in asmcheck
     
-    Change-Id: I3ac25cf1770b5ac0d36690c37615b3badd27463d
-    Reviewed-on: https://go-review.googlesource.com/118455
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I2b507e35cc314100eaf2ec2d1e5107cc2fc9e7cf
+    Reviewed-on: https://go-review.googlesource.com/97818
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/gob/encoder_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/run.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

@@ -1,15 +1,20 @@
-commit 23f9751e832e47fa3f433485f9c7e93cb7a92817
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Aug 31 14:09:34 2013 -0700
+commit 465ba6b78c636a501a353a5e8ea971d29f11440a
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 31 09:32:07 2013 -0700
 
-    runtime: clean up map code.  Remove hashmap.h.
-    Use cnew/cnewarray instead of mallocgc.
+    runtime, syscall: add support for dragonfly/386
     
-    R=golang-dev, dvyukov
+    Add runtime and syscall support for dragonfly/386.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13396045
+    https://golang.org/cl/13237051
 
- src/pkg/runtime/hashmap.c | 19 +++++++++----------
- src/pkg/runtime/hashmap.h |  4 ----
- src/pkg/runtime/mgc0.c    |  1 -
- 3 files changed, 9 insertions(+), 15 deletions(-)
+ src/pkg/runtime/defs_dragonfly_386.h     | 198 +++++++++++++++++
+ src/pkg/runtime/rt0_dragonfly_386.s      |  16 ++
+ src/pkg/runtime/signal_dragonfly_386.h   |  23 ++
+ src/pkg/runtime/sys_dragonfly_386.s      | 369 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/asm_dragonfly_386.s      | 139 ++++++++++++
+ src/pkg/syscall/mkall.sh                 |   6 +
+ src/pkg/syscall/syscall_dragonfly_386.go |  58 +++++
+ 7 files changed, 809 insertions(+)

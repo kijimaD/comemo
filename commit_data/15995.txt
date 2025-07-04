@@ -1,14 +1,14 @@
-commit 68130a07afff6b0f514e574e5517f8f5d3da9765
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 28 18:36:06 2013 -0700
+commit 47ec6e23d23aa95797aed517388845e7c0e14a45
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 28 15:04:25 2013 -0700
 
-    net/http: unflake TestTransportConcurrency
+    cmd/ld: only pass -rdynamic to host linker on ELF target
     
-    Fixes #5005
+    Fixes #5150.
     
-    R=golang-dev, r
+    R=golang-dev, franciscossouza
     CC=golang-dev
-    https://golang.org/cl/8127043
+    https://golang.org/cl/8120043
 
- src/pkg/net/http/transport_test.go | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ src/cmd/ld/lib.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

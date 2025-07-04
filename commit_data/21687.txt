@@ -1,15 +1,20 @@
-commit 2f9c9e552d7cdcbf6aecbd4aee900cce39bcd2d9
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Feb 20 11:05:36 2015 -0500
+commit 69cd91a5981c49eaaa59b33196bdb5586c18d289
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Jan 27 23:57:12 2015 +0300
 
-    cmd/go: link cgo into tests on darwin/arm
+    cmd/gc: don't copy []byte during string comparison
     
-    We currently have only one supported darwin/arm device, a locked iOS
-    machine. It requires cgo binaries.
+    Currently we allocate a new string during []byte->string conversion
+    in string comparison expressions. String allocation is unnecessary in
+    this case, because comparison does memorize the strings for later use.
+    This change uses slicebytetostringtmp to construct temp string directly
+    from []byte buffer and passes it to runtime.eqstring.
     
-    Change-Id: If36a152e6a743e4a58ea3470e62cccb742630a5d
-    Reviewed-on: https://go-review.googlesource.com/5443
+    Change-Id: If00f1faaee2076baa6f6724d245d5b5e0f59b563
+    Reviewed-on: https://go-review.googlesource.com/3410
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/gc/order.c         | 12 ++++++++++++
+ src/runtime/string.go      |  1 +
+ src/runtime/string_test.go | 17 +++++++++++++++++
+ 3 files changed, 30 insertions(+)

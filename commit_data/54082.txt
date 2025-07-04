@@ -1,29 +1,17 @@
-commit 9070f27039560c054fef8f2fb8d775cc2cb983b3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 15 16:37:00 2023 -0700
+commit ebaa5ff39ee4046f7f94bf34a6e05702286b08d2
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 11:49:49 2022 +0800
 
-    go/types, types2: disable interface inference for versions before Go 1.21
+    crypto/tls: convert Conn.activeCall to atomic type
     
-    Change the internal constant enableInterfaceInference to a unifier
-    field that can be controlled dynamically and set it for Go 1.21
-    or later.
-    
-    This restores Go 1.20 unification behavior for interfaces.
-    
-    Fixes #61903.
-    
-    Change-Id: Iefd6c0899811f8208a8be9cef2650a07787ae177
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519855
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I5b063070a17bdeed57e73bfb76125b94268b3bc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426088
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- src/cmd/compile/internal/types2/infer.go           |  2 +-
- src/cmd/compile/internal/types2/unify.go           | 22 +++++++++-------------
- src/go/types/generate_test.go                      |  8 ++++++++
- src/go/types/infer.go                              |  2 +-
- src/go/types/unify.go                              | 22 +++++++++-------------
- .../types/testdata/fixedbugs/issue61903.go         | 20 ++++++++++++++++++++
- 6 files changed, 48 insertions(+), 28 deletions(-)
+ src/crypto/tls/conn.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

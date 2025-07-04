@@ -1,18 +1,27 @@
-commit efaca3170fc6d363704153586c7ad94255bf02c6
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Mar 22 11:44:04 2023 +0700
+commit cdcb4b6ef37c1ce14637323dd00b5daad7e645c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 09:02:53 2022 -0400
 
-    reflect: add test for interface type NumMethod
+    [dev.boringcrypto] cmd/compile: remove the awful boringcrypto kludge
     
-    While at it, also use concrete type for non-interface type test.
+    CL 60271 introduced this “AwfulBoringCryptoKludge.”
+    iant approved that CL saying “As long as it stays out of master...”
     
-    Change-Id: Ie468c30ee31ba99ef8f9a810d3be851fd37b9b43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478356
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Now that the rsa and ecdsa code uses boring.Cache, the
+    “boring unsafe.Pointer” fields are gone from the key structs, and this
+    code is no longer needed. So delete it.
+    
+    With the kludge deleted, we are one step closer to being able to merge
+    dev.boringcrypto into master.
+    
+    For #51940.
+    
+    Change-Id: Ie549db14b0b699c306dded2a2163f18f31d45530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395884
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/reflect/all_test.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ misc/boring/VERSION                             |  2 +-
+ src/cmd/compile/internal/amd64/versions_test.go |  2 ++
+ src/cmd/compile/internal/reflectdata/reflect.go | 27 -------------------------
+ 3 files changed, 3 insertions(+), 28 deletions(-)

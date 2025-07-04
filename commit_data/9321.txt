@@ -1,13 +1,17 @@
-commit ae03a192e0fa02145bbace8b094e1f9d5fc9f301
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 10 15:45:37 2011 +1000
+commit 37afff2978f3bb12170076192676e9348a7936fc
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Aug 10 13:39:07 2011 +1000
 
-    timing.log: significant improvements after custom algorithms
-    See https://golang.org/cl/4815087
+    html: parse malformed tags missing a '>', such as `<p id=0</p>`.
     
-    R=golang-dev, nigeltao
+    The additional token_test.go cases matches html5lib behavior.
+    
+    Fixes #2124.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4849050
+    https://golang.org/cl/4844055
 
- test/bench/timing.log | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/pkg/html/token.go      | 58 ++++++++++++++++++++++++++++------------------
+ src/pkg/html/token_test.go | 17 +++++++++++++-
+ 2 files changed, 52 insertions(+), 23 deletions(-)

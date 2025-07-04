@@ -1,22 +1,17 @@
-commit 2dcc9acbd27902c9e551f54ca29d2519418b45c4
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 25 18:40:54 2022 +0800
+commit 47db3bb443774c0b0df2cab188aa3d76b361dca2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 23 16:30:17 2021 -0800
 
-    cmd/go: show an error when a package in a module conflicts with one in std
+    runtime: skip TestTimePprof if nanotime calls libc
     
-    Fixes #35270
+    Fixes #43118
     
-    Change-Id: I5d2a04359702be6dc04affb867540091b926bc23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/434095
-    Run-TryBot: xie cui <523516579@qq.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I499bf335904e2b72a2a8876d0368fff5e69aa7fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366759
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/modload/import.go              | 42 ++++++++++------
- .../go/testdata/script/mod_go_version_missing.txt  |  3 +-
- src/cmd/go/testdata/script/mod_issue35270.txt      | 57 ++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_std_vendor.txt      |  5 +-
- src/cmd/go/testdata/script/mod_vendor.txt          |  2 +-
- 5 files changed, 90 insertions(+), 19 deletions(-)
+ src/runtime/crash_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,32 +1,29 @@
-commit 860a645927479c89e41a157ab446f0f3f66951df
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 12 00:55:24 2014 -0400
+commit 8217b4a203daaa7f24590f9369c77b758dad1cd6
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 5 10:04:16 2014 -0400
 
-    syscall: add #include "funcdata.h" to files modified in last CL
+    runtime: convert panic/recover to Go
     
-    That's what defines GO_ARGS.
+    created panic1.go just so diffs were available.
+    After this CL is in, I'd like to move panic.go -> defer.go
+    and panic1.go -> panic.go.
     
-    TBR=khr
+    LGTM=rsc
+    R=rsc, khr
     CC=golang-codereviews
-    https://golang.org/cl/141460043
+    https://golang.org/cl/133530045
 
- src/syscall/asm_darwin_386.s      | 1 +
- src/syscall/asm_dragonfly_386.s   | 1 +
- src/syscall/asm_dragonfly_amd64.s | 1 +
- src/syscall/asm_freebsd_386.s     | 1 +
- src/syscall/asm_freebsd_amd64.s   | 1 +
- src/syscall/asm_freebsd_arm.s     | 1 +
- src/syscall/asm_linux_386.s       | 1 +
- src/syscall/asm_linux_amd64.s     | 1 +
- src/syscall/asm_linux_arm.s       | 1 +
- src/syscall/asm_nacl_386.s        | 1 +
- src/syscall/asm_nacl_amd64p32.s   | 1 +
- src/syscall/asm_nacl_arm.s        | 1 +
- src/syscall/asm_netbsd_386.s      | 1 +
- src/syscall/asm_netbsd_amd64.s    | 1 +
- src/syscall/asm_netbsd_arm.s      | 1 +
- src/syscall/asm_openbsd_386.s     | 1 +
- src/syscall/asm_openbsd_amd64.s   | 1 +
- src/syscall/asm_plan9_386.s       | 1 +
- src/syscall/asm_plan9_amd64.s     | 1 +
- 19 files changed, 19 insertions(+)
+ src/cmd/api/goapi.go            |   1 +
+ src/cmd/gc/builtin.c            |   4 +-
+ src/cmd/gc/popt.c               |   2 +-
+ src/cmd/gc/runtime.go           |   4 +-
+ src/cmd/gc/walk.c               |   4 +-
+ src/pkg/runtime/cgo/callbacks.c |   2 +-
+ src/pkg/runtime/panic.c         | 213 ++++------------------------------------
+ src/pkg/runtime/panic1.go       | 183 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h       |   5 +-
+ src/pkg/runtime/stack.c         |  24 ++++-
+ src/pkg/runtime/stack_test.go   |  15 +++
+ src/pkg/runtime/stubs.go        |   7 +-
+ test/live.go                    |   2 +-
+ 13 files changed, 251 insertions(+), 215 deletions(-)

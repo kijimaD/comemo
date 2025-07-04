@@ -1,46 +1,39 @@
-commit e0d37a33ab6260f5acc68dbb9a02c3135d19bcbb
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Apr 15 16:52:49 2018 +0200
+commit 28639df158a19b2bbceda43fb67ca7cb685d8e34
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 10:10:46 2018 -0500
 
-    cmd/compile: teach prove to handle expressions like len(s)-delta
+    cmd/link: apply -X options after loading symbols
     
-    When a loop has bound len(s)-delta, findIndVar detected it and
-    returned len(s) as (conservative) upper bound. This little lie
-    allowed loopbce to drop bound checks.
+    The linker has been applying -X options before loading symbols,
+    meaning that when it sees -X y=z it creates a symbol named y
+    and initializes its string data to z. The symbol named y is marked
+    "DUPOK" so that when the actual packages are loaded, no error is
+    emitted when the real y is seen. The predefined y's data is used
+    instead of whatever the real y says.
     
-    It is obviously more generic to teach prove about relations like
-    x+d<w for non-constant "w"; we already handled the case for
-    constant "w", so we just want to learn that if d<0, then x+d<w
-    proves that x<w.
+    If we define -X y=z and we never load y, then the predefined symbol
+    is dropped during dead code elimination, but not in shared library
+    builds. Shared library builds must include all symbols, so we have to
+    be more careful about not defining symbols that wouldn't have
+    appeared anyway.
     
-    To be able to remove the code from findIndVar, we also need
-    to teach prove that len() and cap() are always non-negative.
+    To be more careful, save the -X settings until after all the symbols
+    are loaded from the packages, and then apply the string changes
+    to whatever symbols are known (but ignore the ones that were not
+    loaded at all). This ends up being simpler anyway, since it doesn't
+    depend on DUPOK magic.
     
-    This CL allows to prove 633 more checks in cmd+std. Most
-    of them are cases where the code was already testing before
-    accessing a slice but the compiler didn't know it. For instance,
-    take strings.HasSuffix:
+    Makes CL 86835 safe.
     
-        func HasSuffix(s, suffix string) bool {
-            return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
-        }
+    Fixes #23273.
     
-    When suffix is a literal string, the compiler now understands
-    that the explicit check is enough to not emit a slice check.
-    
-    I also found a loopbce test that was incorrectly
-    written to detect an overflow but had a off-by-one (on the
-    conservative side), so it unexpectly passed with this CL; I
-    changed it to really trigger the overflow as intended.
-    
-    Change-Id: Ib5abade337db46b8811425afebad4719b6e46c4a
-    Reviewed-on: https://go-review.googlesource.com/105635
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: Ib4c9b2d5eafa97c5a8114401dbec0134c76be54f
+    Reviewed-on: https://go-review.googlesource.com/86915
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/loopbce.go |   7 --
- src/cmd/compile/internal/ssa/prove.go   | 145 +++++++++++++++++++-------------
- test/loopbce.go                         |  25 +++++-
- test/prove.go                           |  39 ++++++++-
- 4 files changed, 147 insertions(+), 69 deletions(-)
+ src/cmd/link/internal/ld/data.go | 45 ++++++++++++++++++++++++++--------------
+ src/cmd/link/internal/ld/go.go   |  6 +++---
+ src/cmd/link/internal/ld/main.go |  2 +-
+ 3 files changed, 34 insertions(+), 19 deletions(-)

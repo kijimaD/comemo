@@ -1,20 +1,31 @@
-commit 0067586953f7a6b6048e2abaec8794cbaccd0168
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jun 25 14:43:06 2019 -0400
+commit e0ff4e6dc013ac18728743a43b6faa812737bdb2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Dec 31 19:48:21 2018 +0100
 
-    cmd/go: add a Latest field to the output of 'go mod download -json'
+    encoding/pem: skip whitespace work on most inputs
     
-    Fixes #32239
+    encoding/base64 already skips \r and \n when decoding, so this package
+    must only deal with spaces and tabs. Those aren't nearly as common, so
+    we can add a fast path with bytes.ContainsAny to skip the costly alloc
+    and filtering code.
     
-    Change-Id: I5723abaa9b6bed7e8fb2d95f749a4e03ecc8741b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183841
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    name      old time/op    new time/op    delta
+    Decode-8     279µs ± 0%     259µs ± 1%   -7.07%  (p=0.002 n=6+6)
+    
+    name      old speed      new speed      delta
+    Decode-8   319MB/s ± 0%   343MB/s ± 1%   +7.61%  (p=0.002 n=6+6)
+    
+    name      old alloc/op   new alloc/op   delta
+    Decode-8     164kB ± 0%      74kB ± 0%  -54.90%  (p=0.002 n=6+6)
+    
+    name      old allocs/op  new allocs/op  delta
+    Decode-8      12.0 ± 0%      11.0 ± 0%   -8.33%  (p=0.002 n=6+6)
+    
+    Change-Id: Idfca8700c52f46eb70a4a7e0d2db3bf0124e4699
+    Reviewed-on: https://go-review.googlesource.com/c/155964
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go                              |  1 +
- src/cmd/go/internal/modcmd/download.go             | 25 ++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_download.txt        |  4 +++-
- src/cmd/go/testdata/script/mod_download_latest.txt | 20 +++++++++++++++++
- src/cmd/go/testdata/script/mod_list_upgrade.txt    | 20 +++++++++++++++++
- 5 files changed, 69 insertions(+), 1 deletion(-)
+ src/encoding/pem/pem.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

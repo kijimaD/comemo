@@ -1,19 +1,19 @@
-commit 8265683dda363d00f94e86ce8c5aa86c7b2bd2a4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 19 14:29:26 2022 -0700
+commit 9ea939be600df12fe51b201112cc12e741acef00
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 20:01:16 2021 -0500
 
-    go/types: remove special handling for .go1 files in tests
+    go/types: implement Checker.implements
     
-    All but local tests are now shared and reside in internal/types;
-    and there are no .go1 files anymore.
+    This is a port of CL 363837 from types2 to go/types. As usual, test
+    error messages had to be repositioned on the operand.
     
-    Change-Id: I3f8374e85639348de3cb8b568a7a05df5f9c2a38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444276
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I2b53fae7aa30f9147f8d05f75b0ab252338320bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364934
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/check_test.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/go/types/instantiate.go                    | 121 +++++++++++++------------
+ src/go/types/testdata/fixedbugs/issue45920.go2 |   4 +-
+ 2 files changed, 67 insertions(+), 58 deletions(-)

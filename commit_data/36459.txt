@@ -1,23 +1,22 @@
-commit 6e76aeba0bda33f6bd45ac9c8e5c026c1688e846
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Aug 23 15:05:19 2018 -0400
+commit 48bfc8db51557210a0c6c38566185b1c376c374d
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Feb 17 18:12:22 2018 +0100
 
-    doc/go1.11: add link to new WebAssembly wiki page
+    runtime,cmd/compile: adjust and correct path names in comments of map code
     
-    The wiki page has recently been created, and at this time it's
-    just a stub. It's expected that support for WebAssembly will be
-    evolving over time, and the wiki page can be kept updated with
-    helpful information, how to get started, tips and tricks, etc.
+    Some of the comments relative paths do not exist and
+    reflect does not define its own hmap structure.
     
-    Use present tense because it's expected that there will be more
-    general information added by the time Go 1.11 release happens.
+    Correct paths and consistently reference paths starting from the
+    go src directory.
     
-    Also add link to https://webassembly.org/ in first paragraph.
-    
-    Change-Id: I139c2dcec8f0d7fd89401df38a3e12960946693f
-    Reviewed-on: https://go-review.googlesource.com/131078
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5204a3a98f77d65f17dcde98b847378cea05ad8a
+    Reviewed-on: https://go-review.googlesource.com/94758
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/go1.11.html | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/reflect.go | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go    |  6 +++---
+ src/runtime/map.go                     | 12 ++++++------
+ 3 files changed, 15 insertions(+), 15 deletions(-)

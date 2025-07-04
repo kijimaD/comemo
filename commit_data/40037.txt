@@ -1,12 +1,17 @@
-commit f7a00c99064d0cb367908a2bc6dea0bb007089de
-Author: Davor Kapsa <davor.kapsa@gmail.com>
-Date:   Thu Sep 26 10:07:34 2019 +0200
+commit c40bffd90535bd9d5bf6a398f5227ff2c9aaed52
+Author: Romain Baugue <romain.baugue@elwinar.com>
+Date:   Wed Apr 10 16:20:43 2019 +0200
 
-    SECURITY.md: update go versions
+    reflect: add Value.IsZero
     
-    Change-Id: I59446965b198767af60d617da29b5c2e457829ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197477
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #7501
+    
+    Change-Id: Iac7c79cd4b30a90b14ed84bf1eba758972232a6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171337
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- SECURITY.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/all_test.go | 107 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    |  40 ++++++++++++++++++
+ 2 files changed, 147 insertions(+)

@@ -1,24 +1,17 @@
-commit df4e49366c25118e20fac51f834d3cf4864b163b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 15 18:39:01 2024 -0400
+commit 16a0b7fddb63d407b735e23dd7866b3d071e14d5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 16 17:26:53 2023 -0400
 
-    internal/coverage/cfile: remove more //go:linkname usage
+    doc/go1.21: document wasip1 port
     
-    Move code so that basic imports work instead
-    of //go:linkname for metadata lists.
+    Updates #58141.
     
-    For #67401.
-    
-    Change-Id: Id02075570befc45a9426559aad2137ab540928b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585915
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Iad11e7880efb37e9a1e17daf48d36b886725f75d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495476
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/go/build/deps_test.go                  | 67 +++++++++++++++++-------------
- src/internal/coverage/cfile/apis.go        |  7 ++--
- src/internal/coverage/cfile/emit.go        | 24 +++--------
- src/internal/coverage/cfile/testsupport.go |  3 +-
- src/internal/coverage/rtcov/rtcov.go       | 56 ++++++++++++++++++++++++-
- src/runtime/covermeta.go                   | 66 ++++-------------------------
- 6 files changed, 111 insertions(+), 112 deletions(-)
+ doc/go1.21.html | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

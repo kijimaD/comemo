@@ -1,23 +1,13 @@
-commit 73516c5f481250db4ccbfdddb8f68ef261897fcb
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Jun 27 11:07:08 2016 -0400
+commit 7166dfe0c11bd25b962d7f691ea1be857842dfbf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 11 11:54:07 2016 -0700
 
-    encoding/gob: avoid allocating string for map key
+    image/color: add YCbCrToRGB benchmark
     
-    On linux/386 compared to tip:
-    
-            name                     old time/op  new time/op  delta
-            DecodeInterfaceSlice-40  1.23ms ± 1%  1.17ms ± 1%  -4.93%  (p=0.000 n=9+10)
-    
-    Recovers about half the performance regression from Go 1.6 on 386.
-    
-    For #16117.
-    
-    Change-Id: Ie8676d92a4da3e27ff21b91a98b3e13d16730ba1
-    Reviewed-on: https://go-review.googlesource.com/24468
+    Change-Id: I9ba76d5b0861a901415fdceccaf2f5caa2facb7f
+    Reviewed-on: https://go-review.googlesource.com/21837
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/gob/decode.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/image/color/ycbcr_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

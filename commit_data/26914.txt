@@ -1,19 +1,15 @@
-commit 6e5027a37a851eb19dba7dad7ea5a8b43e27b842
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 13 13:17:30 2016 -0700
+commit 0f9cc465fa88c41fc8bf3c36d4016f6fa1e97bf2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 3 13:01:09 2016 +1100
 
-    cmd/compile: don't export unneeded OAS, OASWB nodes
+    math: delete unused function sqrtC
     
-    Also:
-    - "rewrite" node Op in exporter for some nodes instead of importer
-    - more comments
+    It appears to be a trivial dreg. Unreferenced. Gone.
     
-    Change-Id: I809e6754d14987b28f1da9379951ffa2e690c2a7
-    Reviewed-on: https://go-review.googlesource.com/22008
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4a5ceed48e84254bc8a07fdb04487a18a0edf965
+    Reviewed-on: https://go-review.googlesource.com/20122
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/gc/bexport.go | 27 +++++++++++++---------
- src/cmd/compile/internal/gc/bimport.go | 41 +++++++++++++++++-----------------
- 2 files changed, 36 insertions(+), 32 deletions(-)
+ src/math/sqrt.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,30 +1,20 @@
-commit 74f99d0933d5c201fc17d90ab612cd1a9c7d425f
-Author: Steven Hartland <steven.hartland@multiplay.co.uk>
-Date:   Tue Jun 9 08:58:08 2020 +0100
+commit c015f76acb73990d4cb7fb056165b64d79b1b037
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 23 20:00:31 2021 -0500
 
-    database/sql: Fix idle connection reuse
+    cmd/compile: implement too-big-to-SSA struct passing in registers
     
-    Fix idle connection reuse so that ConnMaxIdleTime clears down excessive
-    idle connections.
+    Added a test that exercises named results
     
-    This now ensures that db.freeConn is ordered by returnedAt and that
-    connections that have been idle for the shortest period are reused
-    first.
-    
-    In addition connectionCleanerRunLocked updates the next check deadline
-    based on idle and maximum life time information so that we avoid waiting
-    up to double MaxIdleTime to close connections.
-    
-    Corrected the calling timer of connectionCleaner.
-    
-    Fixes #39471
-    
-    Change-Id: I6d26b3542179ef35aa13e5265a89bc0f08ba7fa1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237337
-    Reviewed-by: Tamás Gulácsi <tgulacsi78@gmail.com>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie228b68f4f846266595a95e0f65a6e4b8bf79635
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297029
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/database/sql/sql.go      | 86 +++++++++++++++++++++++++++++--------------
- src/database/sql/sql_test.go | 87 ++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 130 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go     | 59 +++++++++++++++---
+ src/cmd/compile/internal/ssa/expand_calls.go | 26 +++++---
+ src/cmd/compile/internal/ssagen/ssa.go       | 27 ++++++---
+ test/abi/named_results.go                    | 91 ++++++++++++++++++++++++++++
+ test/abi/named_results.out                   | 13 ++++
+ 5 files changed, 190 insertions(+), 26 deletions(-)

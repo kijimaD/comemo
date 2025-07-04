@@ -1,32 +1,18 @@
-commit 5dceddfe7cc53f70cdadcd2fab312fa94c4d04f5
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jan 23 13:29:23 2024 -0500
+commit f63ee8b2c79e1941161bf1b49f800100c9e34415
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Tue Feb 7 08:21:05 2023 +0000
 
-    runtime: use channels in gcBgMarkStartWorkers
+    doc: fix spec typo
     
-    gcBgMarkStartWorkers currently starts workers one at a time, using a
-    note to communicate readiness back from the worker.
-    
-    However, this is a pretty standard goroutine, so we can just use a
-    channel to communicate between the goroutines.
-    
-    In addition to being conceptually simpler, using channels has the
-    additional advantage of coordinating with the scheduler. Notes use OS
-    locks and sleep the entire thread, requiring other threads to run the
-    other goroutines. Waiting on a channel allows the scheduler to directly
-    run another goroutine. When the worker sends to the channel, the
-    scheduler can use runnext to run gcBgMarkStartWorker immediately,
-    reducing latency.
-    
-    We could additionally batch start all workers and then wait only once,
-    however this would defeate runnext switching between the workers and
-    gcBgMarkStartWorkers, so in a heavily loaded system, we expect the
-    direct switches to reduce latency.
-    
-    Change-Id: Iedf0d2ad8ad796b43fd8d32ccb1e815cfe010cb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558535
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I5e3aca2b8fc78f38c9e2cdc67adf86d57ac85b1c
+    GitHub-Last-Rev: 0e5ddffe33f5677449d24e09bdb332e3d5c08aa3
+    GitHub-Pull-Request: golang/go#58353
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465615
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/mgc.go | 43 +++++++++++++++++++++++++++++++++----------
- 1 file changed, 33 insertions(+), 10 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,19 +1,32 @@
-commit 2cc33511312a68299ced23428365c0fc86c89476
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jan 31 12:27:42 2012 -0500
+commit 2f63afdc7afbf0af957f4dd5f60279711602b53c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 1 01:53:26 2012 +0900
 
-    crypto/elliptic: p224Contract could produce a non-minimal representation.
+    net: ListenMulticastUDP to listen concurrently across multiple listeners
     
-    I missed an overflow in contract because I suspected that the prime
-    elimination would take care of it. It didn't, and I forgot to get back
-    to the overflow. Because of this, p224Contract may have produced a
-    non-minimal representation, causing flakey failures ~0.02% of the
-    time.
+    This CL introduces new function ListenMulticastUDP to fix
+    multicast UDP listening across multiple listeners issue,
+    to replace old multicast methods JoinGroup and LeaveGroup
+    on UDPConn.
     
-    R=golang-dev, rsc
+    This CL also enables multicast testing by default.
+    
+    Fixes #2730.
+    
+    R=rsc, paul.a.lalonde, fullung, devon.odell
     CC=golang-dev
-    https://golang.org/cl/5592045
+    https://golang.org/cl/5562048
 
- src/pkg/crypto/elliptic/elliptic_test.go | 11 ++++++++++
- src/pkg/crypto/elliptic/p224.go          | 35 +++++++++++++++++++++++++++++++-
- 2 files changed, 45 insertions(+), 1 deletion(-)
+ doc/go1.html                   |  9 +++-
+ doc/go1.tmpl                   |  9 +++-
+ src/pkg/net/multicast_test.go  | 76 ++++++++++++---------------------
+ src/pkg/net/sock.go            | 11 ++++-
+ src/pkg/net/sock_bsd.go        | 24 +++++++++++
+ src/pkg/net/sock_linux.go      | 24 +++++++++++
+ src/pkg/net/sock_windows.go    | 24 +++++++++++
+ src/pkg/net/sockopt_bsd.go     | 36 ++++++++++++----
+ src/pkg/net/sockopt_linux.go   | 26 +++++++++---
+ src/pkg/net/sockopt_windows.go | 20 ++++++---
+ src/pkg/net/udpsock_plan9.go   | 22 +++-------
+ src/pkg/net/udpsock_posix.go   | 96 ++++++++++++++++++++++++++++++------------
+ 12 files changed, 259 insertions(+), 118 deletions(-)

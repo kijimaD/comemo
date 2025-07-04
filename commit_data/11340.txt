@@ -1,15 +1,17 @@
-commit 110964ac81193dac22c56456026bc5b687a72bc1
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Jan 23 19:36:52 2012 +0100
+commit 77cb8956a061181619e661a530955dd93e65cb64
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 24 02:59:43 2012 +0900
 
-    exp/norm: fixes a subtle bug introduced by change 10087: random offset
-    for map iteration.  New code makes table output predictable and fixes
-    bug.
+    net: consistent OpError message
     
-    R=rsc, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5573044
+    https://golang.org/cl/5562047
 
- src/pkg/exp/norm/tables.go  | 109 +++++++++++++++++++++-----------------------
- src/pkg/exp/norm/triegen.go |   4 +-
- 2 files changed, 55 insertions(+), 58 deletions(-)
+ src/pkg/net/iprawsock_posix.go |  6 +++---
+ src/pkg/net/tcpsock_plan9.go   |  4 ++--
+ src/pkg/net/tcpsock_posix.go   |  4 ++--
+ src/pkg/net/udpsock_plan9.go   |  6 +++---
+ src/pkg/net/udpsock_posix.go   | 32 ++++++++++++++++----------------
+ src/pkg/net/unixsock_posix.go  |  6 +++---
+ 6 files changed, 29 insertions(+), 29 deletions(-)

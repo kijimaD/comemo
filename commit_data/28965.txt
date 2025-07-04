@@ -1,21 +1,16 @@
-commit 325c2aa5b6f12ccc82e8472beec0e1511e975bd4
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Mon Oct 17 09:28:06 2016 -0700
+commit da2a938910f0401ccd0396891c17b8f8974263de
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Aug 18 14:49:01 2016 -0700
 
-    database/sql: update the conversion errors to be clearer
+    crypto/tls: fix comment typo.
     
-    There was some ambiguity over which argument was referred to when
-    a conversion error was returned. Now refer to the argument by
-    either explicit ordinal position or name if present.
+    This was pointed out in https://go-review.googlesource.com/#/c/27315/1
+    but I changed and uploaded the wrong branch. This actually makes the
+    fix.
     
-    Fixes #15676
-    
-    Change-Id: Id933196b7e648baa664f4121fa3fb1b07b3c4880
-    Reviewed-on: https://go-review.googlesource.com/31262
+    Change-Id: Ib615b06c9141b914648b6abbeeb688c5ffa0d2e3
+    Reviewed-on: https://go-review.googlesource.com/27360
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/convert.go  | 33 +++++++++++++++++++++------------
- src/database/sql/sql_test.go |  4 ++--
- 2 files changed, 23 insertions(+), 14 deletions(-)
+ src/crypto/tls/cipher_suites.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

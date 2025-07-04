@@ -1,26 +1,17 @@
-commit b0ec32db117a750d6259a601b37d5bd89ff44a2b
+commit b4d6b71e169f48009948174cfc2478892ccb757d
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 19 16:06:16 2011 -0400
+Date:   Wed Oct 19 16:02:22 2011 -0400
 
-    govet: check canonical dynamic method signatures
+    unicode: sort tables.go
     
-    Adds check that, for example, a Scan method taking
-    a first argument of type fmt.ScanState has the correct
-    signature to satisfy fmt.Scanner.
-    
-    Similarly, a ReadByte should return byte, os.Error.
-    
-    These are important to check because various pieces
-    of code (fmt, gob, json, flate) do dynamic checks
-    for these methods, so code with incorrect signatures
-    would not be flagged at compile time.
-    
-    These become even more important to check when
-    rune is introduced.
+    Makes tables.go output consistent across maketable runs.
+    (It was already inconsistent across architectures; the new
+    map iteration order just make it inconsistent across runs.)
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/5305044
+    https://golang.org/cl/5303046
 
- src/cmd/govet/govet.go | 191 +++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 187 insertions(+), 4 deletions(-)
+ src/pkg/unicode/maketables.go |   32 +-
+ src/pkg/unicode/tables.go     | 6976 ++++++++++++++++++++---------------------
+ 2 files changed, 3508 insertions(+), 3500 deletions(-)

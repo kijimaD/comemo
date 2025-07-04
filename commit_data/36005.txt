@@ -1,24 +1,17 @@
-commit baebc7f9939b8030d89d3b96d7bc6879452c9495
-Author: Keith Randall <khr@google.com>
-Date:   Mon Jul 16 10:45:25 2018 -0700
+commit 7e34ac1f4c6e940dd73756c10fce078804a20a05
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 27 17:06:53 2018 -0700
 
-    misc/cgo: fix darwin test, again
+    cmd/go: add more C compiler/linker options to whitelist
     
-    TARGET_OS_OSX is the right macro, but it also was only introduced
-    in 1.12.  For 1.11 and earlier a reasonable substitution is
-    TARGET_OS_IPHONE == 0.
+    Fixes #23937
     
-    Update #24161
-    Update #26355
-    
-    Change-Id: I5f43c463d14fada9ed1d83cc684c7ea05d94c5f3
-    Reviewed-on: https://go-review.googlesource.com/124075
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ie63d91355d1a724d0012d99d457d939deeeb8d3e
+    Reviewed-on: https://go-review.googlesource.com/102818
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- misc/cgo/test/issue24161e0/main.go | 2 +-
- misc/cgo/test/issue24161e1/main.go | 2 +-
- misc/cgo/test/issue24161e2/main.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/work/security.go      | 48 +++++++++++++++++++++++++++++--
+ src/cmd/go/internal/work/security_test.go |  4 ---
+ 2 files changed, 46 insertions(+), 6 deletions(-)

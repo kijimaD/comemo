@@ -1,18 +1,40 @@
-commit 2c74018d7b2566513bf05b984a720769f95a922d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 12 23:09:48 2023 +0200
+commit 7ea0520234aafb47d05bb4822cb7af54c6ac7554
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Sep 21 15:51:27 2022 -0400
 
-    path: use bytealg.LastIndexByteString
+    go,cmd,internal: update to anticipate missing targets and .a files
     
-    While strings.LastIndex{,Byte} cannot be used in package path, the
-    respective internal/bytealg function can be used.
+    go/build and cmd/go will stop returing Targets for stdlib .a files, and
+    stop producing the .a files is pkg/GOOS_GOARCH. update tests to
+    anticipate that and to pass in importcfgs instead of expecting the
+    compiler can find .a files in their old locations.
     
-    Change-Id: If0ecc36484308221f50875c8609913f6f2887fba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527855
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Adds code to determine locations of .a files to internal/goroot. Also
+    adds internal/goroot to dist's bootstrap directories and changes
+    internal/goroot to build with a bootstrap version of Go.
+    
+    Change-Id: Ie81e51105bddb3f0e374cbf47e81c23edfb67fa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442303
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/path/path.go | 15 ++++-----------
- 1 file changed, 4 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/importer/gcimporter.go    | 43 ++++++++++++--
+ .../compile/internal/importer/gcimporter_test.go   | 26 +++++----
+ src/cmd/dist/buildtool.go                          |  1 +
+ src/cmd/internal/archive/archive_test.go           |  7 ++-
+ src/cmd/link/link_test.go                          | 36 ++++++++----
+ src/cmd/objdump/objdump_test.go                    |  5 +-
+ src/cmd/pack/pack_test.go                          | 17 ++++--
+ src/go/build/deps_test.go                          |  2 +-
+ src/go/importer/importer_test.go                   |  9 +--
+ src/go/internal/gcimporter/gcimporter.go           | 42 ++++++++++++--
+ src/go/internal/gcimporter/gcimporter_test.go      | 30 ++++++----
+ src/internal/abi/abi_test.go                       |  5 +-
+ src/internal/goroot/gc.go                          |  4 +-
+ src/internal/goroot/importcfg.go                   | 66 ++++++++++++++++++++++
+ src/internal/testenv/testenv.go                    | 18 ++++++
+ src/internal/types/errors/codes_test.go            |  3 +
+ src/runtime/align_test.go                          |  3 +
+ 17 files changed, 256 insertions(+), 61 deletions(-)

@@ -1,44 +1,25 @@
-commit 051e99292f0b3551936e841e6aa6484ec66dd906
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Mar 25 12:19:47 2024 +0100
+commit c00e9285eae4599f6a123d0a355633379be998e8
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Mon Apr 3 09:54:53 2023 -0400
 
-    os: reuse buffer pool more aggressively in readdir
+    runtime: save frame pointer to the stack in signal handlers for arm64
     
-    We can reuse the buffer pool more aggressively when reading a directory
-    by returning the buffer to the pool as soon as we get to the end of the
-    directory, rather than waiting until the the os.File is closed.
+    When taking over the goroutine stack in the panic or preemption signal
+    handlers on arm64, the frame pointer should be saved on the stack (like
+    the link register) so that frame-pointer unwinding from a panic stack
+    works properly. Otherwise, tests like TestStackWrapperStackPanic will
+    fail with the frame pointer check in adjustframe (enabled with
+    debugCheckBP) when checking the sigpanic frame.
     
-    This yields a significant memory usage reduction when traversing
-    nested directories recursively via os.File#ReadDir (and friends),
-    as the file pointers tends to be closed only after the entire
-    traversal is done. For example, this pattern is used in os.RemoveAll.
-    These are the improvements observed in BenchmarkRemoveAll:
+    Updates #39524, #58432
     
-    goos: linux
-    goarch: amd64
-    pkg: os
-    cpu: AMD EPYC 7763 64-Core Processor
-                │   old.txt   │            new.txt            │
-                │   sec/op    │   sec/op     vs base          │
-    RemoveAll-4   3.847m ± 2%   3.823m ± 1%  ~ (p=0.143 n=10)
-    
-                │   old.txt    │               new.txt                │
-                │     B/op     │     B/op      vs base                │
-    RemoveAll-4   39.77Ki ± 2%   17.63Ki ± 1%  -55.68% (p=0.000 n=10)
-    
-                │  old.txt   │              new.txt              │
-                │ allocs/op  │ allocs/op   vs base               │
-    RemoveAll-4   510.0 ± 0%   503.0 ± 0%  -1.37% (p=0.000 n=10)
-    
-    Change-Id: I70e1037378a02f1d670ccb7b275ee55f0caa6d0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573358
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I8b89e6fc4877af29b1b81e55e591e6398159855c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481635
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/os/dir_unix.go       |  7 ++++++-
- src/os/dir_windows.go    |  7 ++++++-
- src/os/removeall_test.go | 17 +++++++++++++++++
- 3 files changed, 29 insertions(+), 2 deletions(-)
+ src/runtime/signal_arm64.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

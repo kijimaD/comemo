@@ -1,46 +1,17 @@
-commit af1ae438b9218d5dbdb0bf0c756de1e3d4691551
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 6 11:56:17 2011 -0700
+commit 155e21cc7f37ade106171ac53fd6826869811001
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 6 11:00:02 2011 -0700
 
-    go/doc, godoc, gotest: support for reading example documentation
+    exec: add Command.ExtraFiles
     
-    This CL introduces the go.Example type and go.Examples functions that
-    are used to represent and extract code samples from Go source.
+    Allows passing extra fds to the child process.
     
-    They should be of the form:
+    Fixes #2329
     
-    // Output of this function.
-    func ExampleFoo() {
-            fmt.Println("Output of this function.")
-    }
-    
-    It also modifies godoc to read example code from _test.go files,
-    and include them in the HTML output with JavaScript-driven toggles.
-    
-    It also implements testing of example functions with gotest.
-    The stdout/stderr is compared against the output comment on the
-    function.
-    
-    This CL includes examples for the sort.Ints function and the
-    sort.SortInts type. After patching this CL in and re-building go/doc
-    and godoc, try
-            godoc -http=localhost:6060
-    and visit http://localhost:6060/pkg/sort/
-    
-    R=gri, r, rsc
+    R=rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5137041
+    https://golang.org/cl/5162050
 
- doc/all.css                  |  9 +++++
- doc/godocs.js                | 22 ++++++++++++
- lib/godoc/example.html       | 11 ++++++
- lib/godoc/package.html       |  6 ++++
- src/cmd/godoc/godoc.go       | 61 ++++++++++++++++++++++++++------
- src/cmd/gotest/gotest.go     | 25 +++++++++++--
- src/pkg/go/doc/Makefile      |  1 +
- src/pkg/go/doc/example.go    | 56 +++++++++++++++++++++++++++++
- src/pkg/sort/example_test.go | 17 +++++++++
- src/pkg/testing/Makefile     |  1 +
- src/pkg/testing/example.go   | 84 ++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/testing/testing.go   | 23 ++++++------
- 12 files changed, 292 insertions(+), 24 deletions(-)
+ src/pkg/exec/exec.go      |  6 ++++++
+ src/pkg/exec/exec_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)

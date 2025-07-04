@@ -1,14 +1,20 @@
-commit b643684febabf499205f92da06adb02a722ed225
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Apr 8 10:30:34 2015 +1200
+commit ddf958d4683e79edd9496337bddb9ed624057470
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 4 15:43:43 2015 -0800
 
-    cmd/go: re-run mkdoc.sh
+    cmd/go: use new SWIG -cgo option
     
-    Adds $DOLLAR to doc.go
+    This fixes SWIG to work again.  It requires SWIG 3.0.6 or later.
+    Earlier versions of SWIG will not work because they generate a .c file
+    to be compiled by [568]c, which no longer exist.  As of SWIG 3.0.6
+    SWIG supports a -cgo option that tells it to generate files that
+    import "C" and can be used with the cgo tool.  With luck this will
+    means that future versions of SWIG will not require changes for future
+    versions of Go.
     
-    Change-Id: Ia0ccdd9b5292010297ae95debab4acf50d3c4d9c
-    Reviewed-on: https://go-review.googlesource.com/8600
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iad7beb196ba9dcd3e3f684196d50e5d51ed98204
+    Reviewed-on: https://go-review.googlesource.com/6851
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/doc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/build.go | 196 +++++++++++++++++++++-------------------------------
+ 1 file changed, 80 insertions(+), 116 deletions(-)

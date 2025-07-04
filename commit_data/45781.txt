@@ -1,24 +1,16 @@
-commit 139e935d3cc8d38c9adc7ff7de8a87c28fe339c6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 13 10:46:58 2021 -0400
+commit bcfaeca58c791ada53fae18fffa26936bc245423
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Oct 28 10:48:17 2020 +0100
 
-    math/big: comment division
+    time: in NewTicker, document that the 1st tick comes after d
     
-    The comments in the code refer to Knuth and to Burnikel and Ziegler,
-    but Knuth's presentation is inscrutable, and our recursive division
-    code does not bear much resemblance to Burnikel and Ziegler's paper
-    (which is fine, ours is nicer).
+    Fixes #42245
     
-    Add a standalone explanation of division instead of referring to
-    difficult or not-directly-used references.
-    
-    Change-Id: Ic1b35dc167fb29a69ee00e0b4a768ac9cc9e1324
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321078
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I3b298ab6be65569389873d68bd3c6e49cf892c69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265818
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/math/big/natdiv.go | 684 +++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 611 insertions(+), 73 deletions(-)
+ src/time/tick.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

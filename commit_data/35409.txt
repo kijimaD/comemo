@@ -1,22 +1,22 @@
-commit d2c68bb65f7093235bd9a43629c41d4403950e27
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Thu May 17 18:20:53 2018 +0300
+commit 755b36aa532f6b23081bf5eaf83449c1a6dd8114
+Author: Keith Randall <khr@google.com>
+Date:   Tue Feb 13 12:33:55 2018 -0800
 
-    cmd/internal/obj/x86: fix VPERMQ and VPERMPD ytab
+    cmd/compile: fix constant folding of right shifts
     
-    Fixes invalid encoding of VPERMQ and VPERMPD that use
-    negative immediate argument.
+    The sub-word shifts need to sign-extend before shifting, to avoid
+    bringing in data from higher in the argument.
     
-    Fixes #25418
-    Updates #25420
+    Fixes #23812
     
-    Change-Id: Idd8180c4c632a76b76f3a68efd5f930d94431994
-    Reviewed-on: https://go-review.googlesource.com/113615
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: I0a95a0b49c48f3b40b85765bb4a9bb492be0cd73
+    Reviewed-on: https://go-review.googlesource.com/93716
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 5 ++++-
- src/cmd/internal/obj/x86/asm6.go                   | 2 +-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  6 ++---
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 24 ++++++++++----------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 12 +++++-----
+ test/fixedbugs/issue23812.go                 | 34 ++++++++++++++++++++++++++++
+ 4 files changed, 55 insertions(+), 21 deletions(-)

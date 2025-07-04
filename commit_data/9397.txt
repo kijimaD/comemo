@@ -1,38 +1,19 @@
-commit 0f7bc92bdb5e45e78506b065678ba5b1d44c8c35
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Wed Aug 17 13:28:29 2011 -0400
+commit b77c40a2b3c9e1b6b4c27918da92828fed546b74
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 10:27:32 2011 -0700
 
-    net: Plan 9 support
+    go/parser: do not accept type literals where not permitted in general
     
-    All tests enabled by default passes except those in timeout_test.go.
+    - Resolves a long-standing TODO.
+    - Replacement for CL 4908042 by befelemepeseveze@gmail.com
     
-    For TestLookupPort, add an entry for "bootps" in /lib/ndb/common
-    (Plan 9 calls it "bootp"). I've sent out a patch to fix this.
+    Fixes #2155.
     
-    R=paulzhol, rsc, mikioh.mikioh
-    CC=ality, golang-dev
-    https://golang.org/cl/4779041
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4904048
 
- src/pkg/net/Makefile             |  48 ++++-
- src/pkg/net/file_plan9.go        |  33 ++++
- src/pkg/net/file_test.go         |   4 +-
- src/pkg/net/iprawsock.go         | 294 ---------------------------
- src/pkg/net/iprawsock_plan9.go   |  99 ++++++++++
- src/pkg/net/iprawsock_posix.go   | 305 ++++++++++++++++++++++++++++
- src/pkg/net/ipsock.go            | 165 ----------------
- src/pkg/net/ipsock_plan9.go      | 305 ++++++++++++++++++++++++++++
- src/pkg/net/ipsock_posix.go      | 174 ++++++++++++++++
- src/pkg/net/lookup_plan9.go      | 226 +++++++++++++++++++++
- src/pkg/net/parse_test.go        |   4 +-
- src/pkg/net/server_test.go       |   8 +-
- src/pkg/net/tcpsock.go           | 272 -------------------------
- src/pkg/net/tcpsock_plan9.go     |  63 ++++++
- src/pkg/net/tcpsock_posix.go     | 283 ++++++++++++++++++++++++++
- src/pkg/net/udpsock.go           | 283 --------------------------
- src/pkg/net/udpsock_plan9.go     | 187 ++++++++++++++++++
- src/pkg/net/udpsock_posix.go     | 294 +++++++++++++++++++++++++++
- src/pkg/net/unixsock.go          | 407 --------------------------------------
- src/pkg/net/unixsock_plan9.go    | 105 ++++++++++
- src/pkg/net/unixsock_posix.go    | 418 +++++++++++++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_plan9.go |   7 +-
- 22 files changed, 2549 insertions(+), 1435 deletions(-)
+ src/cmd/gofmt/test.sh            |  2 +-
+ src/pkg/go/parser/parser.go      | 34 +++++++++++++++++++---------------
+ src/pkg/go/parser/parser_test.go | 13 +++++++++++++
+ 3 files changed, 33 insertions(+), 16 deletions(-)

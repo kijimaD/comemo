@@ -1,41 +1,14 @@
-commit 0625460f79eed41039939f957baceaff5e269672
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 19 09:01:32 2021 -0500
+commit e92be18fd8b525b642ca25bdb3e2056b35d9d73c
+Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
+Date:   Wed Jun 10 13:30:42 2020 +0000
 
-    cmd/vet: update buildtag check for //go:build lines
+    runtime: fix typo in FuncForPC doc
     
-    Brings in golang.org/x/tools@2363391a
-    and adjusts, adds cmd/vet tests accordingly.
-    
-    Part of //go:build change (#41184).
-    See https://golang.org/design/draft-gobuild
-    
-    This brings in the new //go:build checks in cmd/vet.
-    
-    Change-Id: I8a9735cc014171691012b307ec30e94c81aadfe1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240609
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I04037e13b131e79ebc5af84896bfeda49ddc0eaa
+    GitHub-Last-Rev: b0d0de930862e4f163e158876cba70d81ed2d52e
+    GitHub-Pull-Request: golang/go#39500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237220
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   6 +-
- .../tools/go/analysis/passes/buildtag/buildtag.go  | 318 +++++++++++++++++----
- .../go/analysis/passes/buildtag/buildtag_old.go    | 174 +++++++++++
- .../go/analysis/passes/loopclosure/loopclosure.go  |  67 +++--
- .../x/tools/go/analysis/unitchecker/unitchecker.go |   2 +-
- .../go/analysis/unitchecker/unitchecker112.go      |   1 +
- src/cmd/vendor/modules.txt                         |   2 +-
- src/cmd/vet/testdata/asm/asm1.s                    |   1 +
- src/cmd/vet/testdata/buildtag/buildtag.go          |   6 +-
- src/cmd/vet/testdata/buildtag/buildtag2.go         |  22 ++
- src/cmd/vet/testdata/buildtag/buildtag3.go         |  15 +
- src/cmd/vet/testdata/buildtag/buildtag4.go         |  11 +
- src/cmd/vet/testdata/buildtag/buildtag5.go         |  11 +
- src/cmd/vet/testdata/buildtag/buildtag6.s          |   9 +
- src/cmd/vet/testdata/buildtag/buildtag7.s          |  11 +
- src/cmd/vet/testdata/tagtest/file1.go              |   1 +
- src/cmd/vet/testdata/tagtest/file2.go              |   1 +
- src/cmd/vet/vet_test.go                            |   9 +-
- 19 files changed, 582 insertions(+), 87 deletions(-)
+ src/runtime/symtab.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

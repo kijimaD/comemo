@@ -1,19 +1,19 @@
-commit 4c855f3830f88c0d11dbc19ff0a34cfa1beecc66
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 16 14:57:49 2013 +1000
+commit 0b25ba9ced9d0dda8a73545a2cc3eb377515d9c7
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Fri Aug 16 00:22:38 2013 -0400
 
-    time: fix time zones yet again.
-    This time we're going for 5!
-    http://goo.gl/3ETYH7
+    misc/emacs: allow godef to work in coverage buffers
     
-    Fixes #3790
-    Yeah, right.
+    Jumps to the same file will use the original buffer, not the
+    coverage buffer. Making it work for the coverage buffer isn't
+    worth the trouble, especially because it would break as soon as
+    you jump to a different file and back.
     
-    R=golang-dev, adg
+    Use error instead of message so it actually terminates
+    
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/13002044
+    https://golang.org/cl/13041043
 
- src/pkg/time/export_test.go |  2 ++
- src/pkg/time/format.go      | 39 +++++++++++++++++++++++++++------------
- src/pkg/time/time_test.go   | 32 ++++++++++++++++++++++++++++++++
- 3 files changed, 61 insertions(+), 12 deletions(-)
+ misc/emacs/go-mode.el | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

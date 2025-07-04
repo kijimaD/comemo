@@ -1,19 +1,25 @@
-commit babdbfb8260bbe8c6305c9d3023d83cc0b3645bf
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sun Apr 24 13:33:33 2016 +0200
+commit 517b6131b2f62d7a57851aca44e590da51e7e849
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 17 00:44:07 2016 -0700
 
-    cmd/trace: make binary argument optional
+    cmd/compile: add and use new Fields type
     
-    1.7 traces embed symbol info and we now generate symbolized pprof profiles,
-    so we don't need the binary. Make binary argument optional as 1.5 traces
-    still need it.
+    Analogous to the Nodes type used as a more space efficient []*Node
+    representation.
     
-    Change-Id: I65eb13e3d20ec765acf85c42d42a8d7aae09854c
-    Reviewed-on: https://go-review.googlesource.com/22410
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I8341e45304777d6e4200bd36dadc935b07ccf3ff
+    Reviewed-on: https://go-review.googlesource.com/20793
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/test.go     |  1 -
- src/cmd/go/testflag.go |  4 +++-
- src/cmd/trace/main.go  | 21 ++++++++++++++-------
- 3 files changed, 17 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go       |   8 +-
+ src/cmd/compile/internal/gc/fmt.go       |  49 ++++++------
+ src/cmd/compile/internal/gc/reflect.go   |   2 +-
+ src/cmd/compile/internal/gc/subr.go      |  57 ++++++--------
+ src/cmd/compile/internal/gc/type.go      | 131 ++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/typecheck.go |  18 ++---
+ 6 files changed, 132 insertions(+), 133 deletions(-)

@@ -1,24 +1,16 @@
-commit 44618b28d496b281c3966742eacfe3618f060d21
-Author: Alex Schroeder <alex@gnu.org>
-Date:   Sun Jun 14 12:54:05 2015 +0200
+commit a3dfcf51c6543ac1af853f1799d70eae83073f1a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 1 19:50:27 2015 -0700
 
-    wiki article: remove "flag" import from the code
+    cmd/internal/gc: unsafe.Pointer constants may only be converted to uintptr
     
-    When reading along the article, the extra code added in the final
-    version is not explained. The main function calls flag.Parse(), for
-    example, which will cause an error, unless the readers looks at the
-    entirety of final.go to see the import added.
+    Fixes #8927.
     
-    The file shown to the users no longer has the extra flags. The testing
-    code is now in a patch that gets applied to final.go in order to create
-    final-test.go. This is the file that will be used to test the code,
-    matching final.go as much as possible.
-    
-    Change-Id: I022f5f6c88e107c8ba5623661d74a8d260d05266
-    Reviewed-on: https://go-review.googlesource.com/11061
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I638cddd439dd2d4eeef5474118cfcbde0c8a5a43
+    Reviewed-on: https://go-review.googlesource.com/9632
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/articles/wiki/final-test.patch | 36 ++++++++++++++++++++++++++++++++++++
- doc/articles/wiki/final.go         | 22 ----------------------
- doc/articles/wiki/test.bash        | 14 ++++++++------
- 3 files changed, 44 insertions(+), 28 deletions(-)
+ src/cmd/internal/gc/const.go | 10 ++++++++--
+ test/convlit.go              |  7 +++++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)

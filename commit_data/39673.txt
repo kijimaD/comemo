@@ -1,15 +1,53 @@
-commit b9ef4c0f5605efeb5e7e0a4ab817401d5e353b94
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sun Jun 16 11:44:17 2019 +0530
+commit c4078a1998657709848e18e82a1b9f2cccac05c7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Mar 11 17:04:48 2019 +0000
 
-    cmd/compile: coalesce a few shift rules for wasm
+    text/tabwriter: use a single defer per Write call
     
-    Change-Id: I1b76daba90afd474390db8d9c238445abaac7ca6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182557
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Lines with single cells prompt a flush. Unfortunately, a call to
+    Writer.Flush also means two defers, which is an expensive operation to
+    do if many lines consist of single cells.
+    
+    This is common when formatting code with aligned comments. Most lines
+    aren't going to have any comments at all, so the performance hit is
+    going to be noticeable.
+    
+    The Write method already has a "defer handlePanic" of its own, so we
+    don't need to worry about panics leaking out. The error will now mention
+    "Write" instead of "Flush" if a panic is encountered during that nested
+    flush, but arguably that's a good thing; the user called Write, not
+    Flush.
+    
+    For the reset call, add a non-deferred call as part of flushNoDefers, as
+    that's still necessary. Otherwise, the exported Flush method still does
+    a "defer b.reset".
+    
+    The current tabwriter benchmarks are unaffected, since they don't
+    contain many single-cell lines, and because lines are written one at a
+    time. For that reason, we add a benchmark which has both of these
+    characteristics.
+    
+    name    old time/op    new time/op    delta
+    Code-8    2.72µs ± 0%    1.77µs ± 0%  -34.88%  (p=0.000 n=6+5)
+    
+    name    old alloc/op   new alloc/op   delta
+    Code-8      648B ± 0%      648B ± 0%     ~     (all equal)
+    
+    name    old allocs/op  new allocs/op  delta
+    Code-8      13.0 ± 0%      13.0 ± 0%     ~     (all equal)
+    
+    Perhaps unsurprisingly, go/printer also gets a bit faster, as it too
+    buffers its output before writing it to tabwriter.
+    
+    name     old time/op  new time/op  delta
+    Print-8  6.53ms ± 0%  6.39ms ± 0%  -2.22%  (p=0.008 n=5+5)
+    
+    Change-Id: Ie01fea5ced43886a9eb796cb1e6c810f7a810853
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166797
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/Wasm.rules | 48 ++++++++---------------------
- 1 file changed, 12 insertions(+), 36 deletions(-)
+ src/text/tabwriter/tabwriter.go      | 22 +++++++++++++++++-----
+ src/text/tabwriter/tabwriter_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 5 deletions(-)

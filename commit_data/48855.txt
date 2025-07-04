@@ -1,23 +1,22 @@
-commit f95db21332118134973ba046c4f5d0e890e36066
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Apr 12 15:17:18 2022 -0400
+commit 20bdfba32590c3dcce8885df875dc56a84b2d269
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jun 21 12:52:17 2021 -0400
 
-    cmd/go: add a better error message when in a module outside workspace
+    go/scanner: fall back to next() when encountering 0 bytes in parseIdentifier
     
-    When the user is trying to list or build a package in a module that's
-    outside of the workspace provide a more clear message hinting to the
-    user that they can add the module to the workspace using go work use.
+    CL 308611 optimized parseIdentifier for ASCII, but inadvertently skipped
+    error handling for 0 bytes. Don't take the optimized path when
+    encountering 0.
     
-    Fixes #51604
+    Fixes #46855
     
-    Change-Id: I1202ecb2f22fd6351bfdec88ed613b8167687fb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400014
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic584e077eb74c012611fefa20eb71ca09c81b3c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329790
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modload/load.go                       | 8 +++++---
- src/cmd/go/testdata/script/work_module_not_in_go_work.txt | 6 ++++--
- 2 files changed, 9 insertions(+), 5 deletions(-)
+ src/go/scanner/scanner.go      | 2 +-
+ src/go/scanner/scanner_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,16 +1,35 @@
-commit 650fc2117aaffbc4d596dc35cc88400ba11b2f25
-Author: mehradsadeghi <2012.linkinpark@gmail.com>
-Date:   Fri Jul 16 21:25:28 2021 +0000
+commit 1b84aabb01770ae65d28f951c65a9eb6c16441d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 28 09:07:48 2020 -0500
 
-    text/scanner: use Go convention in Position doc comment
+    [dev.regabi] cmd/compile: move typenod, typenodl to ir.TypeNode, ir.TypeNodeAt [generated]
     
-    Change-Id: Ib872f139af7bfb0a75cc21dace5358fe8fcf2cf0
-    GitHub-Last-Rev: 8fd5ab01fab3bc1d7701092f31071d07ab79acc5
-    GitHub-Pull-Request: golang/go#47250
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/335149
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+            mv typenod TypeNode
+            mv typenodl TypeNodeAt
+            mv TypeNode TypeNodeAt type.go
+            mv type.go cmd/compile/internal/ir
+    '
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Id546a8cfae93074ebb1496490da7635800807faf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274100
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/text/scanner/scanner.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/closure.go   |  4 ++--
+ src/cmd/compile/internal/gc/dcl.go       | 17 -----------------
+ src/cmd/compile/internal/gc/iexport.go   |  2 +-
+ src/cmd/compile/internal/gc/iimport.go   | 10 +++++-----
+ src/cmd/compile/internal/gc/inl.go       |  2 +-
+ src/cmd/compile/internal/gc/sinit.go     |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ src/cmd/compile/internal/gc/universe.go  | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go      |  4 ++--
+ src/cmd/compile/internal/ir/type.go      | 27 +++++++++++++++++++++++++++
+ 10 files changed, 49 insertions(+), 39 deletions(-)

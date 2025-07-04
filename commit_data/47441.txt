@@ -1,18 +1,29 @@
-commit f9dcda3fd83e83fb29cc6b0f710faa49ba98a54b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 11 16:32:16 2021 -0800
+commit 32f45d13b2fa9ef8ae17e885c2d82d80a6d22caa
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Mar 3 14:16:07 2021 -0500
 
-    cmd/compile/internal/types2: better error for type assertion/switch on type parameter value
+    [dev.fuzz] internal/fuzz: add minimization of []byte
     
-    Change-Id: I98751d0b2d8aefcf537b6d5200d0b52ffacf1105
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363439
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    This works by minimizing for a maximum of one minute. We may consider
+    making this customizable in the future.
+    
+    This only minimizes []byte inputs which caused a recoverable error. In
+    the future, it should support minimizing other appopriate types, and
+    minimizing types which caused non-recoverable errors (though this is
+    much more expensive).
+    
+    The code in internal/fuzz/worker.go is copied from, or heavily inspired
+    by, code originally authored by Dmitry Vyukov and Josh Bleecher Snyder
+    as part of the go-fuzz project. Thanks to them for their contributions.
+    See https://github.com/dvyukov/go-fuzz.
+    
+    Change-Id: I93dbac7ff874d6d0c1b9b9dda23930ae9921480c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298909
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/types2/expr.go                       |  7 ++++++-
- src/cmd/compile/internal/types2/stmt.go                       | 11 ++++++-----
- src/cmd/compile/internal/types2/testdata/check/typeparams.go2 |  8 ++++----
- test/interface/explicit.go                                    |  2 +-
- test/typeswitch3.go                                           |  4 ++--
- 5 files changed, 19 insertions(+), 13 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt |  39 +++++++-
+ src/internal/fuzz/worker.go                      | 117 ++++++++++++++++++++++-
+ 2 files changed, 149 insertions(+), 7 deletions(-)

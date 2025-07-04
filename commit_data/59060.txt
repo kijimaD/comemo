@@ -1,23 +1,18 @@
-commit 937368f84e545db15d3f39c2b33a267ba8ead4a4
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Mar 3 16:27:36 2025 -0800
+commit 151362cf7c94bab5baa33af47249c850fbb941b0
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Feb 8 05:39:07 2024 +0000
 
-    crypto/x509: change how we retrieve chains on darwin
+    internal/pprof: remove unused code
     
-    Instead of using the deprecated SecTrustGetCertificateAtIndex and
-    SecTrustGetCertificateCount method, use the SecTrustCopyCertificateChain
-    method.
-    
-    This method require macOS 12+, which will be the minimum supported
-    version in 1.25.
-    
-    Change-Id: I9a5ef75431cdb84f1cbe4eee47e6e9e2da4dea03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654376
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I47e98122668960321124e426b345d36f6916b738
+    GitHub-Last-Rev: b72c9ab33e1c9c49b3b44dc8782344d1ed481123
+    GitHub-Pull-Request: golang/go#65594
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562324
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/x509/internal/macos/security.go | 30 +++++++++++-------------------
- src/crypto/x509/internal/macos/security.s  |  6 ++----
- src/crypto/x509/root_darwin.go             | 13 +++++++------
- 3 files changed, 20 insertions(+), 29 deletions(-)
+ src/internal/profile/filter.go  | 104 ----------------------------------------
+ src/internal/profile/profile.go |   1 -
+ 2 files changed, 105 deletions(-)

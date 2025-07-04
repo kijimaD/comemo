@@ -1,14 +1,30 @@
-commit 73ba846c6a3f8c605682a5808065238a961add45
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 15:47:47 2016 -0500
+commit 582baae22a108e0b5f09da52c20f5ced83fe6084
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 2 21:28:13 2015 -0800
 
-    doc: remove note about installing from source for ARM
+    [dev.ssa] cmd/compile: Do pointer arithmetic with int, not uintptr
     
-    Now there are ARM downloads too.
+    Be more consistent about this.  There's no reason to do the
+    pointer arithmetic on a different type, as sizeof(int) >=
+    sizeof(ptr) on all of our platforms.  It simplifies our
+    rewrite rules also, except for a few that need duplication.
     
-    Change-Id: I236381508c69d56748e672d184b92caa715e81ae
-    Reviewed-on: https://go-review.googlesource.com/18342
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Add some more constant folding to get constant indexing and
+    slicing to fold down to nothing.
+    
+    Change-Id: I3e56cdb14b3dc1a6a0514f0333e883f92c19e3c7
+    Reviewed-on: https://go-review.googlesource.com/16586
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             |  50 ++-
+ src/cmd/compile/internal/ssa/func.go           |   4 -
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 -
+ src/cmd/compile/internal/ssa/gen/generic.rules |  42 ++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  12 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go  |  14 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  10 -
+ src/cmd/compile/internal/ssa/rewrite.go        |  10 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  46 ---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 457 ++++++++++++++++++++-----
+ 10 files changed, 448 insertions(+), 199 deletions(-)

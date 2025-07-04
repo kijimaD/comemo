@@ -1,28 +1,20 @@
-commit d9fdf88f34f7bfd80e16ed96637ac0b4106d59ed
+commit b2794a1c2ed8c74563cf28d9e4a9b3f1db43ef1f
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 16 14:05:06 2013 -0400
+Date:   Mon Sep 16 14:04:45 2013 -0400
 
-    net: make all.bat run for ordinary Windows users
+    runtime: make ARM integer div-by-zero traceback-friendly
     
-    This CL is required for all.bat to work out of the box on
-    my Windows 8 laptop.
+    The implementation of division in the 5 toolchain is a bit too magical.
+    Hide the magic from the traceback routines.
     
-    These tests either require the firewall to be turned off
-    or require the user to be in the Administrators group.
-    I don't know which.
+    Also add a test for the results of the software divide routine.
     
-    Alex may follow up with a refinement of the test to
-    allow them to run if the user is in the Administrators
-    group.
+    Fixes #5805.
     
-    Fixes #6392.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/13421049
+    https://golang.org/cl/13239052
 
- src/pkg/net/ipraw_test.go      | 6 ++++++
- src/pkg/net/multicast_test.go  | 4 ++++
- src/pkg/net/packetconn_test.go | 3 +++
- src/pkg/net/protoconn_test.go  | 3 +++
- 4 files changed, 16 insertions(+)
+ src/pkg/runtime/vlop_arm.s |  45 +++--
+ test/divmod.go             | 460 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 487 insertions(+), 18 deletions(-)

@@ -1,26 +1,20 @@
-commit 9f65e99ad4bdc85e979f12fb5e4d7f4e4b8a7693
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 15 13:51:47 2011 -0800
+commit 52c8107a3c68245bccc836a0003fea1dcead450a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Dec 15 16:50:41 2011 -0500
 
-    go/printer, gofmt: don't write too many newlines
+    exp/ssh: simplify Stdin/out/errPipe methods
     
-    In some rare cases, gofmt would accept more than the maximum
-    number of empty lines (1) between source code snippets.
+    If a Pipe method is called, return the underlying
+    reader/writer from session.clientChan, bypassing the
+    io.Copy and io.Pipe harness.
     
-    The actual change is in printer.go, lines 773-775; the rest
-    is some minor restructuring.
+    StdoutPipe and StderrPipe now return an io.Reader not
+    an io.ReadCloser as SSH cannot signal the close of the
+    local reader to the remote process.
     
-    Applied gofmt -w src misc .
-    
-    Fixes #2387.
-    
-    R=golang-dev, r
+    R=rsc, agl, gustav.paul, cw
     CC=golang-dev
-    https://golang.org/cl/5496047
+    https://golang.org/cl/5493047
 
- src/cmd/cgo/godefs.go                         |   1 -
- src/pkg/bytes/buffer_test.go                  |   1 -
- src/pkg/go/printer/nodes.go                   |   5 +-
- src/pkg/go/printer/printer.go                 | 100 +++++++++++++-------------
- src/pkg/go/printer/testdata/statements.golden |   2 -
- 5 files changed, 55 insertions(+), 54 deletions(-)
+ src/pkg/exp/ssh/session.go | 59 ++++++++++++++++++++++------------------------
+ 1 file changed, 28 insertions(+), 31 deletions(-)

@@ -1,18 +1,16 @@
-commit be8a6fd2e3f9aa3ae808c1307b10823ee5bd0209
+commit 4103fedf199dbc80c11455ffe75e3ecf89c77da5
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 7 16:18:51 2016 +0000
+Date:   Thu Oct 6 19:06:49 2016 +0000
 
-    crypto/x509: reduce test's sought number of system certs
+    runtime: skip gdb tests on linux/ppc64 for now
     
-    150 is too high for some people.
+    Updates #17366
     
-    Reports of 132, 145, 149 on OS X.
-    
-    Fixes #18203
-    
-    Change-Id: I559639aba7e87e07d1a1249f8b212b3f34a078ab
-    Reviewed-on: https://go-review.googlesource.com/34019
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia4bd3c74c48b85f186586184a7c2b66d3b80fc9c
+    Reviewed-on: https://go-review.googlesource.com/30596
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/x509/root_darwin_test.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/runtime/runtime-gdb_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

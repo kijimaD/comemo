@@ -1,18 +1,12 @@
-commit 93c4a246a4c7bde4214fef0fad7fe08666fabb5b
-Author: Rob Pike <r@golang.org>
-Date:   Sat Aug 6 07:41:55 2011 +1000
+commit be269b2f6d61d2e3fb07fd8dfa9c6cbf50ce2fff
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 5 17:19:17 2011 +1000
 
-    FAQ: lots of small tweaks plus a couple of new discussions.
-    Expand the conversations about pointers, memory, and
-    garbage collection.
-    Describe the lack of co/contravariant typing.
+    time: fix windows build
     
-    Fixes #1929.
-    Fixes #1930.
-    
-    R=dsymonds, r, mirtchovski, edsrzf, hanwen, rsc
+    R=golang-dev, mattn.jp, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4852041
+    https://golang.org/cl/4849042
 
- doc/go_faq.html | 184 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 168 insertions(+), 16 deletions(-)
+ src/pkg/time/zoneinfo_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

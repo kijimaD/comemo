@@ -1,57 +1,47 @@
-commit 606019cb4b1c8fb57e5a83747ee0aff1054291d8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 12 10:18:03 2019 -0700
+commit e6ad619ad673d7484535afd4185209b0e9aa95c8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 8 18:12:07 2019 +0000
 
-    cmd/compile: trim function name prefix from escape diagnostics
+    cmd/go: further reduce init work
     
-    This information is redundant with the position information already
-    provided. Also, no other -m diagnostics print out function name.
+    The first biggest offender was crypto/des.init at ~1%. It's
+    cryptographically broken and the init function is relatively expensive,
+    which is unfortunate as both crypto/tls and crypto/x509 (and by
+    extension, cmd/go) import it. Hide the work behind sync.Once.
     
-    While here, report parameter leak diagnostics against the parameter
-    declaration position rather than the function, and use Warnl for
-    "moved to heap" messages.
+    The second biggest offender was flag.sortFlags at just under 1%, used by
+    the Visit flagset methods. It allocated two slices, which made a
+    difference as cmd/go iterates over multiple flagsets during init.
+    Use a single slice with a direct sort.Interface implementation.
     
-    Test cases updated programmatically by removing the first word from
-    every "no match for" error emitted by run.go:
+    Another big offender is initializing global maps. Reducing this work in
+    cmd/go/internal/imports and net/textproto gives us close to another
+    whole 1% in saved work. The former can use map literals, and the latter
+    can hide the work behind sync.Once.
     
-    go run run.go |& \
-      sed -E -n 's/^(.*):(.*): no match for `([^ ]* (.*))` in:$/\1!\2!\3!\4/p' | \
-      while IFS='!' read -r fn line before after; do
-        before=$(echo "$before" | sed 's/[.[\*^$()+?{|]/\\&/g')
-        after=$(echo "$after" | sed -E 's/(\&|\\)/\\&/g')
-        fn=$(find . -name "${fn}" | head -1)
-        sed -i -E -e "${line}s/\"${before}\"/\"${after}\"/" "${fn}"
-      done
+    Finally, compress/flate used newHuffmanBitWriter as part of init, which
+    allocates many objects and slices. Yet it only used one of the slice
+    fields. Allocating just that slice saves a surprising ~0.3%, since we
+    generated a lot of unnecessary garbage.
     
-    Passes toolstash-check.
+    All in all, these little pieces amount to just over 3% saved CPU time.
     
-    Change-Id: I6e02486b1409e4a8dbb2b9b816d22095835426b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195040
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    name         old time/op  new time/op  delta
+    ExecGoEnv-8  3.61ms ± 1%  3.50ms ± 0%  -3.02%  (p=0.000 n=10+10)
+    
+    Updates #26775.
+    Updates #29382.
+    
+    Change-Id: I915416e88a874c63235ba512617c8aef35c0ca8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166459
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/esc.go    |  22 ++--
- src/cmd/compile/internal/gc/escape.go |   2 +-
- test/escape2.go                       | 238 +++++++++++++++++-----------------
- test/escape2n.go                      | 238 +++++++++++++++++-----------------
- test/escape_array.go                  |   4 +-
- test/escape_calls.go                  |   2 +-
- test/escape_closure.go                |  14 +-
- test/escape_field.go                  |  10 +-
- test/escape_iface.go                  |   2 +-
- test/escape_indir.go                  |   2 +-
- test/escape_param.go                  |  20 +--
- test/escape_struct_param1.go          |  52 ++++----
- test/escape_struct_param2.go          |  52 ++++----
- test/fixedbugs/issue12006.go          |  16 +--
- test/fixedbugs/issue12588.go          |   2 +-
- test/fixedbugs/issue13799.go          |  22 ++--
- test/fixedbugs/issue17318.go          |  10 +-
- test/fixedbugs/issue21709.go          |  10 +-
- test/fixedbugs/issue7921.go           |  14 +-
- test/inline.go                        |  12 +-
- test/inline_big.go                    |   6 +-
- test/linkname.dir/linkname1.go        |   2 +-
- test/live_syscall.go                  |   2 +-
- 23 files changed, 377 insertions(+), 377 deletions(-)
+ src/cmd/go/internal/imports/build.go     | 53 ++++++++++++++++++++++++--------
+ src/compress/flate/huffman_bit_writer.go |  6 ++--
+ src/crypto/des/block.go                  | 14 +++++++--
+ src/flag/flag.go                         | 12 +++-----
+ src/net/textproto/reader.go              | 11 +++++--
+ src/net/textproto/reader_test.go         |  1 +
+ 6 files changed, 70 insertions(+), 27 deletions(-)

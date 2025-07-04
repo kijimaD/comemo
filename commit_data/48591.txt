@@ -1,25 +1,20 @@
-commit 90b29e186576d2682c024b0f0b90c6ad98e824d7
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Jan 19 17:01:25 2022 +0100
+commit 8c5c5a9e6983c00d63f3216976f102d79065a180
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 1 22:48:20 2021 -0700
 
-    cmd/cgo: use size_t instead of __SIZE_TYPE__
+    [dev.typeparams] cmd/compile/internal/importer: review of support.go
     
-    __SIZE_TYPE__ is a GCC type which has been superseded
-    by size_t -define in stddef.h- since ISO C99.
+    This CL removes the // UNREVIEWED disclaimer at the top of the
+    file. This file is essentially a copy of its reviewed version
+    at src/go/internal/gcimporter/support.go with adjustments to
+    make it work for the compiler and types2. To see the changes
+    made with respect to the original, compare patchset 1 against
+    patchset 2.
     
-    cmd/cgo already uses size_t in many places, but still generates several
-    files using __SIZE_TYPES__, most notably the _cgo_export.h.
-    
-    This change replaces all __SIZE_TYPES__ occurrences with size_t.
-    
-    Updates #36233
-    
-    Change-Id: Id8a99b5d7763caab9333eab9b585e78249a37415
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379474
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Icb8e7e7cac02751265c1020431018293826bad18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324130
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/cgo/out.go | 29 +++++++++++++++--------------
- 1 file changed, 15 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/importer/support.go | 1 -
+ 1 file changed, 1 deletion(-)

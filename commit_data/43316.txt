@@ -1,20 +1,38 @@
-commit 7602d4119663b234f655e3bb282b7127a048a5cd
-Author: ananya saxena <ananyasaxena1@gmail.com>
-Date:   Thu Oct 15 17:08:50 2020 +0000
+commit fcb8f8384ac62eb029926bb1f3602825fa61b261
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 20 15:15:35 2020 -0400
 
-    net/http: remove DualStack in DefaultTransport
+    cmd/api: make NewWatcher populate its own package and import metadata
     
-    Removing `DualStack` from `http.DefaultTransport` since it is deprecated
-    https://github.com/golang/go/blob/master/src/net/dial.go#L61
+    This partially undoes the optimizations of CL 177597, but makes up
+    some of the difference by caching the package list and import metadata
+    and making the initial calls concurrently, including in TestMain.
+    That reduces the critical path from two sequential 'go list'
+    invocations to just one (run many times concurrently), and eliminates
+    the need for assumptions about the consistency of the 'std' dependency
+    graph across platforms (and hard-coded special cases for packages that
+    violate those assumptions).
     
-    Change-Id: Id8ea1e68796ef8a8d49f7a04d0c4815aa92a1804
-    GitHub-Last-Rev: 0907b59fa793dafc764188c70487a61a720bbc7c
-    GitHub-Pull-Request: golang/go#41233
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253198
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Damien Neil <dneil@google.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    In the process, this simplifies and fixes TestBenchmark (which has
+    been silently broken since CL 164623).
+    
+    This increases 'time go tool dist test api' on my workstation from
+    0m8.4s / 0m13.8s / 0m1.7s to 0m10.5s / 0m23.1s / 0m5.1s,
+    compared to 0m12.4s / 0m23.2s / 0m4.7s before CL 177597.
+    
+    (That is, this change retains about half of the wall-time speedup, but
+    almost none of the user-time speedup.)
+    
+    Tested manually using 'go test -race -bench=. cmd/api'.
+    
+    Fixes #37951
+    
+    Change-Id: Icd537e035e725e1ee7c41d97da5c6651233b927e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224619
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- src/net/http/transport.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/api/goapi.go      | 226 ++++++++++++++++++++++++++--------------------
+ src/cmd/api/goapi_test.go |  49 +++++-----
+ 2 files changed, 152 insertions(+), 123 deletions(-)

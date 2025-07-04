@@ -1,12 +1,13 @@
-commit d0bc227abbcda079695ade5def86673a9fe29995
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Sep 19 17:12:00 2013 +1000
+commit c742179c49e4b67ce7230e5529657a00d4eaaccc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Sep 19 02:27:53 2013 -0400
 
-    tag go1.2rc1
+    cmd/ld: handle IMAGE_SYM_CLASS_LABEL symbols.
+    Was causing "invalid symbol binding" and thus "malformed pe file" error.
     
-    R=golang-dev, dave, r
+    R=golang-dev, alex.brainman, adg
     CC=golang-dev
-    https://golang.org/cl/13777043
+    https://golang.org/cl/13722050
 
- .hgtags | 1 +
+ src/cmd/ld/ldpe.c | 1 +
  1 file changed, 1 insertion(+)

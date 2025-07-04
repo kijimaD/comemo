@@ -1,23 +1,14 @@
-commit 2952fe4f16666e8ebe433f7505cb52e1cfc56f4b
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Wed Oct 19 09:10:01 2022 +0800
+commit b2aa1380d9ad9a46eb98cd2e1ad71fcbccdc2bd1
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Sat Nov 20 01:49:32 2021 +0800
 
-    cmd/compile: use correct type in riscv64 late lower pass
+    A+C: add Zhou Guangyuan (individual CLA)
     
-    The right-hand side SLLI always contains valid content in the high 32 bits,
-    so we should use the 64 bit integer type. Using wrong type may lead to wrong
-    optimizations in cse pass.
-    
-    Should fix x/text test failures.
-    
-    Change-Id: I972dd913b8fb238d180bb12f8b1801adc8503fc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443875
-    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I34b966b2f3de93a1d086be3dea5ebc6c60cf1eec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365754
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- .../internal/ssa/_gen/RISCV64latelower.rules       | 18 +++---
- .../internal/ssa/rewriteRISCV64latelower.go        | 66 ++++++++++------------
- 2 files changed, 39 insertions(+), 45 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

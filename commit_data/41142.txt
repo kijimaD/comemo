@@ -1,15 +1,16 @@
-commit b4f15e79afecd04821a694ae0b41b39d8bf32a96
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Jan 23 03:30:14 2020 +1100
+commit 2711fababd21c471dc0c64b33972c74a7c4eee20
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Sep 8 00:21:57 2019 +0200
 
-    cmd/dist: detect gohostarch on riscv64 hosts
+    net,os: disable more sysctl tests on iOS
     
-    Updates #27532
+    Updates #34133
     
-    Change-Id: I66c194499bb7b831b569c66d0736fa7205eedd80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215837
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I27c75993176cf876f2d80f70982528258c509b68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193845
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/dist/main.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/interface_test.go | 12 ++++++++++++
+ src/os/os_test.go         |  3 +++
+ 2 files changed, 15 insertions(+)

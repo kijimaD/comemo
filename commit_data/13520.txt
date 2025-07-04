@@ -1,16 +1,15 @@
-commit 3cc9d16792367310f0cdb03272ed1ec3d3e43eca
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Jul 30 10:54:50 2012 +1000
+commit 7aa60d998a5f81f58a09e6b1e5703becaf486043
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 29 19:50:23 2012 -0400
 
-    misc/dashboard/codereview: recognize "NOT LGTM".
+    syscall: apply comment from Mikioh
     
-    A "NOT LGTM" overrules a previous "LGTM" by the same person, and vice versa.
-    "NOT LGTM"s are shown in the same location as LGTMs, colored red.
+    This comment was suggested in CL 6456045
+    but never got applied.
     
-    R=rsc
+    R=mikioh, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6453062
+    https://golang.org/cl/6447056
 
- misc/dashboard/codereview/dashboard/cl.go    | 25 ++++++++++++++++++++++---
- misc/dashboard/codereview/dashboard/front.go |  1 +
- 2 files changed, 23 insertions(+), 3 deletions(-)
+ src/pkg/syscall/syscall_bsd.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

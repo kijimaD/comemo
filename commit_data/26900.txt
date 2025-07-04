@@ -1,16 +1,35 @@
-commit 66afbf1010fa492fb9a266f9019f707bd09f066d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 13 10:06:12 2016 -0400
+commit b83f3972fe9e6ac0fdaadce1fd536e2bc9a16e80
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 2 11:01:25 2016 -0800
 
-    cmd/link: use a switch for name prefix switching
+    cmd/compile: use int32 for line numbers consistently
     
-    Minor cleanup.
+    - removed lots of unnecessary int(x) casts
+    - removed parserline() - was inconsistently used anyway
+    - minor simplifications in dcl.go
     
-    Change-Id: I7574f58a7e55c2bb798ebe9c7c98d36b8c258fb8
-    Reviewed-on: https://go-review.googlesource.com/21982
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibf7de679eea528a31c9692ef1c76a1d9b3239211
+    Reviewed-on: https://go-review.googlesource.com/20131
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/symtab.go | 61 +++++++++++++-------------------------
- 1 file changed, 21 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go   |  2 +-
+ src/cmd/compile/internal/arm/ggen.go     |  2 +-
+ src/cmd/compile/internal/arm64/ggen.go   |  2 +-
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/dcl.go       | 50 ++++++++++++--------------------
+ src/cmd/compile/internal/gc/esc.go       | 34 +++++++++++-----------
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/gen.go       |  4 +--
+ src/cmd/compile/internal/gc/lex.go       | 16 +++++-----
+ src/cmd/compile/internal/gc/parser.go    |  4 +--
+ src/cmd/compile/internal/gc/plive.go     |  4 +--
+ src/cmd/compile/internal/gc/popt.go      |  6 ++--
+ src/cmd/compile/internal/gc/ssa.go       | 22 +++++++-------
+ src/cmd/compile/internal/gc/subr.go      | 28 ++++++++----------
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  4 +--
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ src/cmd/compile/internal/mips64/ggen.go  |  2 +-
+ src/cmd/compile/internal/ppc64/ggen.go   |  2 +-
+ src/cmd/compile/internal/x86/ggen.go     |  2 +-
+ 20 files changed, 87 insertions(+), 105 deletions(-)

@@ -1,17 +1,22 @@
-commit 0fa53e41f122b1661d0678a6d36d71b7b5ad031d
-Author: syumai <syumai@gmail.com>
-Date:   Sat Nov 27 11:16:57 2021 +0000
+commit 2d88f8f21e71f73dc3aa846cdc8c413f1bb584b8
+Author: Himanshu Kishna Srivastava <28himanshu@gmail.com>
+Date:   Wed Mar 31 21:22:49 2021 +0530
 
-    spec: fix link for instantiations
+    go/src/cmd/go/internal/work: compile "internal/abi" with "-+"
     
-    This change corrects the link `Instantiantions` to `Instantiations` in the spec.
+    "internal/abi" package depends on runtime package and are supposed to
+    compile with "-+" option.Added internal/abi in the known list of package
+    that runtime depends on,so that "internal/abi" compiles with "-+".
     
-    Change-Id: Ib0ed03420ae401d20af1ea723c5487018b2f462d
-    GitHub-Last-Rev: b84316c818b4aba022362fd09fac0d2b85da1a81
-    GitHub-Pull-Request: golang/go#49816
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367274
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Fixes #45144
+    
+    Change-Id: Iad9e2589f2fbd014260cb8ef9f943d2126015fe1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306289
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go_spec.html | 2 +-
+ src/cmd/go/internal/work/gc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

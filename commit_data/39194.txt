@@ -1,19 +1,14 @@
-commit e22e2b371d5caa4144de1eedc8484def68f9d4d9
+commit 5538a9a34fc4e395967c0233aab5bdde0cebbf9b
 Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri May 17 12:00:05 2019 -0400
+Date:   Fri Jan 18 17:32:30 2019 -0500
 
-    crypto/tls: fix TestVerifyHostnameResumed
+    doc/go1.12: mention small RSA keys will cause some TLS handshakes to fail
     
-    In TLS 1.3 session tickets are delivered after the handshake, and it
-    looks like now the Google servers wait until the first flight of data to
-    send them (or our timeout is too low). Cause some data to be sent so we
-    can avoid the guessing game.
+    Updates #29779
     
-    Fixes #32090
-    
-    Change-Id: I54af4acb3a89cc70c9e14a5dfe18a44c29a841a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177877
+    Change-Id: I9becaba41ab4cd0bac25b4bedf3f8b19761d8158
+    Reviewed-on: https://go-review.googlesource.com/c/158638
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/tls_test.go | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ doc/go1.12.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

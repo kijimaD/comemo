@@ -1,13 +1,85 @@
-commit 2a0833da5083eac7cec15dcb7142a54bf2d806ce
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:26:18 2015 +0100
+commit dc7b54bed280f9258c553772fbd62e5b075ccff7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 17 22:13:49 2015 -0500
 
-    sync/atomic: add support for GOARCH=arm64
+    [dev.cc] cmd/internal/obj, cmd/internal/gc, new6g: reconvert
     
-    Change-Id: I11cd4b5e8daf3805af0eaa83b55b20da889702f4
-    Reviewed-on: https://go-review.googlesource.com/7145
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reconvert using rsc.io/c2go rev 27b3f59.
+    
+    Changes to converter:
+     - fatal does not return, so no fallthrough after fatal in switch
+     - many more function results and variables identified as bool
+     - simplification of negated boolean expressions
+    
+    Change-Id: I3bc67da5e46cb7ee613e230cf7e9533036cc870b
+    Reviewed-on: https://go-review.googlesource.com/5171
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/sync/atomic/asm_arm64.s | 149 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 149 insertions(+)
+ src/cmd/internal/gc/align.go       |  12 +-
+ src/cmd/internal/gc/bits.go        |  12 +-
+ src/cmd/internal/gc/bv.go          |   6 +-
+ src/cmd/internal/gc/closure.go     |  16 +-
+ src/cmd/internal/gc/const.go       | 142 +++++++-------
+ src/cmd/internal/gc/cplx.go        |  38 ++--
+ src/cmd/internal/gc/dcl.go         |  66 +++----
+ src/cmd/internal/gc/esc.go         |  50 +++--
+ src/cmd/internal/gc/export.go      |  40 ++--
+ src/cmd/internal/gc/fmt.go         |  90 ++++-----
+ src/cmd/internal/gc/gen.go         |  24 ++-
+ src/cmd/internal/gc/go.go          |  22 ++-
+ src/cmd/internal/gc/gsubr.go       |  37 ++--
+ src/cmd/internal/gc/init.go        |  16 +-
+ src/cmd/internal/gc/inl.go         |  70 +++----
+ src/cmd/internal/gc/lex.go         |  76 ++++----
+ src/cmd/internal/gc/mparith2.go    |  14 +-
+ src/cmd/internal/gc/order.go       | 100 +++++-----
+ src/cmd/internal/gc/pgen.go        |  12 +-
+ src/cmd/internal/gc/plive.go       |  91 ++++-----
+ src/cmd/internal/gc/popt.go        |  68 +++----
+ src/cmd/internal/gc/racewalk.go    |  55 +++---
+ src/cmd/internal/gc/range.go       |  21 +-
+ src/cmd/internal/gc/reflect.go     |  88 ++++-----
+ src/cmd/internal/gc/reg.go         |  88 ++++-----
+ src/cmd/internal/gc/select.go      |   3 -
+ src/cmd/internal/gc/sinit.go       | 187 +++++++++---------
+ src/cmd/internal/gc/subr.go        | 301 ++++++++++++++--------------
+ src/cmd/internal/gc/swt.go         |  40 ++--
+ src/cmd/internal/gc/typecheck.go   | 342 ++++++++++++++++----------------
+ src/cmd/internal/gc/unsafe.go      |  12 +-
+ src/cmd/internal/gc/walk.go        | 389 ++++++++++++++++++-------------------
+ src/cmd/internal/gc/y.go           |  31 +--
+ src/cmd/internal/obj/ar.go         |  14 +-
+ src/cmd/internal/obj/arm/asm5.go   |  86 ++++----
+ src/cmd/internal/obj/arm/obj5.go   |  47 +++--
+ src/cmd/internal/obj/data.go       |  34 ++--
+ src/cmd/internal/obj/go.go         |  12 +-
+ src/cmd/internal/obj/i386/asm8.go  |   8 +-
+ src/cmd/internal/obj/i386/obj8.go  |  40 ++--
+ src/cmd/internal/obj/ld.go         |  62 ------
+ src/cmd/internal/obj/link.go       |  16 +-
+ src/cmd/internal/obj/objfile.go    |   2 +-
+ src/cmd/internal/obj/pcln.go       |  46 ++---
+ src/cmd/internal/obj/ppc64/asm9.go |  60 +++---
+ src/cmd/internal/obj/ppc64/obj9.go |  48 ++---
+ src/cmd/internal/obj/sym.go        |  12 +-
+ src/cmd/internal/obj/x86/asm6.go   |  32 +--
+ src/cmd/internal/obj/x86/obj6.go   |  42 ++--
+ src/cmd/new5g/cgen.go              | 153 ++++++++-------
+ src/cmd/new5g/cgen64.go            |  15 +-
+ src/cmd/new5g/ggen.go              |  10 +-
+ src/cmd/new5g/gsubr.go             |  66 +++----
+ src/cmd/new5g/peep.go              | 304 ++++++++++++++---------------
+ src/cmd/new6g/cgen.go              | 148 +++++++-------
+ src/cmd/new6g/ggen.go              |  34 ++--
+ src/cmd/new6g/gsubr.go             |  71 ++++---
+ src/cmd/new6g/peep.go              | 200 +++++++++----------
+ src/cmd/new8g/cgen.go              | 159 ++++++++-------
+ src/cmd/new8g/cgen64.go            |  22 +--
+ src/cmd/new8g/ggen.go              |  46 ++---
+ src/cmd/new8g/gsubr.go             |  56 +++---
+ src/cmd/new8g/peep.go              | 172 ++++++++--------
+ src/cmd/new9g/cgen.go              | 137 +++++++------
+ src/cmd/new9g/ggen.go              |  18 +-
+ src/cmd/new9g/gsubr.go             |  22 +--
+ src/cmd/new9g/peep.go              | 166 ++++++++--------
+ 67 files changed, 2410 insertions(+), 2509 deletions(-)

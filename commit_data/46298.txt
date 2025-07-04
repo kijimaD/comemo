@@ -1,26 +1,24 @@
-commit 065f3808156c92d957fc1ad2a2a37e147ee628f4
-Author: Joe Sylve <joe.sylve@gmail.com>
-Date:   Thu Sep 2 19:09:15 2021 +0000
+commit 94cfeca0a5b36a70a8bdd1a0015eb78c7e9a3311
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Dec 18 20:14:45 2020 -0800
 
-    debug/dwarf: check for DWARFv4 AttrDataBitOffset value
+    [dev.regabi] cmd/compile: stop using ONONAME with Name
     
-    AttrBitOffset is deprecated (but reserved) in DWARFv4.  This fix adds
-    logic to check the new AttrDataBitOffset attribute if AttrBitOffset
-    attribute is not present.
+    This CL changes NewDeclNameAt to take an Op argument to set the Op up
+    front, and updates all callers to provide the appropriate Op. This
+    allows dropping the Name.SetOp method.
     
-    Fixes #46784
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: I7406dcaa4c98e95df72361fd4462c39e6be8879d
-    GitHub-Last-Rev: 5aa10d04910a09538320b4de8fbd8a1f5fd8c17d
-    GitHub-Pull-Request: golang/go#46790
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/328709
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I20e580f62d3c8a81223d1c162327c11b37bbf3f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279314
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/debug/dwarf/testdata/typedef.c      |   1 +
- src/debug/dwarf/testdata/typedef.macho4 | Bin 0 -> 6220 bytes
- src/debug/dwarf/type.go                 |   9 ++++--
- src/debug/dwarf/type_test.go            |  51 ++++++++++++++++++++++++++++++++
- 4 files changed, 59 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go      |  2 --
+ src/cmd/compile/internal/gc/export.go   |  5 ++---
+ src/cmd/compile/internal/gc/iimport.go  |  2 +-
+ src/cmd/compile/internal/gc/noder.go    | 17 +++++++----------
+ src/cmd/compile/internal/gc/universe.go |  6 ++----
+ src/cmd/compile/internal/ir/name.go     | 24 +++++++++---------------
+ 6 files changed, 21 insertions(+), 35 deletions(-)

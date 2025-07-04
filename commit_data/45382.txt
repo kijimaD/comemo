@@ -1,23 +1,13 @@
-commit 983dea90c169930e35721232afe39fd4e3fbe4a6
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Apr 27 15:05:51 2021 -0500
+commit ea37a65af6ff8c5841f37bef7f9ed2e31808e7cf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 21 21:08:39 2020 -0400
 
-    cmd/link: disable plugin support if cgo is disabled
+    cmd/compile: remove go115shortcircuitPhis
     
-    Functional plugin support requires cgo to be enabled. Disable
-    it if the environment has disabled cgo.
-    
-    This prevents unexpected linker failures when linking large
-    binaries with cgo disabled which use the plugin package.
-    
-    Fixes #45564
-    
-    Change-Id: Ib71f0e089f7373b7b3e3cd53da3612291e7bc473
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314449
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Ib2697ebfcc14a01ab1f793cddcbf69180ffc49a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264341
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/shortcircuit.go | 5 -----
+ 1 file changed, 5 deletions(-)

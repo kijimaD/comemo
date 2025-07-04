@@ -1,20 +1,18 @@
-commit 1715a86721164bee98d95b16c78529cdd7dacc9c
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Feb 10 09:47:49 2022 -0800
+commit 3f7a3133da4e13635c9012b451963cca76914270
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 18 03:21:43 2021 -0700
 
-    crypto/tls: reject duplicate extensions
+    [dev.typeparams] cmd/compile: add "toolstash -cmp"-like test of -d=unified
     
-    Does what it says on the tin.
+    This CL adds a longtest test to make sure -d=unified=1 produces output
+    identical to -d=unified=0.
     
-    Fixes #51088
-    
-    Change-Id: I12c0fa6bba1c1ce96c1ad31ba387c77a93f801c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384894
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I2c5d38f67dbc8fecd8332a91ba7cae22225b090c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329429
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/crypto/tls/handshake_messages.go      | 12 ++++++++++++
- src/crypto/tls/handshake_messages_test.go | 21 +++++++++++++++++++++
- 2 files changed, 33 insertions(+)
+ src/cmd/compile/internal/noder/unified_test.go | 151 +++++++++++++++++++++++++
+ 1 file changed, 151 insertions(+)

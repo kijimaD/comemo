@@ -1,19 +1,16 @@
-commit b60d5e12e983e7e48ffab47b15e372bd23fbad98
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 21 14:46:07 2014 -0700
+commit 3492ee5d3a7f7d41194378d9e1d74fadacef0c5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 23:08:07 2014 -0400
 
-    runtime: warn that cputicks() might not be monotonic.
+    net/rpc: listen on localhost, let kernel pick port
     
-    Get rid of gocputicks(), it is no longer used.
+    This avoids a pop-up box on OS X and it avoids
+    a test failure if something is using 5555.
+    I apologize for not noticing this during the review.
     
-    LGTM=bradfitz, dave
-    R=golang-codereviews, bradfitz, dave, minux
+    TBR=r
     CC=golang-codereviews
-    https://golang.org/cl/161110044
+    https://golang.org/cl/152320044
 
- src/runtime/asm_386.s      | 6 ------
- src/runtime/asm_amd64.s    | 7 -------
- src/runtime/asm_amd64p32.s | 7 -------
- src/runtime/asm_arm.s      | 3 ---
- src/runtime/stubs.go       | 4 ++++
- 5 files changed, 4 insertions(+), 23 deletions(-)
+ src/net/rpc/client_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

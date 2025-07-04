@@ -1,16 +1,17 @@
-commit c00c1efbd8f763eb087912c54c036c21f310b98f
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Sun Apr 8 10:30:15 2018 +0800
+commit ecc8650398d6f5f78843a162c6579d2e45cbf7fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 22 13:12:42 2017 -0800
 
-    internal/cpu: skip arm64 feature test on unsupported GOOS
+    go/types: fix type in Interface.Complete method
     
-    Fixes #24753
+    This doesn't appear to have caused problems (because we don't depend
+    on the sort order, it seems) but it's clearly incorrect.
     
-    Change-Id: Ic6049da98b8eee41223df71ffafa71a894915bd7
-    Reviewed-on: https://go-review.googlesource.com/105455
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib6eb0128a3c17997c7907a618f9ce102b32aaa98
+    Reviewed-on: https://go-review.googlesource.com/79497
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/cpu/cpu_test.go | 23 ++++++++++++++++-------
- 1 file changed, 16 insertions(+), 7 deletions(-)
+ src/go/types/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

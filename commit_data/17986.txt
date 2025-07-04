@@ -1,19 +1,21 @@
-commit 1d546005af72e186c319722ccd293b64246488e3
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Dec 15 12:55:59 2013 -0500
+commit bc135f6492035024e778fe7dedb451ebaa06d3e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 13 15:44:57 2013 -0500
 
-    crypto/cipher: fix CFB mode.
+    runtime: fix crash in runtime.GoroutineProfile
     
-    a073d65e6f8c had a couple of bugs in the CFB mode that I missed in code review:
-            1) The loop condition wasn't updated from the old version.
-            2) It wasn't safe when src and dst aliased.
+    This is a possible Go 1.2.1 candidate.
     
-    Fixes #6950.
+    Fixes #6946.
     
-    R=golang-dev, hanwen
+    R=iant, r
     CC=golang-dev
-    https://golang.org/cl/42110043
+    https://golang.org/cl/41640043
 
- src/pkg/crypto/cipher/cfb.go      | 11 ++++++-----
- src/pkg/crypto/cipher/cfb_test.go |  8 +++++---
- 2 files changed, 11 insertions(+), 8 deletions(-)
+ src/pkg/runtime/mgc0.c               | 22 +-------------
+ src/pkg/runtime/mprof.goc            |  4 +--
+ src/pkg/runtime/proc.c               |  4 +--
+ src/pkg/runtime/runtime_unix_test.go | 56 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/traceback_arm.c      | 12 ++++++++
+ src/pkg/runtime/traceback_x86.c      | 10 +++++++
+ 6 files changed, 83 insertions(+), 25 deletions(-)

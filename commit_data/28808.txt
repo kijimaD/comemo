@@ -1,15 +1,43 @@
-commit 01bf5cc21912ff8642171d8255a7fff87f1da00b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 12 17:39:28 2016 -0700
+commit ccca9c9cc0fa5b6ea6e5c8276a96eee8c27ebd87
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Jul 22 16:36:30 2016 -0700
 
-    cmd/compile: cleanup toolstash hacks from previous CL
+    runtime: reduce GC assist extra credit
     
-    Change-Id: I36cf3523e00b80e2d3a690f251edd5d6f665d156
-    Reviewed-on: https://go-review.googlesource.com/30975
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Mutator goroutines that allocate memory during the concurrent mark
+    phase are required to spend some time assisting the garbage
+    collector. The magnitude of this mandatory assistance is proportional
+    to the goroutine's allocation debt and subject to the assistance
+    ratio as calculated by the pacer.
+    
+    When assisting the garbage collector, a mutator goroutine will go
+    beyond paying off its allocation debt. It will build up extra credit
+    to amortize the overhead of the assist.
+    
+    In fast-allocating applications with high assist ratios, building up
+    this credit can take the affected goroutine's entire time slice.
+    Reduce the penalty on each goroutine being selected to assist the GC
+    in two ways, to spread the responsibility more evenly.
+    
+    First, do a consistent amount of extra scan work without regard for
+    the pacer's assistance ratio. Second, reduce the magnitude of the
+    extra scan work so it can be completed within a few hundred
+    microseconds.
+    
+    Commentary on gcOverAssistWork is by Austin Clements, originally in
+    https://golang.org/cl/24704
+    
+    Updates #14812
+    Fixes #16432
+    
+    Change-Id: I436f899e778c20daa314f3e9f0e2a1bbd53b43e1
+    Reviewed-on: https://go-review.googlesource.com/25155
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/compile/internal/gc/inl.go    | 4 ----
- src/cmd/compile/internal/gc/syntax.go | 4 +---
- 2 files changed, 1 insertion(+), 7 deletions(-)
+ src/runtime/mgc.go     |  9 ++++-----
+ src/runtime/mgcmark.go | 11 ++++++++---
+ 2 files changed, 12 insertions(+), 8 deletions(-)

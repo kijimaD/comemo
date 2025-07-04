@@ -1,27 +1,19 @@
-commit ece493eb831a7797d03d60b44b817caf1c63a0ab
-Author: Jason7602 <jansonzhe@gmail.com>
-Date:   Tue Nov 9 23:46:41 2021 +0800
+commit a690a5d75fee3b23e9ab80bd7b48cafb52ce4615
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 7 09:58:02 2021 -0400
 
-    cmd/compile: fix type error reported on the wrong line
+    cmd/compile: ensure spills of int/float reg args land in abi slots
     
-    The 'Does not match' type error shoud be reported where
-    the function is called, not where the function is declared.
+    We noticed a while ago that register argument spills were not always
+    landing where they should.
     
-    And fix the todo by gri of issue45985
+    Updates #40724.
     
-    Fixes #45985
-    Fixes #49800
-    
-    Change-Id: I15aac44dd44f2a57c485a1c273fcd79db912c389
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362634
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0b7c3279a2f6270577481c252bae4568cbb6e796
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308510
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/infer.go                       | 10 +++++-----
- .../compile/internal/types2/testdata/fixedbugs/issue45985.go2  |  5 ++---
- src/go/types/infer.go                                          | 10 +++++-----
- src/go/types/testdata/fixedbugs/issue45985.go2                 |  5 ++---
- 4 files changed, 14 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/ssa/stackalloc.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

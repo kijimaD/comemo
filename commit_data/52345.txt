@@ -1,20 +1,214 @@
-commit 9279a9af8b878a1d516539ac882833fe3e7cc202
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 20 14:20:22 2023 -0700
+commit ec7f5165ddc680efbac18dc15b4905844d9e8db9
+Merge: ca6fd39cf6 f0ee7fda63
+Author: Chressie Himpel <chressie@google.com>
+Date:   Wed Apr 27 20:09:28 2022 +0200
 
-    cmd/go: use DefaultPIE to see if external linking is forced
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    Before this CL, the code checked whether external linking was
-    required for -buildmode=pie. This CL changes it to also consider
-    whether external linking is required if PIE is the default build mode.
-    
-    Change-Id: I5ac62fc027622576a152a8b7b5d97bc1d112adb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477917
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic5f71c04f08c03319c043f35be501875adb0a3b0
 
- src/cmd/go/internal/load/pkg.go | 22 +++++++++++++++++-----
- 1 file changed, 17 insertions(+), 5 deletions(-)
+ README.md                                          |    2 +-
+ SECURITY.md                                        |    8 +-
+ api/next/30715.txt                                 |    3 +
+ api/next/50599.txt                                 |    1 +
+ api/next/51684.txt                                 |    2 +
+ api/next/regexpdepth.txt                           |    3 -
+ doc/go1.19.html                                    |   25 +
+ doc/go_spec.html                                   |   18 +-
+ misc/cgo/test/callback_c.c                         |   31 +-
+ misc/cgo/test/cgo_test.go                          |    2 +-
+ misc/cgo/test/testx.go                             |   53 +-
+ src/bootstrap.bash                                 |    2 +-
+ src/bufio/bufio.go                                 |   21 +-
+ src/bufio/bufio_test.go                            |   61 +
+ src/cmd/compile/abi-internal.md                    |   26 +-
+ src/cmd/compile/doc.go                             |   12 +-
+ src/cmd/compile/internal/compare/compare.go        |  272 +++++
+ src/cmd/compile/internal/escape/escape.go          |    2 -
+ src/cmd/compile/internal/inline/inl.go             |   11 +
+ src/cmd/compile/internal/ir/node.go                |    2 +-
+ src/cmd/compile/internal/noder/decl.go             |   22 +-
+ src/cmd/compile/internal/noder/lex.go              |   19 +-
+ src/cmd/compile/internal/noder/noder.go            |    3 +
+ src/cmd/compile/internal/noder/writer.go           |   16 +
+ src/cmd/compile/internal/reflectdata/alg.go        |  262 +----
+ src/cmd/compile/internal/reflectdata/reflect.go    |    3 +-
+ src/cmd/compile/internal/syntax/parser.go          |   48 +-
+ .../compile/internal/syntax/testdata/issue48382.go |    3 +-
+ .../compile/internal/syntax/testdata/issue52391.go |   17 +
+ .../compile/internal/syntax/testdata/typeset.go    |   14 +-
+ src/cmd/compile/internal/test/inl_test.go          |   28 +-
+ src/cmd/compile/internal/types2/decl.go            |    2 +-
+ src/cmd/compile/internal/types2/expr.go            |   57 +-
+ src/cmd/compile/internal/types2/resolver.go        |    2 +-
+ src/cmd/compile/internal/types2/sizes.go           |    7 +-
+ .../internal/types2/testdata/check/const0.go       |   19 +
+ .../internal/types2/testdata/check/expr0.go        |    7 +
+ .../types2/testdata/fixedbugs/issue49482.go        |    2 +-
+ .../types2/testdata/fixedbugs/issue52401.go        |   11 +
+ src/cmd/compile/internal/walk/compare.go           |   35 +-
+ src/cmd/dist/test.go                               |   49 +
+ src/cmd/go/internal/base/env.go                    |   12 +-
+ src/cmd/go/internal/generate/generate_test.go      |   17 +-
+ src/cmd/go/internal/list/list.go                   |    7 +
+ src/cmd/go/internal/load/pkg.go                    |   10 +-
+ src/cmd/go/internal/modload/load.go                |    8 +-
+ src/cmd/go/internal/vcs/vcs.go                     |   18 +-
+ src/cmd/go/internal/work/buildid.go                |    4 +-
+ src/cmd/go/internal/work/exec.go                   |   11 +-
+ src/cmd/go/testdata/script/list_json_fields.txt    |    5 +
+ src/cmd/go/testdata/script/mod_list_direct.txt     |    2 +-
+ .../testdata/script/work_module_not_in_go_work.txt |    6 +-
+ src/cmd/gofmt/gofmt.go                             |    5 +
+ src/cmd/internal/obj/objfile.go                    |    4 +-
+ src/cmd/link/internal/ld/stackcheck.go             |    2 +-
+ src/cmd/link/internal/ld/stackcheck_test.go        |   19 +-
+ {misc/trace => src/cmd/trace/static}/README.md     |    4 +-
+ .../cmd/trace/static}/trace_viewer_full.html       |    0
+ .../cmd/trace/static}/webcomponents.min.js         |    0
+ src/cmd/trace/trace.go                             |   26 +-
+ src/crypto/ecdsa/ecdsa.go                          |   16 +-
+ src/crypto/ed25519/ed25519vectors_test.go          |   13 +-
+ src/crypto/elliptic/elliptic.go                    |  289 -----
+ src/crypto/elliptic/nistec.go                      |  223 ++++
+ src/crypto/elliptic/p224.go                        |  139 ---
+ src/crypto/elliptic/p256.go                        | 1178 +-------------------
+ src/crypto/elliptic/p256_asm.go                    |   25 +-
+ src/crypto/elliptic/p256_generic.go                |  475 +++++++-
+ src/crypto/elliptic/p256_generic_field.go          |  705 ++++++++++++
+ src/crypto/elliptic/p256_noasm.go                  |   15 +
+ src/crypto/elliptic/p256_ppc64le.go                |    7 -
+ src/crypto/elliptic/p256_s390x.go                  |    1 -
+ src/crypto/elliptic/p384.go                        |  144 ---
+ src/crypto/elliptic/p521.go                        |  165 ---
+ src/crypto/elliptic/params.go                      |  296 +++++
+ src/crypto/rand/rand_getrandom.go                  |    2 +-
+ src/crypto/tls/common.go                           |    6 +-
+ src/crypto/tls/handshake_messages.go               |   12 +
+ src/crypto/tls/handshake_messages_test.go          |   21 +
+ src/crypto/tls/handshake_server_test.go            |   10 -
+ src/crypto/x509/verify.go                          |   58 +-
+ src/crypto/x509/verify_test.go                     |   23 +
+ src/crypto/x509/x509.go                            |   15 +-
+ src/crypto/x509/x509_test.go                       |   36 -
+ src/debug/pe/symbol.go                             |    3 +-
+ src/go/build/build.go                              |    9 +-
+ src/go/format/format.go                            |    2 +-
+ src/go/internal/srcimporter/srcimporter.go         |    8 +-
+ src/go/types/api.go                                |    6 +-
+ src/go/types/assignments.go                        |   10 +-
+ src/go/types/call.go                               |    9 +-
+ src/go/types/conversions.go                        |    5 +-
+ src/go/types/errors.go                             |  140 ++-
+ src/go/types/errors_test.go                        |   25 +-
+ src/go/types/expr.go                               |   12 +-
+ src/go/types/sizes.go                              |    7 +-
+ src/go/types/testdata/check/const0.go              |   19 +
+ src/go/types/testdata/fixedbugs/issue52401.go      |   11 +
+ src/hash/maphash/maphash.go                        |   13 +-
+ src/internal/bytealg/compare_ppc64x.s              |  552 ++++++---
+ src/internal/bytealg/compare_riscv64.s             |  228 ++--
+ src/internal/bytealg/count_riscv64.s               |   69 +-
+ src/internal/bytealg/equal_riscv64.s               |  177 +--
+ src/internal/bytealg/indexbyte_riscv64.s           |   79 +-
+ src/net/dial_test.go                               |    6 +
+ src/net/dnsclient.go                               |    7 +-
+ src/net/http/export_test.go                        |    9 +
+ src/net/http/request.go                            |   21 +-
+ src/net/http/serve_test.go                         |    7 +
+ src/net/http/sniff.go                              |    5 -
+ src/net/http/transport_test.go                     |   42 +-
+ src/net/net_test.go                                |    8 +-
+ src/net/netip/netip.go                             |    2 +-
+ src/os/exec/env_test.go                            |   16 +-
+ src/os/exec/example_test.go                        |   15 +
+ src/os/exec/exec.go                                |  104 +-
+ src/os/exec/exec_linux_test.go                     |    2 +-
+ src/os/exec/exec_plan9.go                          |   20 +-
+ src/os/exec/exec_posix_test.go                     |  168 ++-
+ src/os/exec/exec_test.go                           |  456 ++++----
+ src/os/exec/exec_unix.go                           |   20 +-
+ src/os/exec/exec_windows.go                        |   22 +-
+ src/os/exec/exec_windows_test.go                   |   42 +
+ src/os/exec/lp_windows_test.go                     |   50 +-
+ src/os/exec/read3.go                               |    2 +-
+ src/os/os_test.go                                  |    3 +
+ src/os/rlimit_test.go                              |   13 +-
+ src/reflect/all_test.go                            |  156 +++
+ src/reflect/type.go                                |   11 +-
+ src/reflect/value.go                               |   84 +-
+ src/regexp/syntax/parse.go                         |    8 +-
+ src/runtime/HACKING.md                             |   19 +
+ src/runtime/asm_arm64.s                            |  198 ++++
+ src/runtime/asm_riscv64.s                          |   16 +-
+ src/runtime/cgo/cgo.go                             |    3 -
+ src/runtime/chan_test.go                           |    3 +
+ src/runtime/debug_test.go                          |    2 +-
+ src/runtime/debugcall.go                           |    2 +-
+ src/runtime/export_debug_amd64_test.go             |  132 +++
+ src/runtime/export_debug_arm64_test.go             |  135 +++
+ src/runtime/export_debug_regabiargs_off_test.go    |   15 -
+ src/runtime/export_debug_regabiargs_on_test.go     |   45 -
+ src/runtime/export_debug_test.go                   |   68 +-
+ src/runtime/export_test.go                         |  131 ++-
+ src/runtime/hash_test.go                           |    7 +
+ src/runtime/internal/syscall/asm_linux_amd64.s     |   44 +-
+ src/runtime/internal/syscall/syscall_linux.go      |   27 +
+ src/runtime/map.go                                 |    6 +-
+ src/runtime/mcache.go                              |   63 +-
+ src/runtime/metrics_test.go                        |   86 ++
+ src/runtime/mgc.go                                 |    6 +-
+ src/runtime/mgcpacer.go                            |  145 ++-
+ src/runtime/mgcpacer_test.go                       |   64 ++
+ src/runtime/mgcscavenge.go                         |  584 ++++++----
+ src/runtime/mgcscavenge_test.go                    |  112 ++
+ src/runtime/mgcsweep.go                            |    7 +-
+ src/runtime/mheap.go                               |   21 +-
+ src/runtime/proc.go                                |  144 ++-
+ src/runtime/race/README                            |    1 +
+ src/runtime/race/race_linux_s390x.syso             |  Bin 0 -> 565472 bytes
+ src/runtime/rand_test.go                           |    8 +
+ src/runtime/signal_amd64.go                        |    7 +-
+ src/runtime/signal_arm64.go                        |    5 +-
+ src/runtime/stubs.go                               |   43 +-
+ src/runtime/sys_darwin_amd64.s                     |   20 +-
+ src/runtime/sys_dragonfly_amd64.s                  |   20 +-
+ src/runtime/sys_freebsd_amd64.s                    |   40 +-
+ src/runtime/sys_freebsd_arm64.s                    |   10 +-
+ src/runtime/sys_linux_amd64.s                      |   40 +-
+ src/runtime/sys_linux_arm64.s                      |   16 +-
+ src/runtime/sys_netbsd_amd64.s                     |   20 +-
+ src/runtime/sys_netbsd_arm64.s                     |    8 +-
+ src/runtime/sys_openbsd_amd64.s                    |   22 +-
+ src/runtime/sys_openbsd_arm64.s                    |    8 +-
+ src/runtime/trace.go                               |   12 +-
+ src/runtime/traceback.go                           |    2 +-
+ src/sort/gen_sort_variants.go                      |   32 +-
+ src/syscall/asm_linux_386.s                        |   97 --
+ src/syscall/asm_linux_amd64.s                      |   96 --
+ src/syscall/asm_linux_arm.s                        |  113 --
+ src/syscall/asm_linux_arm64.s                      |   99 --
+ src/syscall/asm_linux_mips64x.s                    |   91 --
+ src/syscall/asm_linux_mipsx.s                      |   94 --
+ src/syscall/asm_linux_ppc64x.s                     |   91 --
+ src/syscall/asm_linux_riscv64.s                    |   96 --
+ src/syscall/asm_linux_s390x.s                      |   98 --
+ src/syscall/syscall_aix.go                         |    5 +
+ src/syscall/syscall_darwin.go                      |    5 +
+ src/syscall/syscall_dragonfly.go                   |    5 +
+ src/syscall/syscall_freebsd.go                     |    5 +
+ src/syscall/syscall_linux.go                       |   72 ++
+ src/syscall/syscall_netbsd.go                      |    8 +-
+ src/syscall/syscall_openbsd.go                     |    8 +-
+ src/syscall/syscall_solaris.go                     |    5 +
+ src/syscall/syscall_unix.go                        |    5 -
+ src/time/example_test.go                           |   11 +
+ src/time/format.go                                 |   16 +-
+ src/time/time_test.go                              |   11 +
+ test/fixedbugs/issue23587.go                       |    2 +-
+ test/fixedbugs/issue52438.go                       |   39 +
+ test/live_syscall.go                               |   40 -
+ test/live_uintptrkeepalive.go                      |   63 ++
+ test/typeparam/cons.go                             |    2 +-
+ test/uintptrkeepalive.go                           |   11 +
+ 204 files changed, 6594 insertions(+), 4893 deletions(-)

@@ -1,63 +1,25 @@
-commit 72c33a5ef0eea8663328375d9d339ed150310ebb
-Author: Chressie Himpel <chressie@google.com>
-Date:   Fri May 5 14:17:38 2023 +0000
+commit c7ccabf3fea67f002bef190a5ffc7417f4371a23
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jun 3 16:22:58 2022 -0400
 
-    Revert "runtime/cgo: store M for C-created thread in pthread key"
+    runtime/cgo: retry _beginthread on EACCES
     
-    This reverts CL 485500.
+    We occassionally see _beginthread failing with EACCES, meaning
+    "insufficient resources" according to the Microsoft documentation.
+    Exactly which resources is unclear.
     
-    Reason for revert: This breaks internal tests at Google, see b/280861579 and b/280820455.
+    Similar to pthread_create on unix systems, we can wait a bit and retry
+    to try to get success. The alternative is to abort, so we may as well
+    give it a try.
     
-    Change-Id: I426278d400f7611170918fc07c524cb059b9cc55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492995
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #52572.
+    
+    Change-Id: I6e05add53b4ae36c61e53b1ee3fed6bc74e17dfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410355
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Chressie Himpel <chressie@google.com>
 
- misc/cgo/test/cgo_test.go                  |   7 +-
- misc/cgo/test/cthread_unix.c               |  24 ------
- misc/cgo/test/cthread_windows.c            |  22 ------
- misc/cgo/test/testx.go                     |  14 ----
- misc/cgo/testcarchive/carchive_test.go     |  54 -------------
- misc/cgo/testcarchive/testdata/libgo9/a.go |  14 ----
- misc/cgo/testcarchive/testdata/main9.c     |  24 ------
- misc/cgo/testsanitizers/testdata/tsan14.go |  53 -------------
- misc/cgo/testsanitizers/tsan_test.go       |   1 -
- src/runtime/asm_386.s                      |  41 ++--------
- src/runtime/asm_amd64.s                    |  38 ++--------
- src/runtime/asm_arm.s                      |  38 ++--------
- src/runtime/asm_arm64.s                    |  32 +-------
- src/runtime/asm_loong64.s                  |  32 +-------
- src/runtime/asm_mips64x.s                  |  32 +-------
- src/runtime/asm_mipsx.s                    |  32 +-------
- src/runtime/asm_ppc64x.s                   |  35 +--------
- src/runtime/asm_riscv64.s                  |  32 +-------
- src/runtime/asm_s390x.s                    |  32 +-------
- src/runtime/cgo.go                         |   9 ---
- src/runtime/cgo/asm_386.s                  |   8 --
- src/runtime/cgo/asm_amd64.s                |   8 --
- src/runtime/cgo/asm_arm.s                  |   8 --
- src/runtime/cgo/asm_arm64.s                |   8 --
- src/runtime/cgo/asm_loong64.s              |   8 --
- src/runtime/cgo/asm_mips64x.s              |   8 --
- src/runtime/cgo/asm_mipsx.s                |   8 --
- src/runtime/cgo/asm_ppc64x.s               |  23 ------
- src/runtime/cgo/asm_riscv64.s              |   8 --
- src/runtime/cgo/asm_s390x.s                |   8 --
- src/runtime/cgo/asm_wasm.s                 |   3 -
- src/runtime/cgo/callbacks.go               |  45 -----------
- src/runtime/cgo/gcc_libinit.c              |  35 ---------
- src/runtime/cgo/gcc_libinit_windows.c      |   9 ---
- src/runtime/cgo/gcc_stack_darwin.c         |  19 -----
- src/runtime/cgo/gcc_stack_unix.c           |  39 ----------
- src/runtime/cgo/gcc_stack_windows.c        |   7 --
- src/runtime/cgo/libcgo.h                   |   5 --
- src/runtime/cgocall.go                     |   6 --
- src/runtime/crash_cgo_test.go              |  13 ----
- src/runtime/proc.go                        | 118 ++++-------------------------
- src/runtime/runtime2.go                    |   1 -
- src/runtime/signal_unix.go                 |  20 +----
- src/runtime/stubs.go                       |   3 -
- src/runtime/testdata/testprogcgo/bindm.c   |  34 ---------
- src/runtime/testdata/testprogcgo/bindm.go  |  61 ---------------
- 46 files changed, 67 insertions(+), 1012 deletions(-)
+ src/runtime/cgo/gcc_libinit_windows.c | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

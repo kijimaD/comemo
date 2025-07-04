@@ -1,17 +1,14 @@
-commit f73b2fca849324e6510338f9a36d16af6ae68a3f
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 25 12:24:44 2015 -0400
+commit cca39ff3b1a4da86e1115e0a1375f2f429d192c8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 15 12:10:10 2015 +0900
 
-    runtime: remove unused _GCsweep state
+    net: don't show verbose information when -test.v=false
     
-    We don't use this state. _GCoff means we're sweeping in the
-    background. This makes it clear in the next commit that _GCoff and
-    only _GCoff means sweeping.
+    Updates #10845.
     
-    Change-Id: I416324a829ba0be3794a6cf3cf1655114cb6e47c
-    Reviewed-on: https://go-review.googlesource.com/11501
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I4cec670c7db88c50a6e5619e611744e161d73b3c
+    Reviewed-on: https://go-review.googlesource.com/10131
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/net/main_test.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

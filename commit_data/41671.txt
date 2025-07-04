@@ -1,19 +1,25 @@
-commit 42dfac67083f3fd09ca214738307d0404a0c0147
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 17 13:08:22 2020 -0400
+commit e9c994954facb8967f09413d488e875e33fa96ec
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 18 22:18:27 2019 -0400
 
-    cmd/go: add a "don't care about success" operator to script_test
+    runtime: fix past-the-end write of wasmStack
     
-    Use that operator to make test_race_install_cgo agnostic to whether GOROOT/pkg is writable.
+    On Wasm, at program start, we set the SP to
+    wasmStack+sizeof(wasmStack), and start to write on it. This write
+    is actually past the end of wasmStack. This may scribble to some
+    other variable next to it in the data segment. Or if wasmStack
+    happens to be the last object in the data segment, we'll scribble
+    to unreserved memory and cause the next sysReserve return
+    non-zero memory. Either way, this is bad. Fix this by subtracting
+    16 before writing.
     
-    Updates #37573
-    Updates #30316
+    Found while debugging the new page allocator (CL 190622 and the
+    stack) with Michael. We found that on Wasm, the first sysReserve
+    may return memory with the first a few words being non-zero.
     
-    Change-Id: I018c63b3c369209345069f917bbb3a52179e2b58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223746
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I2d76dd3fee85bddb2ff6a902b5876dea3f2969a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202086
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/script_test.go                          | 183 ++++++++++++---------
- src/cmd/go/testdata/script/README                  |  12 +-
- .../go/testdata/script/test_race_install_cgo.txt   |  12 +-
- 3 files changed, 117 insertions(+), 90 deletions(-)
+ src/runtime/rt0_js_wasm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

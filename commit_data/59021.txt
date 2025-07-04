@@ -1,18 +1,20 @@
-commit 43648931492e45c78ba3e21e7191944a0bb7c10b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 11 15:00:23 2025 -0700
+commit 244ccf4769b1794aa81a13d36142bc2bec4d26dc
+Author: Quim Muntal <quimmuntal@gmail.com>
+Date:   Fri Feb 2 13:30:55 2024 +0000
 
-    cmd/internal/script/scripttest: use GOHOSTARCH to find tool directory
+    Revert "cmd/go: add telemetry counters for flag names and subcommand"
     
-    Fixes #72800
+    This reverts CL 559519.
     
-    Change-Id: Idde7eae13d1c0098e5314935cf8ca823cbc7a7cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656855
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reason for revert: Broke windows/386. See https://build.golang.org/log/03594b706c425bd61fb3c65495aae6dd01b4a81b.
+    
+    Fixes #65447.
+    
+    Change-Id: I567bca0368168dbfb256fadba37bce3cd31aceb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560655
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/internal/script/scripttest/setup.go | 37 +++++++++++++++++++++++++----
- 1 file changed, 33 insertions(+), 4 deletions(-)
+ src/cmd/go/main.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,12 +1,17 @@
-commit 2aa2ceb8730f5e0fff792b43a091a6fa2cfa8e0f
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Mon Jul 25 12:25:41 2011 -0400
+commit 33ff947cac2899ab5e921539f55e58fbc0fd2c2d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 25 12:25:37 2011 -0400
 
-    runtime: Plan 9, skip calling runtime·ldt0setup.
+    runtime: fix compilation of send select cases
     
-    R=golang-dev
-    CC=alex.brainman, golang-dev
-    https://golang.org/cl/4816049
+    Fixes #2102.
+    
+    R=fullung, rsc
+    CC=golang-dev
+    https://golang.org/cl/4825043
 
- src/pkg/runtime/386/asm.s | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/gc/go.h              |  2 +-
+ src/cmd/gc/select.c          |  2 +-
+ src/cmd/gc/subr.c            | 15 ++++++++-------
+ src/pkg/runtime/chan_test.go | 16 ++++++++++++++++
+ 4 files changed, 26 insertions(+), 9 deletions(-)

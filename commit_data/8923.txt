@@ -1,32 +1,12 @@
-commit 63b8b948d9270397fade80956d1b52ffbfcffde0
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Fri Jul 1 10:18:07 2011 -0400
+commit 21efa147ba2b72c24dcd4edd6c73813a23ce8b42
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Jul 1 10:11:33 2011 -0400
 
-    windows: define and use syscall.Handle
-    Fixes #1487.
+    cmd/goinstall: try to access via https.
     
-    R=rsc, alex.brainman, go.peter.90, mikioh.mikioh, mattn.jp
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4600042
+    https://golang.org/cl/4667051
 
- doc/progs/file_windows.go               |  89 +++++++++++++
- doc/progs/run                           |   7 +-
- src/pkg/crypto/rand/rand_windows.go     |   2 +-
- src/pkg/net/fd_windows.go               |  48 +++----
- src/pkg/net/interface_windows.go        |   4 +-
- src/pkg/net/ipsock.go                   |  12 +-
- src/pkg/net/sendfile_windows.go         |   6 +-
- src/pkg/net/sock.go                     |  23 ++--
- src/pkg/net/sock_windows.go             |   2 +-
- src/pkg/os/env_windows.go               |   2 +-
- src/pkg/os/exec_posix.go                |  11 +-
- src/pkg/os/exec_windows.go              |   8 +-
- src/pkg/os/file.go                      |  24 ----
- src/pkg/os/file_posix.go                |  20 ---
- src/pkg/os/file_unix.go                 |  47 +++++++
- src/pkg/os/file_windows.go              |  63 +++++++--
- src/pkg/syscall/exec_windows.go         |  16 +--
- src/pkg/syscall/syscall_windows.go      | 222 ++++++++++++++++----------------
- src/pkg/syscall/zsyscall_windows_386.go | 130 +++++++++----------
- src/pkg/syscall/ztypes_windows_386.go   |  12 +-
- 20 files changed, 444 insertions(+), 304 deletions(-)
+ src/cmd/goinstall/download.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

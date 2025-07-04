@@ -1,32 +1,12 @@
-commit cf6a71216211d8d3f487ab158cbf681742e790d4
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Nov 3 10:11:06 2011 +1100
+commit 33f1d47b38f9c48b326642e2005e24ec06176172
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Nov 2 22:33:15 2011 +0100
 
-    html: properly close <marquee> elements.
+    gc: package paths in symbol names: don't escape periods before last slash, always escape >=0x7f.
     
-    Pass tests1.dat, test 80:
-    <a href=a>aa<marquee>aa<a href=b>bb</marquee>aa
-    
-    | <html>
-    |   <head>
-    |   <body>
-    |     <a>
-    |       href="a"
-    |       "aa"
-    |       <marquee>
-    |         "aa"
-    |         <a>
-    |           href="b"
-    |           "bb"
-    |       "aa"
-    
-    Also pass tests through test 82:
-    <!DOCTYPE html><spacer>foo
-    
-    R=nigeltao
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5319071
+    https://golang.org/cl/5323071
 
- src/pkg/html/parse.go      | 4 ++++
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/gc/subr.c | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

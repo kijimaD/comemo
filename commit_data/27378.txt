@@ -1,18 +1,18 @@
-commit a8a2b38fb9e3886b6942621bf4b24ae062f0460b
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu May 12 12:09:18 2016 -0400
+commit ebd67ba588eabd5bf968b5bd14dff21a1a1b1be4
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Mar 18 13:00:26 2016 +0900
 
-    cmd/compile/internal/gc: minor cleanup of init.go comments
+    os: fix Stdin.Stat() on windows
     
-    Step 5 was deleted in f3575a9 however the numbering of the other
-    steps wasn't adjusted accordingly.
+    If name is /dev/{stdin,stdout,stderr}, return fileInfo.
     
-    While we're here: clean up the whitespace, add curly braces where
-    appropriate and delete semicolons.
+    Fixes #14853.
     
-    Change-Id: I4e77b2d3ee8460abe4bfb993674f83e35be8ff17
-    Reviewed-on: https://go-review.googlesource.com/23066
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibf7d1ae7b9f3dc43f6ed7c905ea2c5102e1971cc
+    Reviewed-on: https://go-review.googlesource.com/20845
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/gc/init.go | 39 +++++++++++++++++++------------------
- 1 file changed, 20 insertions(+), 19 deletions(-)
+ src/os/os_test.go       | 35 +++++++++++++++++++++++++++++++++++
+ src/os/stat_windows.go  | 16 +++++++++++++---
+ src/os/types_windows.go |  4 ++++
+ 3 files changed, 52 insertions(+), 3 deletions(-)

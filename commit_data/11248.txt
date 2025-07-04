@@ -1,17 +1,12 @@
-commit b58b5ba997ad5ab5b6419a575cb5829a45097fa6
+commit 2356e438274814a3dabc56541dbd5788a3c1750c
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jan 19 12:25:37 2012 +0900
+Date:   Thu Jan 19 12:23:30 2012 +0900
 
-    net: fix plan9 build
+    net: fix comments
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5554058
+    https://golang.org/cl/5557059
 
- src/pkg/net/iprawsock_plan9.go | 33 +++++++++++++++++----------------
- src/pkg/net/ipsock_plan9.go    | 22 +++++++---------------
- src/pkg/net/tcpsock_plan9.go   | 16 ++++++++++++++++
- src/pkg/net/udpsock_plan9.go   | 20 ++++++++++++++++++--
- src/pkg/net/unixsock_plan9.go  | 13 +++++++------
- src/pkg/net/unixsock_posix.go  |  2 +-
- 6 files changed, 66 insertions(+), 40 deletions(-)
+ src/pkg/net/net.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

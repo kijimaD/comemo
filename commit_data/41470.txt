@@ -1,16 +1,17 @@
-commit 8bdd24df6afa746cede600351feb2aa4395a63ea
-Author: Nikson Kanti Paul <nikson.sust@gmail.com>
-Date:   Tue Jan 21 01:50:27 2020 +0100
+commit c1b7f508b0f4db605bfae4216f421bc3ec00de75
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 3 12:15:14 2019 -0400
 
-    build: in clean.bash, look for 'go' in GOROOT/bin instead of GOBIN
+    cmd/compile: modify line number printing for nodes
     
-    Updates #14340
-    Updates #32674
-    Fixes #36659
+    add preceding "+" for a line that is certainly a statement,
+    and "_" for a line this is certainly not a statement.
     
-    Change-Id: I5bfaba4e53dab894d113dd5065794d66f1a25f2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215478
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I831435dbc2302f25db1320b99d3513fe61fe1fa2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198737
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/clean.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

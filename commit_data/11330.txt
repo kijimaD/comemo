@@ -1,12 +1,12 @@
-commit 280d85a80bd14e732dee7e9991c35da80f62bed7
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Mon Jan 23 09:42:09 2012 -0500
+commit b35cef670453a02c94ffb814729cf26ae7186a97
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Mon Jan 23 09:26:14 2012 -0500
 
-    ld: fix Mach-O code signing for non-cgo binaries
+    compress/flate: use append instead of slice+counter.
     
-    R=golang-dev, rsc
+    R=rsc, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5561060
+    https://golang.org/cl/5561056
 
- src/cmd/ld/macho.c | 19 ++++++++++++++++++-
- 1 file changed, 18 insertions(+), 1 deletion(-)
+ src/pkg/compress/flate/deflate.go | 31 +++++++++++++------------------
+ 1 file changed, 13 insertions(+), 18 deletions(-)

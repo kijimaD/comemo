@@ -1,15 +1,21 @@
-commit 6962c15cec9d77c4402ba0c5a76709d4caf7e78f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 16 15:08:49 2014 -0700
+commit a0c5adc35cbfe071786b6115d63abc7ad90578a9
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 3 20:27:08 2014 -0700
 
-    spec: define "variable"
+    fmt: print &map like &slice and &struct
+    It was inconsistent.
+    Also test these better.
+    Also document the default format for types.
+    This wasn't written down.
     
-    Fixes #8496.
+    Fixes #8470.
     
-    LGTM=rsc, r, iant
-    R=r, rsc, iant, ken
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/148580043
+    https://golang.org/cl/154870043
 
- doc/go_spec.html | 103 +++++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 78 insertions(+), 25 deletions(-)
+ src/fmt/doc.go      | 17 ++++++++++++++++-
+ src/fmt/fmt_test.go | 34 ++++++++++++++++++++++++++++++++--
+ src/fmt/print.go    |  4 ++++
+ 3 files changed, 52 insertions(+), 3 deletions(-)

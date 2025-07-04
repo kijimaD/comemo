@@ -1,0 +1,22 @@
+commit b4a92f56ffe66bb0ad3fca735b3509b04a04339f
+Author: Clide Stefani <cstefani.sites@gmail.com>
+Date:   Wed Jun 26 16:29:01 2024 -0400
+
+    crypto/tls: add exclude tls flags to bogo_shim_test
+    
+    The existing implementation of bogo_shim_test does not support tests
+    that use the -no-tls1, -no-tls11, or -no-tls12 flags.
+    This change adds support for these flags.
+    
+    Updates #51434
+    
+    Change-Id: I43eaea9f5ec6da6811b150630a7dde24d108017e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595775
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/tls/bogo_shim_test.go | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)

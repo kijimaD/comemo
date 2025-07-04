@@ -1,31 +1,17 @@
-commit 5b4209fedb10086e845cabdb02d2990a6090841b
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Wed Feb 19 13:10:36 2025 -0500
+commit e39024e920b7cc9561a34f38f6c9bba630928d88
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Jan 30 17:28:35 2024 +0100
 
-    crypto/tls: update GREASE-Server-TLS13 BoGo skip
+    cmd/link: fix TestConsistentGoKindAndRuntimeType
     
-    Previously this test was skipped without a comment clarifying why. In
-    practice it's because crypto/tls doesn't generate GREASE extensions at
-    this time, and the test expects to find one in the NewSessionTicket
-    message extensions produced by a server.
+    Fixes TestConsistentGoKindAndRuntimeType broken by b89ad46, go.dev/cl/558275
     
-    We're already skipping some other GREASE related test as
-    not-yet-implemented without explicit bogo_config.json exclusion by way
-    of the -enable-grease flag not being implemented, however for TLS
-    1.3 servers the BoGo expectation is that they _always_ send GREASE, and
-    so the -enable-grease flag isn't provided and an explicit skip must be
-    used.
-    
-    We should revisit this alongside implementing GREASE ext production in
-    general for both clients and servers.
-    
-    Updates #72006
-    
-    Change-Id: I8af4b555ac8c32cad42215fbf26aa0feae90fa21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650717
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Change-Id: Ia07a1bae3c74a1196f1d3f97136dc24a0b795fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559575
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/tls/bogo_config.json | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

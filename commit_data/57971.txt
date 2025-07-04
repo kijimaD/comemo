@@ -1,22 +1,20 @@
-commit 672a53def7e94b4d26049c5cd44dda5d7f1a46ff
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Wed Oct 9 01:00:36 2024 +0200
+commit fccd0b9b70255099691deca5dc1d577efcfc889b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 11 16:43:20 2023 -0700
 
-    strconv: cleanup old compiler bits.TrailingZeros workaround
+    context: support non-standard Context in Cause
     
-    Since CL 599096 the compiler knows bits.TrailingZeros's maximum value
-    based on the input type size.
+    If Cause is called on a non-standard Context, call ctx.Err.
     
-    Since CL 603996 it knows it based on input's maximum value.
+    Fixes #62582
     
-    Change-Id: Ib0d6b15a3ba6894d3e7e12b79b387ddbffabe370
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618715
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Commit-Queue: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Iac4ed93203eb5529f8839eb479b6ee2ee5ff6cbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527277
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/strconv/itoa.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/context/context.go |   7 ++-
+ src/context/x_test.go  | 120 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 126 insertions(+), 1 deletion(-)

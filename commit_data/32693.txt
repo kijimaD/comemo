@@ -1,23 +1,23 @@
-commit e9cbabb334b4f3d3502eb2c9b6ec68d23767eb4d
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Aug 15 14:34:53 2017 -0400
+commit 2dc27839df7d51b0544c0ac8b2a0b8f030b7a90c
+Author: Carl Henrik Lunde <chlunde@ifi.uio.no>
+Date:   Wed May 17 19:37:33 2017 +0200
 
-    cmd/link: enable -buildmode=plugin for ppc64le
+    runtime/pprof: deflake TestGoroutineCounts
     
-    This enables support for the buildmode plugin on
-    ppc64le.
+    TestGoroutineCounts was flaky when running on a system under load.
+    This happened on three builds the last couple of days.
     
-    Fixes #20756
+    Fix this by running this test with a single operating system thread, so
+    we do not depend on the operating system scheduler.  50 000 tests ran
+    without failure with the new version, the old version failed 0.5% of the
+    time.
     
-    Change-Id: I83241ff63f9b5c366fe0496cf46a3f67d75d08ac
-    Reviewed-on: https://go-review.googlesource.com/55850
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #15156.
+    
+    Change-Id: I1e5a18d0fef4f72cc9a56e376822b2849cdb0f8b
+    Reviewed-on: https://go-review.googlesource.com/43590
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go               |  2 +-
- src/cmd/go/internal/work/build.go  |  2 +-
- src/cmd/link/internal/ld/config.go |  2 +-
- src/cmd/link/internal/ld/lib.go    |  8 ++++++--
- src/cmd/link/internal/ppc64/asm.go | 14 ++++++++++++--
- 5 files changed, 21 insertions(+), 7 deletions(-)
+ src/runtime/pprof/pprof_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,14 +1,12 @@
-commit 5cb1c82d961a1b2e70b34492e51cc42292913781
+commit 98553f1422392f135989e0daafab352b66c561c2
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 5 14:22:41 2011 -0500
+Date:   Mon Dec 5 14:22:23 2011 -0500
 
-    gc: remove type elision in struct literals
+    spec: remove contentious composite literal shortening
     
-    R=ken2
+    R=gri, r, gustavo, r
     CC=golang-dev
-    https://golang.org/cl/5437136
+    https://golang.org/cl/5451099
 
- src/cmd/gc/typecheck.c | 2 +-
- test/complit.go        | 2 +-
- test/complit1.go       | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

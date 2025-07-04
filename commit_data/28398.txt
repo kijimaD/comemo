@@ -1,19 +1,21 @@
-commit 3eb16c059d301bc7242461ac8480d95e433e0374
-Author: David Chase <drchase@google.com>
-Date:   Thu Sep 15 12:43:29 2016 -0400
+commit b3bf2e7803174b77838a357ee05b1351ece6a29d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 03:01:27 2016 +0000
 
-    cmd/compile: repair GOSSAFUNC functionality
+    net/http: update bundled http2
     
-    GOSSAFUNC=foo had previously only done printing for the
-    single function foo, and didn't quite clean up after itself
-    properly. Changes ensures that Config.HTML != nil iff
-    GOSSAFUNC==name-of-current-function.
+    Updates x/net/http2 to git rev 8a52c78 for golang.org/cl/23258
+    (http2: fix Transport.CloseIdleConnections when http1+http2 are wired together)
     
-    Change-Id: I255e2902dfc64f715d93225f0d29d9525c06f764
-    Reviewed-on: https://go-review.googlesource.com/29250
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #14607
+    
+    Change-Id: I038badc69e230715b8ce4e398eb5e6ede73af918
+    Reviewed-on: https://go-review.googlesource.com/23280
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/net/http/clientserver_test.go | 29 +++++++++++++++++++++++++++++
+ src/net/http/export_test.go       | 30 +++++++++++++++++++-----------
+ src/net/http/h2_bundle.go         | 32 ++++++++++++++++++++++----------
+ 3 files changed, 70 insertions(+), 21 deletions(-)

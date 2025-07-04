@@ -1,12 +1,12 @@
-commit df7f34dd2be6f7b9c387ed45a87932e9313cd6f2
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Feb 2 17:53:28 2012 +1100
+commit a98faa9b6f059ed1e0503949f50f0a8d80d84f56
+Author: Jongmin Kim <atomaths@gmail.com>
+Date:   Wed Feb 1 20:53:31 2012 -0800
 
-    vet: fix comment typo.
+    gophertool: fix link to the build status dashboard
     
-    R=rsc, gri
-    CC=golang-dev
-    https://golang.org/cl/5620049
+    R=golang-dev
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/5606050
 
- src/cmd/vet/method.go | 2 +-
+ misc/chrome/gophertool/popup.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

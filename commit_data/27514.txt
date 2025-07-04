@@ -1,14 +1,19 @@
-commit 89283781c69314f09e999fe131b12c57059c1ba1
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Tue May 24 20:03:31 2016 +0200
+commit 758447cdc94e4ae0b5d26a784a930403a633cd03
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 13:51:17 2016 +1100
 
-    testing: added package doc for sub(tests/benchmarks)
+    test/fixedbugs: add test for divide by zero being optimized away
     
-    Change-Id: I6991cd7a41140da784a1ff8d69c5ea2032d05850
-    Reviewed-on: https://go-review.googlesource.com/23354
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    This only tests amd64 because it's currently broken on non-SSA
+    backends.
+    
+    Fixes #8613
+    
+    Change-Id: I6bc501c81c395e533bb9c7335789750e0c6b7a8f
+    Reviewed-on: https://go-review.googlesource.com/21325
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/testing/testing.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 55 insertions(+)
+ test/fixedbugs/issue8613.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

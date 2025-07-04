@@ -1,12 +1,59 @@
-commit bcd3385ed6fb4e9ea3b25798a542427486972967
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 4 19:31:52 2018 +0000
+commit b40db514382b2efc19c793810185d3d7ceea8b25
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri May 11 08:01:31 2018 +0200
 
-    doc/go1.12: flesh out net, etc
+    cmd/compile: split slow 3 operand LEA instructions into two LEAs
     
-    Change-Id: I081400286544d88eec83a8b332b9f7934fd76ae2
-    Reviewed-on: https://go-review.googlesource.com/c/152539
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    go tool objdump ../bin/go | grep "\.go\:" | grep -c "LEA.*0x.*[(].*[(].*"
+    Before: 1012
+    After: 20
+    
+    Updates #21735
+    
+    Benchmarks thanks to drchase@google.com
+    Intel(R) Xeon(R) CPU E5-1650 v3 @ 3.50GHz
+    benchstat -geomean *.stdout | grep -v pkg:
+    name                                       old time/op    new time/op    delta
+    FastTest2KB-12                              131.0ns ± 0%   131.0ns ± 0%    ~     (all equal)
+    BaseTest2KB-12                              601.3ns ± 0%   601.3ns ± 0%    ~     (p=0.942 n=45+41)
+    Encoding4KBVerySparse-12                    15.38µs ± 1%   15.41µs ± 0%  +0.24%  (p=0.000 n=44+43)
+    Join_8-12                                    2.117s ± 2%    2.128s ± 2%  +0.51%  (p=0.007 n=48+48)
+    HashimotoLight-12                           1.663ms ± 1%   1.668ms ± 1%  +0.35%  (p=0.006 n=49+49)
+    Sha3_224_MTU-12                             4.843µs ± 0%   4.836µs ± 0%  -0.14%  (p=0.000 n=45+42)
+    GenSharedKeyP256-12                         73.74µs ± 0%   70.92µs ± 0%  -3.82%  (p=0.000 n=48+47)
+    Run/10k/1-12                                 24.81s ± 0%    24.88s ± 0%  +0.30%  (p=0.000 n=48+47)
+    Run/10k/16-12                                4.621s ± 2%    4.625s ± 3%    ~     (p=0.776 n=50+50)
+    Dnrm2MediumPosInc-12                        4.018µs ± 0%   4.019µs ± 0%    ~     (p=0.060 n=50+48)
+    DasumMediumUnitaryInc-12                    855.3ns ± 0%   855.0ns ± 0%  -0.03%  (p=0.000 n=47+42)
+    Dgeev/Circulant10-12                        40.45µs ± 1%   41.11µs ± 1%  +1.62%  (p=0.000 n=45+49)
+    Dgeev/Circulant100-12                       10.42ms ± 2%   10.61ms ± 1%  +1.83%  (p=0.000 n=49+48)
+    MulWorkspaceDense1000Hundredth-12           64.69ms ± 1%   64.63ms ± 1%    ~     (p=0.718 n=48+48)
+    ScaleVec10000Inc20-12                       22.31µs ± 1%   22.29µs ± 1%    ~     (p=0.424 n=50+50)
+    ValidateVersionTildeFail-12                 737.6ns ± 1%   736.0ns ± 1%  -0.22%  (p=0.000 n=49+49)
+    StripHTML-12                                2.846µs ± 0%   2.806µs ± 1%  -1.40%  (p=0.000 n=43+50)
+    ReaderContains-12                           6.073µs ± 0%   5.999µs ± 0%  -1.22%  (p=0.000 n=48+48)
+    EncodeCodecFromInternalProtobuf-12          5.817µs ± 2%   5.555µs ± 2%  -4.51%  (p=0.000 n=47+47)
+    TarjanSCCGnp_10_tenth-12                    7.091µs ± 5%   7.132µs ± 7%    ~     (p=0.361 n=50+50)
+    TarjanSCCGnp_1000_half-12                   82.25ms ± 3%   81.29ms ± 2%  -1.16%  (p=0.000 n=50+43)
+    AStarUndirectedmallWorld_10_2_2_2_Heur-12   15.18µs ± 8%   15.11µs ± 7%    ~     (p=0.511 n=50+49)
+    LouvainDirectedMultiplex-12                 20.92ms ± 1%   21.00ms ± 1%  +0.36%  (p=0.000 n=48+49)
+    WalkAllBreadthFirstGnp_10_tenth-12          2.974µs ± 4%   2.964µs ± 5%    ~     (p=0.504 n=50+50)
+    WalkAllBreadthFirstGnp_1000_tenth-12        9.733ms ± 4%   9.741ms ± 4%    ~     (p=0.774 n=48+50)
+    TextMovementBetweenSegments-12              432.8µs ± 0%   433.2µs ± 1%    ~     (p=0.128 n=50+50)
+    Growth_MultiSegment-12                      13.11ms ± 0%   13.19ms ± 1%  +0.58%  (p=0.000 n=44+46)
+    AddingFields/Zap.Sugar-12                   1.296µs ± 1%   1.310µs ± 2%  +1.09%  (p=0.000 n=43+43)
+    AddingFields/apex/log-12                    34.19µs ± 1%   34.31µs ± 1%  +0.35%  (p=0.000 n=45+45)
+    AddingFields/inconshreveable/log15-12       30.08µs ± 2%   30.07µs ± 2%    ~     (p=0.803 n=48+47)
+    AddingFields/sirupsen/logrus-12             6.683µs ± 3%   6.735µs ± 3%  +0.78%  (p=0.000 n=43+42)
+    
+    [Geo mean]                                  143.5µs        143.3µs       -0.16%
+    
+    Change-Id: I637203c75c837737f1febced75d5985703e51044
+    Reviewed-on: https://go-review.googlesource.com/114655
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- doc/go1.12.html | 58 ++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 37 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

@@ -1,12 +1,14 @@
-commit c816d8c59f442928b67fb0ba9a2f136f1950f2bd
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Wed May 16 22:56:18 2012 +1000
+commit ab708e357889a070247f8788c56680ff6684c142
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 16 14:54:48 2012 +1000
 
-    log: fix typo in comment
+    doc/install: document minimum system requirements
+            Partly copied from CL 5685076.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, adg, r
     CC=golang-dev
-    https://golang.org/cl/6195096
+    https://golang.org/cl/6112064
 
- src/pkg/log/log.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/install.html | 26 ++++++++++++++++++++++++++
+ doc/style.css    |  1 +
+ 2 files changed, 27 insertions(+)

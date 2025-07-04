@@ -1,44 +1,16 @@
-commit 289d34a465d46e5c5c07034f5d54afbfda06f5b9
-Author: John Bampton <jbampton@gmail.com>
-Date:   Sat Mar 13 11:25:15 2021 +0000
+commit 17553c6e7154deab8501595f4fa387c0b718337a
+Author: surechen <surechen17@gmail.com>
+Date:   Mon Jul 27 12:00:19 2020 +0800
 
-    all: remove duplicate words
+    cmd/compile: move dumpFileSeq
     
-    Change-Id: Ib0469232a2b69a869e58d5d24990ad74ac96ea56
-    GitHub-Last-Rev: eb38e049ee1e773392ff3747e1eb2af20dd50dcd
-    GitHub-Pull-Request: golang/go#44805
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299109
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    I noticed that there is a Todo comment here. This variable is only used for filename when dump a function's ssa passes result in details. It is no problem to print a function alone, but may be edited by not only one goroutine if dump multiple functions at the same time. Although it looks only dump one function's ssa passes now. As far as I am concerned this variable can be a member variable of the struct Func. I'm not sure if this change is necessary. Looking forward to your advices, thank you very much.
+    
+    Change-Id: I35dd7247889e0cc7f19c0b400b597206592dee75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244918
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/bytes/buffer.go                                         | 2 +-
- src/cmd/compile/internal/ssa/func.go                        | 2 +-
- src/cmd/compile/internal/ssa/rewrite.go                     | 2 +-
- src/cmd/compile/internal/ssagen/abi.go                      | 2 +-
- src/cmd/compile/internal/syntax/scanner_test.go             | 2 +-
- src/cmd/compile/internal/types2/examples/methods.go2        | 2 +-
- src/cmd/compile/internal/types2/type.go                     | 2 +-
- src/cmd/go/internal/fsys/fsys.go                            | 2 +-
- src/cmd/go/internal/modfetch/cache.go                       | 2 +-
- src/cmd/go/internal/modfetch/sumdb.go                       | 2 +-
- src/cmd/go/internal/modload/query_test.go                   | 2 +-
- src/cmd/go/testdata/script/mod_lazy_new_import.txt          | 2 +-
- src/cmd/go/testdata/script/test_chatty_parallel_fail.txt    | 2 +-
- src/cmd/go/testdata/script/test_chatty_parallel_success.txt | 2 +-
- src/cmd/internal/obj/sym.go                                 | 2 +-
- src/cmd/link/internal/ld/macho_combine_dwarf.go             | 2 +-
- src/crypto/tls/handshake_client_test.go                     | 2 +-
- src/debug/dwarf/const.go                                    | 2 +-
- src/go/types/errorcodes.go                                  | 2 +-
- src/go/types/examples/methods.go2                           | 2 +-
- src/go/types/type.go                                        | 2 +-
- src/go/types/typexpr.go                                     | 2 +-
- src/net/http/h2_bundle.go                                   | 2 +-
- src/net/http/server.go                                      | 2 +-
- src/runtime/defer_test.go                                   | 2 +-
- src/runtime/memmove_ppc64x.s                                | 2 +-
- src/runtime/panic.go                                        | 2 +-
- src/runtime/proc.go                                         | 2 +-
- 28 files changed, 28 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go | 7 ++-----
+ src/cmd/compile/internal/ssa/func.go    | 7 ++++---
+ 2 files changed, 6 insertions(+), 8 deletions(-)

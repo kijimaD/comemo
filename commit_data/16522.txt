@@ -1,12 +1,17 @@
-commit ed6dce6f9d5bfb109b46a11f6843f8391abb8678
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jun 11 02:02:42 2013 +0800
+commit 4f514e8691afe7557a01073d766d1a7240269634
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 10 09:20:27 2013 +0400
 
-    cmd/5l: use guaranteed undefined instruction for UNDEF to match [68]l.
+    runtime: use persistentalloc instead of SysAlloc in FixAlloc
+    Also reduce FixAlloc allocation granulatiry from 128k to 16k,
+    small programs do not need that much memory for MCache's and MSpan's.
     
-    R=golang-dev, dave, rsc
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/10085050
+    https://golang.org/cl/10140044
 
- src/cmd/5l/asm.c | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/pkg/runtime/malloc.goc  | 2 +-
+ src/pkg/runtime/malloc.h    | 7 +++----
+ src/pkg/runtime/mfixalloc.c | 7 ++-----
+ src/pkg/runtime/mheap.c     | 6 +++---
+ 4 files changed, 9 insertions(+), 13 deletions(-)

@@ -1,42 +1,14 @@
-commit 342b495301bbd8b75c2721212a08ce41e3f82265
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Feb 25 14:21:25 2022 -0500
+commit 85a2e24afd87d94c62f78672dc28c1991b2a271c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 15 07:13:08 2021 -0400
 
-    cmd/compile: add //go:uintptrkeepalive
+    doc/go1.17: add security-related release notes
     
-    This CL exports the existing ir.UintptrKeepAlive via the new directive
-    //go:uintptrkeepalive. This makes the compiler insert KeepAlives for
-    pointers converted to uintptr in calls, keeping them alive for the
-    duration of the call.
-    
-    //go:uintptrkeepalive requires //go:nosplit, as stack growth can't
-    handle these arguments (it cannot know which are pointers). We currently
-    check this on the immediate function, but the actual restriction applies
-    to all transitive calls.
-    
-    The existing //go:uintptrescapes is an extension of
-    //go:uintptrkeepalive which forces pointers to escape to the heap, thus
-    eliminating the stack growth issue.
-    
-    This pragma is limited to the standard library.
-    
-    For #51087
-    
-    Change-Id: If9a19d484d3561b4219e5539b70c11a3cc09391e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388095
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I573def0f48fe66a1bc60fff321ab007c76b47ef0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327810
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/doc.go                    | 12 +++++----
- src/cmd/compile/internal/escape/escape.go |  2 --
- src/cmd/compile/internal/inline/inl.go    | 11 +++++++++
- src/cmd/compile/internal/ir/node.go       |  2 +-
- src/cmd/compile/internal/noder/decl.go    | 22 +++++++++++++++--
- src/cmd/compile/internal/noder/lex.go     | 19 ++++++--------
- src/cmd/compile/internal/noder/noder.go   |  3 +++
- src/cmd/compile/internal/noder/writer.go  | 16 ++++++++++++
- src/runtime/HACKING.md                    | 19 ++++++++++++++
- test/live_uintptrkeepalive.go             | 41 ++++++++++++++++++++++++-------
- test/uintptrkeepalive.go                  | 11 +++++++++
- 11 files changed, 127 insertions(+), 31 deletions(-)
+ doc/go1.17.html | 124 ++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 115 insertions(+), 9 deletions(-)

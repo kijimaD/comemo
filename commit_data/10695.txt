@@ -1,13 +1,14 @@
-commit fdb09d289a149214caf4afb82f5b9280c7ca59cb
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Sat Dec 10 21:55:38 2011 +0000
+commit 1084ab98b77cc9c231a7e21257f223b49046019b
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sat Dec 10 10:04:33 2011 -0800
 
-    time: fix Time.Add
+    spec: adjust complex constant example
     
-    R=rsc, r
+    Fixes https://golang.org/cl/5444053/#msg41
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5448121
+    https://golang.org/cl/5478058
 
- src/pkg/time/time.go      |  2 +-
- src/pkg/time/time_test.go | 11 +++++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

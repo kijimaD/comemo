@@ -1,25 +1,26 @@
-commit 0d719823af1343f9921ee0293596f09e36ced0e4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Apr 4 22:07:09 2023 +0000
+commit 3391517c0e4695a87cdb806cbf7b9760e7c9fa73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat May 7 16:18:57 2022 -0700
 
-    html/template,mime/multipart: document new GODEBUG settings
+    cmd/compile: don't crash in size computation for invalid type
     
-    This change documents the new GODEBUG settings introduced for
-    html/template and mime/multipart, released with Go 1.19.8 and Go 1.20.3
-    as part of a security fix.
+    An invalid program may produce invalid types. If the program
+    calls unsafe.Sizeof on such a type, which is a compile-time
+    computation, the size-computation must be able to handle it.
+    Add the invalid type to the list of permissible basic types
+    and give it a size of 1 (word).
     
-    Updates #59153.
-    Updates #59234.
+    Fixes #52748.
     
-    Change-Id: I25f4d8245da3301dccccfb44da8ff1a5985392a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482238
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I6c409628f9b77044758caf71cdcb199f9e77adea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404894
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/godebug.md                  | 14 +++++++++++++-
- src/html/template/doc.go        |  7 +++++++
- src/mime/multipart/multipart.go | 15 +++++++++++++++
- 3 files changed, 35 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/sizes.go |  1 +
+ test/fixedbugs/issue52748.go            | 13 +++++++++++++
+ 2 files changed, 14 insertions(+)

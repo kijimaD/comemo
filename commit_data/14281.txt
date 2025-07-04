@@ -1,15 +1,12 @@
-commit b11f85a8aac69c6f065df753bd527e85293a1360
+commit 95329d4cd4c036f5b0ab77eaea7927f124d81c97
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Nov 1 22:11:12 2012 +0400
+Date:   Thu Nov 1 22:02:52 2012 +0400
 
-    cmd/gc: racewalk: fix instrumentation of ninit lists
-    The idea is to (1) process ninit of all nodes,
-    and (2) put instrumentation of ninit into the nodes themselves (not the top-level statement ninit).
-    Fixes #4304.
+    run.bash: add sanity test for race detector
     
     R=golang-dev, rsc
-    CC=golang-dev, lvd
-    https://golang.org/cl/6818049
+    CC=golang-dev
+    https://golang.org/cl/6612064
 
- src/cmd/gc/racewalk.c | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/run.bash | 8 ++++++++
+ 1 file changed, 8 insertions(+)

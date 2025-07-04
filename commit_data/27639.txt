@@ -1,28 +1,27 @@
-commit adf261b7d6ed17bdefadc29ff71ddaba667b1a99
-Author: Stephen McQuay (smcquay) <stephen@mcquay.me>
-Date:   Fri Jun 3 02:12:17 2016 -0700
+commit 5c7ae10f66eae34b8a786fc2fdf753bf48a3d116
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 6 15:19:12 2016 +1000
 
-    cmd/go: match go-import package prefixes by slash
+    runtime: merge 64bit lfstack impls
     
-    The existing implementation for path collision resolution would
-    incorrectly determine that:
+    Merge all the 64bit lfstack impls into one file, adjust build tags to
+    match.
     
-        example.org/aa
+    Merge all the comments on the various lfstack implementations for
+    posterity.
     
-    collides with:
+    lfstack_amd64.go can probably be merged, but it is slightly different so
+    that will happen in a followup.
     
-        example.org/a
-    
-    This change splits by slash rather than comparing on a byte-by-byte
-    basis.
-    
-    Fixes: #15947
-    
-    Change-Id: I18b3aaafbc787c81253203cf1328bb3c4420a0c4
-    Reviewed-on: https://go-review.googlesource.com/23732
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5362d5e127daa81c9cb9d4fa8a0cc5c5e5c2707c
+    Reviewed-on: https://go-review.googlesource.com/21591
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/go/vcs.go      | 18 +++++++++-
- src/cmd/go/vcs_test.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 111 insertions(+), 1 deletion(-)
+ .../{lfstack_linux_ppc64x.go => lfstack_64bit.go}  |  7 +++--
+ src/runtime/lfstack_darwin_arm64.go                | 25 -----------------
+ src/runtime/lfstack_linux_arm64.go                 | 25 -----------------
+ src/runtime/lfstack_linux_mips64x.go               | 32 ----------------------
+ 4 files changed, 5 insertions(+), 84 deletions(-)

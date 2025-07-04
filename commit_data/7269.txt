@@ -1,20 +1,18 @@
-commit 9b82481a9617ebd0250fb9a75a995b7711d200eb
+commit 04a89054428b4da8f56300edcf0eb180abb9c8dd
 Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 28 10:53:42 2011 -0800
+Date:   Fri Jan 28 10:53:06 2011 -0800
 
-    gob: make nested interfaces work.
-    Also clean up the code, make it more regular.
+    gob: updates to the debugging tool.
+    - complex numbers now supported.
+    - entirely independent of standard decode code.
+    - parser has no read-ahead; that is, the scanning works
+    simply by reading the values as they arrive, not by trying
+    to count bytes for message boundaries, a proof of concept
+    for the pending rewrite of the regular decoder.
     
-    Fixes #1416.
-    
-    R=rsc
+    R=rsc, r2
     CC=golang-dev
-    https://golang.org/cl/3985047
+    https://golang.org/cl/4084044
 
- src/pkg/gob/codec_test.go   |   9 ++-
- src/pkg/gob/decode.go       |  54 +++++++++------
- src/pkg/gob/decoder.go      | 161 +++++++++++++++++++++++++-------------------
- src/pkg/gob/encode.go       |  16 +++--
- src/pkg/gob/encoder.go      |  74 +++++++++++---------
- src/pkg/gob/encoder_test.go |  44 ++++++++++++
- 6 files changed, 228 insertions(+), 130 deletions(-)
+ src/pkg/gob/debug.go | 427 ++++++++++++++++++++++++---------------------------
+ 1 file changed, 204 insertions(+), 223 deletions(-)

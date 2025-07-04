@@ -1,25 +1,13 @@
-commit a5248acd91dcf0e90a68c1ff88ca389dc034557c
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Oct 12 16:48:38 2018 +0200
+commit 3885e864114f9e45ed7d4322e0d802b897124c37
+Author: Matthew Broberg <gogetmb@gmail.com>
+Date:   Sat Jul 15 17:40:29 2017 -0600
 
-    internal/cpu: enable support for GODEBUGCPU in non-experimental builds
+    regexp: add QuoteMeta example
     
-    Enabling GODEBUGCPU without the need to set GOEXPERIMENT=debugcpu  enables
-    trybots and builders to run tests for GODEBUGCPU features in upcoming CLs
-    that will implement the new syntax and features for non-experimental
-    GODEBUGCPU support from proposal golang.org/issue/27218.
-    
-    Updates #27218
-    
-    Change-Id: Icc69e51e736711a86b02b46bd441ffc28423beba
-    Reviewed-on: https://go-review.googlesource.com/c/141817
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0bbb53cad9a7c464ab1cfca381128f33496813ff
+    Reviewed-on: https://go-review.googlesource.com/49130
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/objabi/util.go  | 2 --
- src/internal/cpu/cpu.go          | 6 ++----
- src/internal/cpu/cpu_test.go     | 8 ++++----
- src/internal/cpu/cpu_x86_test.go | 2 +-
- src/runtime/proc.go              | 4 ++--
- 5 files changed, 9 insertions(+), 13 deletions(-)
+ src/regexp/example_test.go | 6 ++++++
+ src/regexp/regexp.go       | 4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

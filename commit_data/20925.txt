@@ -1,19 +1,25 @@
-commit 7d516079de6a8333817b1c13a45701a02f80d209
+commit ea295a4cfbb0641f58c41d3722e7e8fb3b3f493f
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 5 16:17:09 2014 -0500
+Date:   Tue Oct 28 11:14:25 2014 -0400
 
-    runtime: convert netbsd/arm to Go
+    cmd/go: add get -f flag
     
-    This was the last src/runtime/*.c file.
+    get -u now checks that remote repo paths match the
+    ones predicted by the import paths: if you are get -u'ing
+    rsc.io/pdf, it has to be checked out from the right location.
+    This is important in case the rsc.io/pdf redirect changes.
     
-    LGTM=austin
-    R=austin
+    In some cases, people have good reasons to use
+    non-standard remote repos. Add -f flag to allow that.
+    The f can stand for force or fork, as you see fit.
+    
+    Fixes #8850.
+    
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/187770043
+    https://golang.org/cl/164120043
 
- src/runtime/defs1_netbsd_arm.go  | 29 +++++++++++++++++-------
- src/runtime/os_netbsd_arm.c      | 34 ----------------------------
- src/runtime/os_netbsd_arm.go     | 28 +++++++++++++++++++++++
- src/runtime/signal_netbsd_arm.go | 48 ++++++++++++++++++++++++++++++++++++++++
- src/runtime/signal_netbsd_arm.h  | 30 -------------------------
- 5 files changed, 97 insertions(+), 72 deletions(-)
+ src/cmd/go/get.go    | 14 ++++++++++++--
+ src/cmd/go/test.bash | 10 ++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

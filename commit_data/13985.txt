@@ -1,14 +1,12 @@
-commit 0c494718afb00c4885638658e07f65ed0bc1c5e3
+commit 32eb110277c02f2d6f7f86c658ebd4c84ca19072
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 28 15:55:38 2012 -0700
+Date:   Fri Sep 28 14:19:31 2012 -0700
 
-    go spec: arguments for append may overlap
+    CONTRIBUTORS: added Paul Chang (Google CLA)
     
-    Fixes #4142.
-    
-    R=rsc, r, iant, ken, remyoudompheng
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6567062
+    https://golang.org/cl/6569078
 
- doc/go_spec.html | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

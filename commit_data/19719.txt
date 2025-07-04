@@ -1,17 +1,15 @@
-commit 125d1e9269572135d078ee128b239280c7101e6c
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jul 11 15:16:00 2014 +0000
+commit 0e694298e9e5d6565b285f48860f73626d6705ff
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Jul 10 14:35:04 2014 -0700
 
-    ld: change DWARF output for structs
-    The debug/dwarf package cannot parse the format generated here,
-    but the format can be changed so it does.
-    After this edit, tweaking the expression defining the offset
-    of a struct field, the dwarf package can parse the tables (again?).
+    cmd/go: do not fail if libgcc does not exist
     
-    LGTM=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/105710043
+    (This is a patch from the pkgsrc Go package.)
+    
+    LGTM=iant
+    R=golang-codereviews, iant, joerg.sonnenberger, dave
+    CC=golang-codereviews, joerg
+    https://golang.org/cl/108340043
 
- src/cmd/ld/dwarf.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

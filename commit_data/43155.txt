@@ -1,29 +1,21 @@
-commit 56dac60074698d23dc6acc047e61d2ad59c9610d
-Author: Quim <quimmuntal@gmail.com>
-Date:   Thu Sep 17 01:59:14 2020 +0200
+commit 1f231d74f6e6b7ce1ccdbf49fc12b022dd875196
+Author: Johan Jansson <johan.jansson@iki.fi>
+Date:   Wed Mar 11 21:05:21 2020 +0200
 
-    cmd/link: enable ASLR on windows binaries built with -buildmode=c-shared
+    runtime: emit more specific errors from checkptr
     
-    Windows binaries built with -buildmode=c-shared set will have
-    IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag set, and
-    IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA flag set for windows/amd64.
+    Update error messages for pointer alignment checks and pointer
+    arithmetic checks so that each type of error has a unique error
+    message.
     
-    ASLR can be disabled on windows by using the new linker -aslr flag.
+    Fixes #37488
     
-    RELNOTE=yes
-    
-    Fixes #41421
-    
-    Change-Id: I62bd88c6d7e0f87173b093a0ad8e1a4d269ec790
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255259
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ida2c2fa3f041a3307d665879a463f9e8f2c1fd03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223037
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/ld_test.go | 70 +++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/lib.go     | 24 +++++++++----
- src/cmd/link/internal/ld/main.go    |  6 ++++
- 3 files changed, 93 insertions(+), 7 deletions(-)
+ src/runtime/checkptr.go      | 8 ++++----
+ src/runtime/checkptr_test.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

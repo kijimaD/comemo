@@ -1,21 +1,24 @@
-commit 0aa14fca8c639c9ceba264dbf0d82bd53306aeaa
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Mar 7 17:49:34 2023 -0500
+commit 2719b1a9a8d0d8f3eb78162da9b23a9eaaabda1b
+Author: Gregory Man <man.gregory@gmail.com>
+Date:   Thu Sep 20 11:48:17 2018 +0300
 
-    cmd/go: enable -pgo=auto by default
+    compress/flate: return error on closed stream write
     
-    Updates #58099.
-    Updates #55022.
+    Previously flate.Writer allowed writes after Close, and this behavior
+    could lead to stream corruption.
     
-    Change-Id: I32eacdf9f008d16566e0b30230ecc25d110a9811
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474236
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #27741
+    
+    Change-Id: Iee1ac69f8199232f693dba77b275f7078257b582
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/136475
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/alldocs.go                         |  2 +-
- src/cmd/go/internal/load/pkg.go               |  2 --
- src/cmd/go/internal/work/build.go             |  4 ++--
- src/cmd/go/testdata/script/build_pgo_auto.txt | 15 +++++++++++++++
- 4 files changed, 18 insertions(+), 5 deletions(-)
+ src/compress/flate/deflate.go      | 36 ++++++++++++++--
+ src/compress/flate/deflate_test.go | 88 +++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 120 insertions(+), 4 deletions(-)

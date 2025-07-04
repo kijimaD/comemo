@@ -1,20 +1,24 @@
-commit 61313dab524f2c82add8442e15d87fca5b7103de
-Author: Xiangdong Ji <xiangdong.ji@gmail.com>
-Date:   Sun Oct 18 11:43:23 2020 -0700
+commit dcf0929de6a12103a8fd7097abd6e797188c366d
+Author: Shang Jian Ding <sding3@ncsu.edu>
+Date:   Fri Apr 3 00:13:08 2020 +0000
 
-    cmd/go: use the last -linkmode flag to determine external linking
+    flag: exit 0 when -h or -help invoked but undefined
     
-    Current linkmode checking in determining package dependencies doesn't
-    take multiple -linkmode options into consideration, may lead to redundant
-    dependency on 'runtime/cgo'.
+    flag treats -h or -help as a special case to print a nice help
+    message, but exit with a status code of 2. This update makes
+    that status code 0.
     
-    Fixes the problem and adds a testcase.
+    Fixes #37533
     
-    Change-Id: Iac5ea9fb3ca5ef931201afd0f3441f41f946c919
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263497
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7e0bd29944ce46607fb7cfc6740734f7444a151a
+    GitHub-Last-Rev: 83f64d757bc3a9957c49caa5de74d05a96724771
+    GitHub-Pull-Request: golang/go#37530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221427
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go                 | 14 +++++++++-----
- src/cmd/go/testdata/script/gcflags_patterns.txt |  4 ++++
- 2 files changed, 13 insertions(+), 5 deletions(-)
+ doc/go1.15.html       | 15 +++++++++++++
+ src/flag/flag.go      |  5 ++++-
+ src/flag/flag_test.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 80 insertions(+), 1 deletion(-)

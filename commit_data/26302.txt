@@ -1,18 +1,22 @@
-commit 5630cb7518140e58174db7c0db40f16d982ba647
-Author: Dave Day <djd@golang.org>
-Date:   Wed Mar 16 10:24:03 2016 +1100
+commit 84a95be922f09ea6b2235da0f67bf7ba490d092a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 7 20:28:04 2016 -0800
 
-    net: make SplitHostPort return an empty host on error
+    runtime: add nowritebarrierrec to funcs called at signal time
     
-    This change also refactors SplitHostPort to avoid using gotos and
-    naked returns.
+    Also nosplit where needed.
     
-    Fixes #14827
-    
-    Change-Id: I4dca528936757fd06da76c23af8a0f6175bbedd1
-    Reviewed-on: https://go-review.googlesource.com/20726
+    Change-Id: I1e3f6f8f76df9ee7e87ed1b8560cef145928314c
+    Reviewed-on: https://go-review.googlesource.com/18395
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/ip_test.go |  5 ++++-
- src/net/ipsock.go  | 42 +++++++++++++++++-------------------------
- 2 files changed, 21 insertions(+), 26 deletions(-)
+ src/runtime/os3_solaris.go     | 2 ++
+ src/runtime/signal2_unix.go    | 2 ++
+ src/runtime/signal_darwin.go   | 1 +
+ src/runtime/signal_freebsd.go  | 1 +
+ src/runtime/signal_openbsd.go  | 1 +
+ src/runtime/signal_sigtramp.go | 2 ++
+ src/runtime/sigqueue.go        | 1 +
+ 7 files changed, 10 insertions(+)

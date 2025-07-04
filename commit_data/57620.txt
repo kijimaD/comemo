@@ -1,41 +1,21 @@
-commit 65679cfeb4b2fa0f24ac4ed8757b8a83ab0d5690
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Aug 24 21:44:23 2024 +0200
+commit e019d01d98cd4f42279b43c77c1a6c2a901a690f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 18 16:34:29 2023 -0700
 
-    crypto/rand: reintroduce urandom fallback for legacy Linux kernels
+    encoding/csv: correct Column docs
     
-    Reintroduce the urandom fallback, but this time with a robust set of
-    tests all pointing guns at each other, including a seccomp'd respawn
-    simulating the lack of getrandom, to make sure the fallback both works
-    and is never hit unexpectedly.
+    For #44221
+    Fixes #62147
     
-    Unlike the Go 1.23 fallback, the new one only triggers on ENOSYS (which
-    is cached by unix.GetRandom) and doesn't handle the EAGAIN errors we
-    never got an explanation for.
-    
-    We still crash the program from Read if we have to go to /dev/urandom
-    and we fail to open it.
-    
-    For #67001
-    Updates #66821
-    
-    Tested on legacy SlowBots (without plan9 and illumos, which don't work):
-    TRY=aix-ppc64,dragonfly-amd64,freebsd-amd64,freebsd-386,netbsd-amd64
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-solaris-amd64,gotip-js-wasm,gotip-wasip1-wasm_wasmtime,gotip-wasip1-wasm_wazero,gotip-windows-amd64,gotip-windows-386,gotip-linux-386,gotip-linux-amd64-longtest-race,gotip-linux-amd64-boringcrypto
-    Change-Id: Idecc96a18cd6363087f5b2a4671c6fd1c41a3b0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608175
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ibcc0d11c8253f51a8f5771791ea4173a38a61950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520917
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/crypto/rand/internal/seccomp/seccomp_linux.go  | 83 ++++++++++++++++++++++
- .../rand/internal/seccomp/seccomp_unsupported.go   | 13 ++++
- src/crypto/rand/rand.go                            | 38 ++++++++--
- src/crypto/rand/rand_aix.go                        | 49 +------------
- src/crypto/rand/rand_getrandom.go                  |  5 ++
- src/crypto/rand/rand_linux_test.go                 | 69 ++++++++++++++++++
- src/crypto/rand/rand_test.go                       | 70 +++++++++++++++---
- src/go/build/deps_test.go                          |  3 +
- 8 files changed, 268 insertions(+), 62 deletions(-)
+ src/encoding/csv/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

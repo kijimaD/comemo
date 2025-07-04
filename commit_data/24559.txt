@@ -1,24 +1,26 @@
-commit a3156aaa121446c4136927f8c2139fefe05ba82c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 29 14:26:48 2015 -0700
+commit 3dd3ab41acd5eeef5cfd9e83d75f325178ef6a9c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 4 15:04:39 2015 -0700
 
-    net/http/httptest: change Server to use http.Server.ConnState for accounting
+    spec: better organization of arithmetic operator section
     
-    With this CL, httptest.Server now uses connection-level accounting of
-    outstanding requests instead of ServeHTTP-level accounting. This is
-    more robust and results in a non-racy shutdown.
+    First step towards cleaning up the operator section - no language
+    changes. Specifically:
     
-    This is much easier now that net/http.Server has the ConnState hook.
+    - Grouped arithmetic operations by types (integer, floating-point,
+      string), with corresponding h4 headings.
     
-    Fixes #12789
-    Fixes #12781
+    - Changed Operator precedence title from h3 to h4.
     
-    Change-Id: I098cf334a6494316acb66cd07df90766df41764b
-    Reviewed-on: https://go-review.googlesource.com/15151
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    - Moved Integer Overflow section after integer operations and changed
+      its title from h3 to h4.
+    
+    This puts things that belong together closer. No heading id's were
+    lost (in case of references from outside the spec).
+    
+    Change-Id: I6b349ba8d86a6ae29b596beb297cc45c81e69399
+    Reviewed-on: https://go-review.googlesource.com/13143
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/httptest/server.go      | 190 ++++++++++++++++++++++++-----------
- src/net/http/httptest/server_test.go |  27 +++++
- 2 files changed, 158 insertions(+), 59 deletions(-)
+ doc/go_spec.html | 60 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 36 insertions(+), 24 deletions(-)

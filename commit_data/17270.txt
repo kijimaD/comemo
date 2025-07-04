@@ -1,46 +1,13 @@
-commit 999a36f9afe858f1928e5ea74b2d9b41c9090873
+commit 08fdf00906a5008428273742ef7df78552d3308d
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 15 14:38:32 2013 -0400
+Date:   Thu Aug 15 11:51:04 2013 -0400
 
-    cmd/gc: &x panics if x does
+    tests: remove two misuses of nil pointers
     
-    See golang.org/s/go12nil.
-    
-    This CL is about getting all the right checks inserted.
-    A followup CL will add an optimization pass to
-    remove redundant checks.
-    
-    R=ken2
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12970043
+    https://golang.org/cl/12858044
 
- src/cmd/5g/cgen.c     |  64 +++---------------
- src/cmd/5g/ggen.c     |  41 +++++++++++
- src/cmd/5g/gsubr.c    |  81 ++++------------------
- src/cmd/5g/peep.c     |   4 +-
- src/cmd/5g/prog.c     |   1 +
- src/cmd/5l/5.out.h    |   1 +
- src/cmd/6g/cgen.c     |  71 ++++++-------------
- src/cmd/6g/ggen.c     |  49 ++++++++++++++
- src/cmd/6g/gsubr.c    |  56 +--------------
- src/cmd/6g/peep.c     |   3 +-
- src/cmd/6g/prog.c     |   1 +
- src/cmd/6l/6.out.h    |   1 +
- src/cmd/8g/cgen.c     |  50 ++------------
- src/cmd/8g/ggen.c     |  49 ++++++++++++++
- src/cmd/8g/gsubr.c    |  43 ------------
- src/cmd/8g/peep.c     |   3 +-
- src/cmd/8g/prog.c     |   1 +
- src/cmd/8l/8.out.h    |   1 +
- src/cmd/gc/closure.c  |   4 +-
- src/cmd/gc/gen.c      |  27 +++++---
- src/cmd/gc/go.h       |  10 ++-
- src/cmd/gc/lex.c      |  32 ++++++++-
- src/cmd/gc/pgen.c     |  20 ++++++
- src/cmd/gc/popt.h     |   1 +
- src/cmd/gc/racewalk.c |   3 +-
- src/cmd/gc/subr.c     |   4 +-
- src/cmd/gc/walk.c     |   8 ++-
- test/nilcheck.go      | 184 ++++++++++++++++++++++++++++++++++++++++++++++++++
- test/nilptr2.go       | 128 +++++++++++++++++++++++++++++++++++
- 29 files changed, 597 insertions(+), 344 deletions(-)
+ src/pkg/runtime/gc_test.go | 4 +++-
+ test/recover3.go           | 3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

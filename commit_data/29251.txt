@@ -1,17 +1,16 @@
-commit 4b90b7a28a0c1a849eed765cc511eacbae4d2651
-Author: INADA Naoki <songofacandy@gmail.com>
-Date:   Wed Oct 26 17:11:13 2016 +0900
+commit 1a04b4abe78a152da5ccd801bf13a1df7ddfa8aa
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Sep 4 14:52:59 2016 -0700
 
-    database/sql: add Pinger interface to driver Conn
+    net/http/httputil: t.Error -> t.Errorf
     
-    Change-Id: If6eb3a7c9ad48a517e584567b1003479c1df6cca
-    Reviewed-on: https://go-review.googlesource.com/32136
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Found by vet.
+    
+    Change-Id: I09b79d68c7a5fc97e0edda4700a82bfbb00a4f45
+    Reviewed-on: https://go-review.googlesource.com/28486
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/database/sql/driver/driver.go | 11 ++++++++++
- src/database/sql/sql.go           | 24 +++++++++++++++------
- src/database/sql/sql_test.go      | 44 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 73 insertions(+), 6 deletions(-)
+ src/net/http/httputil/reverseproxy_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

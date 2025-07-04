@@ -1,13 +1,14 @@
-commit 17623c0f13c123a20edaa41845587f46e3ad5f0a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 12 15:34:09 2012 -0500
+commit 1e1733a9ac8865d75403494bd29bef0cdec44fbc
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Nov 12 15:29:17 2012 +0000
 
-    A+C: Rick Arnold (individual CLA)
+    encoding/pem: write Proc-Type header first.
+    See RFC 1421, section 4.6.1.1
     
-    R=golang-dev, iant
+    R=agl, agl
     CC=golang-dev
-    https://golang.org/cl/6821110
+    https://golang.org/cl/6814104
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/encoding/pem/pem.go      |  63 +++++++++++++++---------
+ src/pkg/encoding/pem/pem_test.go | 104 ++++++++++++++++++++++-----------------
+ 2 files changed, 100 insertions(+), 67 deletions(-)

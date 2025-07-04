@@ -1,12 +1,51 @@
-commit ddd0fa17446aa510dd48df7fd07ccce9a9b156d0
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 8 09:50:20 2011 -0700
+commit db5c5d6fa6ed29e7afc2941562936f12741733dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 8 12:27:58 2011 -0400
 
-    gotest: Fix fix for \r\n on windows.
+    update go tree for reflect changes
     
-    R=rsc, brainman, rh, r2
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4366045
+    https://golang.org/cl/4353043
 
- src/cmd/gotest/gotest.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/gofmt/rewrite.go               |  80 ++++++++++----------
+ src/pkg/asn1/asn1.go                   |  72 +++++++++---------
+ src/pkg/asn1/asn1_test.go              |   6 +-
+ src/pkg/asn1/common.go                 |  12 +--
+ src/pkg/asn1/marshal.go                |  36 ++++-----
+ src/pkg/encoding/binary/binary.go      | 106 +++++++++++++--------------
+ src/pkg/encoding/binary/binary_test.go |   2 +-
+ src/pkg/exp/datafmt/datafmt.go         |  42 +++++------
+ src/pkg/exp/eval/bridge.go             |  32 ++++----
+ src/pkg/exp/eval/type.go               |   2 +-
+ src/pkg/exp/ogle/process.go            |   6 +-
+ src/pkg/exp/ogle/rruntime.go           |  14 ++--
+ src/pkg/fmt/print.go                   |  79 ++++++++++----------
+ src/pkg/fmt/scan.go                    |  36 ++++-----
+ src/pkg/fmt/scan_test.go               |  10 +--
+ src/pkg/go/ast/print.go                |  31 ++++----
+ src/pkg/gob/decode.go                  |  77 ++++++++++----------
+ src/pkg/gob/decoder.go                 |   2 +-
+ src/pkg/gob/encode.go                  |  37 +++++-----
+ src/pkg/gob/encoder.go                 |  18 ++---
+ src/pkg/gob/encoder_test.go            |   2 +-
+ src/pkg/gob/type.go                    |  52 ++++++-------
+ src/pkg/http/response_test.go          |   6 +-
+ src/pkg/json/decode.go                 | 129 +++++++++++++++++----------------
+ src/pkg/json/decode_test.go            |   6 +-
+ src/pkg/json/encode.go                 |  46 ++++++------
+ src/pkg/net/dnsmsg.go                  |  62 ++++++++--------
+ src/pkg/netchan/common.go              |   2 +-
+ src/pkg/netchan/export.go              |  20 ++---
+ src/pkg/netchan/import.go              |   2 +-
+ src/pkg/rpc/server.go                  |  19 ++---
+ src/pkg/template/template.go           |  85 +++++++++++-----------
+ src/pkg/testing/quick/quick.go         |  53 +++++++-------
+ src/pkg/testing/script/script.go       |  12 +--
+ src/pkg/try/try.go                     |   8 +-
+ src/pkg/xml/read.go                    | 116 ++++++++++++++---------------
+ src/pkg/xml/read_test.go               |   4 +-
+ test/fixedbugs/bug177.go               |  25 ++++---
+ test/interface/fake.go                 |  24 +++---
+ test/ken/cplx3.go                      |   6 +-
+ 40 files changed, 693 insertions(+), 686 deletions(-)

@@ -1,30 +1,16 @@
-commit 55b58018f41e6de63bdaa8f3d9a284077d4e88c1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 15 20:24:33 2020 -0800
+commit ef3571bf076f4255579bedb3409bdccc91555b86
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 20 20:12:38 2019 -0500
 
-    test: for issue11656 try to execute trap, not call it
+    cmd/internal/obj/mips: mark restartable sequences
     
-    The issue11656 code was using the trap instruction as a PC value,
-    but it is intended to call a PC value that contains the trap instruction.
+    Following CL 208126, do the same for MIPS.
     
-    It doesn't matter too much as in practice the address is not
-    executable anyhow. But may as well have the code act the way it
-    is documented to act.
-    
-    Also, don't run the test with gccgo/GoLLVM, as it can't work.
-    The illegal instruction will have no unwind data, so the unwinder
-    won't be able to get past it. In other words, gccgo/GoLLVM suffer
-    from the exact problem that the issue describes, but it seems insoluble.
-    
-    For golang/go#11656
-    
-    Change-Id: Ib2e50ffc91d215fd50e78f742fafe476c92d704e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278473
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I95f8fc99a234524119a4d29c7695676dc0ea1025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208217
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- test/fixedbugs/issue11656.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/mips/asm0.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

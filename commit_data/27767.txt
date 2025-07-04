@@ -1,20 +1,16 @@
-commit 575a87166291e321745041944321002b3c0b72be
+commit b1851a3c11a179d4eb55f9d0dd25ef81668a9f81
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jul 1 10:51:59 2016 -0700
+Date:   Tue Apr 12 11:31:16 2016 -0700
 
-    cmd/compile: don't lose //go:nointerface pragma in export data
+    cmd/compile: move compiler-specific flags into compiler-spec. export data section
     
-    Fixes #16243.
+    Also: Adjust go/importer accordingly.
     
-    Change-Id: I207d1e8aa48abe453a23c709ccf4f8e07368595b
-    Reviewed-on: https://go-review.googlesource.com/24648
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia6669563793e218946af45b9fba1cf986a21c031
+    Reviewed-on: https://go-review.googlesource.com/21896
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/bexport.go | 16 +++++++++++++++-
- src/cmd/compile/internal/gc/bimport.go | 17 ++++++++++++-----
- src/cmd/compile/internal/gc/builtin.go |  4 ++--
- src/cmd/compile/internal/gc/parser.go  |  3 ++-
- src/go/internal/gcimporter/bimport.go  | 10 ++++++++--
- 5 files changed, 39 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 18 +++++++-----------
+ src/cmd/compile/internal/gc/bimport.go | 12 ++++++------
+ src/go/internal/gcimporter/bimport.go  |  5 +----
+ 3 files changed, 14 insertions(+), 21 deletions(-)

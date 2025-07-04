@@ -1,15 +1,17 @@
-commit 882f9d6d7a74a9701b2c07b210b5555c5caefed3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 11 11:22:47 2011 -0800
+commit 03b46849f2a2f4604a83707f141d5791a1db6371
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 11 13:14:48 2011 -0500
 
-    ld: Permit an Mach-O symbol to be exported in the dynamic symbol table.
+    goinstall: preliminary support for cgo packages
     
-    Submitting TBR to fix Darwin build.
+    Can handle cgo packages now but only if they
+    do not need to set CGO_LDFLAGS and CGO_CFLAGS.
     
-    R=rsc
-    TBR=rsc
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/3912043
+    https://golang.org/cl/3891042
 
- src/cmd/ld/ldmacho.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/goinstall/main.go  | 15 ++++------
+ src/cmd/goinstall/make.go  | 55 ++++++++++++++++++++++++++++++++----
+ src/cmd/goinstall/parse.go | 69 +++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 106 insertions(+), 33 deletions(-)

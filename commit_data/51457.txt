@@ -1,20 +1,33 @@
-commit bb0d8297d76cb578baad8fa1485565d9acf44cc5
+commit 5522f8c8e6132fe36e4da74f6628a9d63f643d60
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 28 14:08:12 2022 -0500
+Date:   Tue Feb 1 11:25:13 2022 -0500
 
-    cmd/go: run the gpg command verbosely in TestScript/version_buildvcs_git_gpg
+    cmd/go: fix relative-path normalization in go.work files
     
-    Also update test helper programs to avoid the deprecated io/ioutil
-    package and fix minor formatting issues.
+    We had been statting 'dir' instead of 'absDir', which statted the
+    wrong directory if 'dir' was made relative to the location of the
+    go.work file and that location was different from the current working
+    directory.
     
-    For #49649.
+    While we're here, I also noticed some other dir-vs.-absDir
+    discrepancies. The haveDirs map had assumed relative, slash-separated
+    filesystem paths, but absolute paths on Windows are not
+    slash-separated and we do retain those. Moreover, if users hand-edit
+    the go.work file they may introduce non-canonical paths.
+    I have changed the haveDirs logic to retain absolute paths in their
+    platform-specific forms, and to call DropUse with the original path
+    from the go.work file instead of the newly-resolved path.
     
-    Change-Id: Id404acbb2795470420854d682f849d959d2080c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453775
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #50931
+    Updates #48257
+    
+    Change-Id: Ib0a46179aa20c99f045aac5c7c02dbb55da455c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382240
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- .../testdata/script/version_buildvcs_git_gpg.txt   | 72 +++++++++++-----------
- 1 file changed, 37 insertions(+), 35 deletions(-)
+ src/cmd/go/internal/workcmd/use.go          | 41 ++++++++++++++++++-----------
+ src/cmd/go/testdata/script/work_use_dot.txt | 33 +++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 15 deletions(-)

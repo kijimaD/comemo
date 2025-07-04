@@ -1,31 +1,20 @@
-commit 3527caa7d63eab821c9936383e6c442d7a013de1
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 22 10:30:10 2021 -0500
+commit 5c6b2b14db8264a8cdc3634e68c7ae65307df0ae
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jun 6 13:39:11 2020 +0100
 
-    runtime: initial windows/arm64 implementation files
+    doc/go1.15: document two noteworthy json changes
     
-    This CL adds a few small files - defs, os, and rt0 - to start
-    on windows/arm64 support for the runtime.
+    I had a look at the changes between 1.14 and master, and these are the
+    only two that seem relevant enough for the changelog.
     
-    It also copies sys_windows_arm.s to sys_windows_arm64.s,
-    with the addition of "#ifdef NOT_PORTED" around the entire file.
-    This is meant to make future CLs easier to review, since the
-    general pattern is to translate the 32-bit ARM assembly into
-    64-bit ARM assembly.
+    There was also CL 179337 to reuse values when decoding map elements, but
+    it got reverted in CL 234559 and is not being included in 1.15.
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
+    Updates #37419.
     
-    Change-Id: I922037eb3890e77bac48281ecaa8e489595675be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288827
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: Ib125415a953471ce29553a413d85aaf4b18a7a12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236523
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/defs_windows_arm64.go |  83 ++++++
- src/runtime/os_windows_arm64.go   |  14 +
- src/runtime/rt0_windows_arm64.s   |  12 +
- src/runtime/sys_windows_arm64.s   | 588 ++++++++++++++++++++++++++++++++++++++
- 4 files changed, 697 insertions(+)
+ doc/go1.15.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

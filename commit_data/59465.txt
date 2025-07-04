@@ -1,27 +1,30 @@
-commit f49ca5f525334e98a8f0f1bd2b2f121bc003573e
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Tue May 6 11:14:31 2025 +0800
+commit 88480fadcc5874f880623ca50713d0c62cc5259b
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 13 17:49:32 2024 +0000
 
-    cmd/internal/obj/loong64: add [X]VFCLASS.{S/D} instructions
+    cmd/link: support -bindnow option and permit use of "-Wl,-z,now"
     
-    Go asm syntax:
-             VFCLASS{F/D}   VJ, VD
-            XVFCLASS{F/D}   XJ, XD
+    This is a partial roll-forward of CL 473495, which was subsequently
+    reverted. The second half of CL 473495 will appear in a future CL.
     
-    Equivalent platform assembler syntax:
-             vfclass.{s/d}  vd, vj
-            xvfclass.{s/d}  xd, xj
+    In this patch we introduce a new Go linker "-bindnow" command line
+    flag, and update the Go command to permit the use of the -Wl,-z,now
+    option, to allow users to produce binaries that have immediate
+    binding.
     
-    Change-Id: Iec373f393be315696d1fefc747a4a5882f993195
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670256
+    Updates #45681.
+    
+    Change-Id: Idd61b0d6597bcd37b16c343714c55a4ef6dfb534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571416
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dustin Turner <dustin.turner44@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  6 ++++++
- src/cmd/internal/obj/loong64/a.out.go           |  5 +++++
- src/cmd/internal/obj/loong64/anames.go          |  4 ++++
- src/cmd/internal/obj/loong64/asm.go             | 12 ++++++++++++
- 4 files changed, 27 insertions(+)
+ src/cmd/go/internal/work/security.go      |   3 +-
+ src/cmd/go/internal/work/security_test.go |   4 +
+ src/cmd/link/doc.go                       |   2 +
+ src/cmd/link/internal/ld/elf.go           |  12 ++-
+ src/cmd/link/internal/ld/elf_test.go      | 150 ++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go           |   8 +-
+ src/cmd/link/internal/ld/main.go          |   1 +
+ src/internal/testenv/testenv.go           |   9 ++
+ 8 files changed, 182 insertions(+), 7 deletions(-)

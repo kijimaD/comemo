@@ -1,0 +1,29 @@
+commit 614f2284d94364f8e245e2c6ea9b4eca50e650d1
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed May 22 11:40:09 2024 -0400
+
+    doc/initial, doc/next: add draft notice to introduction
+    
+    Go release notes always start out as a draft with a clear notice.
+    That notice is removed when the final release (go1.N.0) is made.
+    For example, the last time was in CL 562255.
+    
+    Add this to the Go 1.23 draft and to the future fragment template.
+    
+    Also switch to the main pkg.go.dev instance and use a relative issue
+    link in 3-tools.md while here.
+    
+    For #64169.
+    For #65614.
+    
+    Change-Id: I16bc0fa8a3a43ee7a9edd7fa253999041f1892e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587415
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/initial/1-intro.md | 4 +++-
+ doc/next/1-intro.md    | 4 +++-
+ doc/next/3-tools.md    | 4 ++--
+ 3 files changed, 8 insertions(+), 4 deletions(-)

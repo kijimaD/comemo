@@ -1,17 +1,15 @@
-commit 4b95575bd4baa683bf1c5b75bd42adf8ab2871af
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 31 10:57:48 2016 -0700
+commit 53ebde225e0ecaff8c3b71356a4726fad753d47c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 12:22:39 2016 -0500
 
-    cmd/compile: fix build
+    cmd/cgo: do not use gcc -xc - to compile standard input
     
-    Pushed from an old client by mistake.  These are the
-    missing changes.
+    We have private reports of compilers that mishandle that.
+    Write to a temporary file instead.
     
-    Change-Id: Ia8d61c5c0bde907369366ea9ea98711823342803
-    Reviewed-on: https://go-review.googlesource.com/21349
-    Reviewed-by: Todd Neal <todd@tneal.org>
+    Change-Id: I92e3cf4274b1a8048741e07fb52b8900c93b915e
+    Reviewed-on: https://go-review.googlesource.com/19616
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/stdlib_test.go  | 1 +
- test/fixedbugs/issue15002.go | 2 +-
- test/run.go                  | 4 ++--
- 3 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/cgo/util.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)

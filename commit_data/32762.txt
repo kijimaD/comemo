@@ -1,22 +1,14 @@
-commit 0a48185b4383fac8d260112efa261112f3d41ee2
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Aug 31 22:02:37 2017 -0400
+commit 4aa5d2eede522567b183f11fd201e5d257fe652a
+Author: Nicholas Maniscalco <nicholas@maniscalco.com>
+Date:   Tue Apr 11 13:27:41 2017 -0700
 
-    reflect: fix pointer past-the-end in Call with zero-sized return value
+    time: update docs to clarify goroutine-safety expectations of Time
     
-    If a function with nonzero frame but zero-sized return value is
-    Call'd, we may write a past-the-end pointer in preparing the
-    return Values. Fix by return the zero value for zero-sized
-    return value.
+    Fixes #19935
     
-    Fixes #21717.
-    
-    Change-Id: I5351cd86d898467170a888b4c3fc9392f0e7aa3b
-    Reviewed-on: https://go-review.googlesource.com/60811
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I28e4cd6924f1b965a429a6a5ebfc4c0f952e8ae6
+    Reviewed-on: https://go-review.googlesource.com/40390
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/all_test.go | 25 +++++++++++++++++++++++++
- src/reflect/value.go    | 10 ++++++++--
- 2 files changed, 33 insertions(+), 2 deletions(-)
+ src/time/time.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

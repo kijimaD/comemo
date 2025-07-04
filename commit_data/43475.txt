@@ -1,22 +1,29 @@
-commit e01a1c01f830e2398b773b803dce3238b1107ce9
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Jul 14 21:39:52 2020 +0000
+commit 850c602ed62fb36430b872f31ac86142d8eaa5f3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 6 15:58:21 2020 -0400
 
-    runtime: add tests for addrRanges.findSucc
+    [dev.link] cmd/link: convert text address assignment to new style
     
-    This change adds a test suite for addrRanges.findSucc so we can change
-    the implementation more safely.
+    Implement text address assignment and trampoline generation using
+    the loader.
     
-    For #40191.
+    Note: the trampoline insertion part doesn't actually work. It
+    also needs to propagate Aux symbols for external symbols in
+    LoadFull.  But it won't be needed after converting pclntab
+    generation, so I'll leave it out for now. This could break
+    linking large binaries on PPC64 and ARM.
     
-    Change-Id: I14a834b6d54836cbc676eb0edb292ba6176705cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242678
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ie46a35b25d7c027983dd877207cfa8f67c32530b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227482
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/export_test.go  |  24 +++++++
- src/runtime/mranges_test.go | 172 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 196 insertions(+)
+ src/cmd/link/internal/arm/asm.go              | 142 +++++++++++++-----------
+ src/cmd/link/internal/ld/data.go              | 152 ++++++++++++++------------
+ src/cmd/link/internal/ld/lib.go               |   7 +-
+ src/cmd/link/internal/ld/link.go              |   2 +-
+ src/cmd/link/internal/ld/main.go              |   5 +-
+ src/cmd/link/internal/loader/loader.go        |  45 +++++++-
+ src/cmd/link/internal/loader/symbolbuilder.go |   3 +-
+ src/cmd/link/internal/ppc64/asm.go            | 103 +++++++++--------
+ src/cmd/link/internal/wasm/asm.go             |   6 +-
+ 9 files changed, 270 insertions(+), 195 deletions(-)

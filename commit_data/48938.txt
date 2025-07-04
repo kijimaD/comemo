@@ -1,21 +1,20 @@
-commit e7b0559448dc81ddfcee965152d0794f25b95da0
-Author: Ludi Rehak <ludi317@gmail.com>
-Date:   Wed Mar 16 10:22:11 2022 -0700
+commit 64e6c75924a57306d8009cef4802b0b9ca4b7891
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Jun 28 11:50:26 2021 -0700
 
-    regexp/syntax: fix typo in comment
+    [dev.typeparams] cmd/compile: port fix for issue46725 to transform.go
     
-    Fix typo in comment describing IsWordChar.
+    Allow fix for issue46725 to work for -G=3 mode.
     
-    Change-Id: Ia283813cf5662e218ee6d0411fb0c1b1ad1021f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393435
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id522fbc2278cf878cb3f95b3205a2122c164ae29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331470
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/regexp/syntax/prog.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/transform.go     | 14 +++++++++++++-
+ src/cmd/compile/internal/typecheck/stmt.go      |  2 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |  6 +++---
+ test/run.go                                     |  1 -
+ 4 files changed, 17 insertions(+), 6 deletions(-)

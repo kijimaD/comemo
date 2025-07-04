@@ -1,17 +1,12 @@
-commit aebfd63cd93a5bef4e7eefb4c0199fbc4c43e2f2
+commit a16baf07776a08ed71fdd7c1b385a75e821c0028
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 13 15:34:36 2011 -0700
+Date:   Wed Jul 13 15:34:21 2011 -0700
 
-    syscall: add Flock on Linux
-    
-    Fixes #2069.
+    syscall: change missing from windows net fixes
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4703048
+    https://golang.org/cl/4701045
 
- src/pkg/syscall/syscall_linux.go        | 2 +-
- src/pkg/syscall/zsyscall_linux_386.go   | 8 ++++++++
- src/pkg/syscall/zsyscall_linux_amd64.go | 8 ++++++++
- src/pkg/syscall/zsyscall_linux_arm.go   | 8 ++++++++
- 4 files changed, 25 insertions(+), 1 deletion(-)
+ src/pkg/syscall/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

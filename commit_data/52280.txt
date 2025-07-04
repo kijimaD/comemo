@@ -1,24 +1,36 @@
-commit ebf8e26d03d3c01bf1611b1189e0af64c3698557
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 14 08:51:02 2023 +0100
+commit f5af1e83a526146a12af48df9d5c9851e24569d7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 21 14:00:26 2022 +0100
 
-    cmd/go/internal/modfetch: use errors.ErrUnsupported
+    cmd/gofmt: only resolve go/ast objects when needed
     
-    CL 473935 added errors.ErrUnsupported, let's use it.
+    go/parser will by default resolve objects as per the go/ast.Object type,
+    which is then used by gofmt's rewrite and simplify flags.
+    However, none of that is needed if neither of the flags is set,
+    so we can avoid the work entirely for a nice speed-up.
     
-    Updates #41198
+            benchcmd -n 8 GofmtSrcCmd gofmt -l ~/tip/src/cmd
     
-    Change-Id: If6534d19cb31ca979ff00d529bd6bdfc964a616d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476135
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+            name         old time/op         new time/op         delta
+            GofmtSrcCmd          957ms ± 7%          908ms ± 7%  -5.12%  (p=0.028 n=8+8)
+    
+            name         old user-time/op    new user-time/op    delta
+            GofmtSrcCmd          11.2s ± 1%          10.4s ± 1%  -7.23%  (p=0.001 n=7+7)
+    
+            name         old sys-time/op     new sys-time/op     delta
+            GofmtSrcCmd          325ms ±29%          286ms ±22%    ~     (p=0.065 n=8+8)
+    
+            name         old peak-RSS-bytes  new peak-RSS-bytes  delta
+            GofmtSrcCmd          295MB ±17%          276MB ±15%    ~     (p=0.328 n=8+8)
+    
+    See #46485.
+    
+    Change-Id: Iad1ae294953710c233f7837d7eb02e23d11c6185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401454
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/modfetch/codehost/codehost.go | 13 -------------
- src/cmd/go/internal/modfetch/codehost/vcs.go      |  8 ++++----
- src/cmd/go/internal/modfetch/coderepo.go          |  2 +-
- 3 files changed, 5 insertions(+), 18 deletions(-)
+ src/cmd/gofmt/gofmt.go | 5 +++++
+ 1 file changed, 5 insertions(+)

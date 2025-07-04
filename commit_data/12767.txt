@@ -1,18 +1,12 @@
-commit a786fe8e13d4cb9192ee98864ea4df91321a8665
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Tue Mar 27 13:35:40 2012 +1100
+commit 308cc100e63c7e5fc3c887aee37cb158ac829255
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 13:35:01 2012 +1100
 
-    doc: add JSON-RPC: a tale of interfaces article
+    doc: update footer text
     
-    Originally published on The Go Programming Language Blog, Abril 27, 2010.
-    
-    http://blog.golang.org/2010/04/json-rpc-tale-of-interfaces.html
-    
-    R=adg, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5920044
+    https://golang.org/cl/5920043
 
- doc/Makefile                                  |  1 +
- doc/articles/json_rpc_tale_of_interfaces.html | 78 +++++++++++++++++++++++++++
- doc/docs.html                                 | 10 ++--
- 3 files changed, 84 insertions(+), 5 deletions(-)
+ lib/godoc/godoc.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

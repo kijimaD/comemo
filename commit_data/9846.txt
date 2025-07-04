@@ -1,26 +1,21 @@
-commit e7e5c5adb3d30cd096cdce11987abe92b79d24ce
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Oct 1 13:00:53 2011 -0400
+commit 71517e7b4acc12a426ebe0b45899a8ba19784ae9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Oct 1 18:45:06 2011 +0900
 
-    runtime: fix map memory leak
+    syscall: update multicast socket options for darwin, freebsd, linux, openbsd
     
-    The map implementation was using the C idiom of using
-    a pointer just past the end of its table as a limit pointer.
-    Unfortunately, the garbage collector sees that pointer as
-    pointing at the block adjacent to the map table, pinning
-    in memory a block that would otherwise be freed.
-    
-    Fix by making limit pointer point at last valid entry, not
-    just past it.
-    
-    Reviewed by Mike Burrows.
-    
-    R=golang-dev, bradfitz, lvd, r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/5158045
+    https://golang.org/cl/5137042
 
- src/cmd/ld/dwarf.c             |  2 +-
- src/pkg/runtime/hashmap.c      | 58 +++++++++++++++++++++---------------------
- src/pkg/runtime/hashmap.h      |  2 +-
- src/pkg/runtime/runtime-gdb.py |  4 +--
- 4 files changed, 33 insertions(+), 33 deletions(-)
+ src/pkg/syscall/syscall_bsd.go          | 24 ++++++++++++++++++++++
+ src/pkg/syscall/syscall_freebsd.go      | 11 +++++++++++
+ src/pkg/syscall/syscall_linux.go        | 35 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/types_freebsd.c         |  2 ++
+ src/pkg/syscall/types_linux.c           |  2 ++
+ src/pkg/syscall/ztypes_freebsd_386.go   |  7 +++++++
+ src/pkg/syscall/ztypes_freebsd_amd64.go |  7 +++++++
+ src/pkg/syscall/ztypes_linux_386.go     |  7 +++++++
+ src/pkg/syscall/ztypes_linux_amd64.go   |  7 +++++++
+ src/pkg/syscall/ztypes_linux_arm.go     |  7 +++++++
+ 10 files changed, 109 insertions(+)

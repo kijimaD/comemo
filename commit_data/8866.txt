@@ -1,15 +1,12 @@
-commit ac213ab834654c76af18e0dc6f04c0f6ff7dbe2a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 27 15:53:48 2011 -0700
+commit 8475832f0d8957840d0aec1b027a89e5c03ed3bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 18:50:27 2011 -0400
 
-    http: respect Handlers setting Connection: close in their response
+    testing: scale benchmark precision to 0.01ns if needed
     
-    Fixes #2011
-    
-    R=golang-dev, rsc
+    R=dvyukov, r
     CC=golang-dev
-    https://golang.org/cl/4667043
+    https://golang.org/cl/4657053
 
- src/pkg/http/serve_test.go | 30 ++++++++++++++++++++++++------
- src/pkg/http/server.go     |  4 ++++
- 2 files changed, 28 insertions(+), 6 deletions(-)
+ src/pkg/testing/benchmark.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

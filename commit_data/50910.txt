@@ -1,31 +1,25 @@
-commit 7ffc1e47b4e3b163f06fc33c9adbc29cb1622d47
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Fri Oct 7 22:42:15 2022 +0800
+commit a17a21c190c3e3ea8e88af3e89ccb3c2f101c35b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 16 08:22:53 2021 -0800
 
-    reflect: panic when Value.Equal using two non-comparable values
+    cmd/compile/internal/types2: deduplicate signatures with the context
     
-    Assuming the two values are valid and non-comparable, Equal should panic.
+    This CL is a mostly clean port of CL 362801 from go/types to types2.
+    It deviates from go/types in some of the testing code because types2
+    already had made some of the changes.
     
-            x := reflect.ValueOf([]int{1, 2, 3})
-            x.Equal(x) // can not report false, should panic
+    It also re-introduces some empty lines that got lost in earlier CLs.
     
-    Assuming one of them is non-comparable and the other is invalid, it should
-    always report false.
-    
-            x := reflect.ValueOf([]int{1, 2, 3})
-            y := reflect.ValueOf(nil)
-            x.Equal(y) // should report false
-    
-    For #46746.
-    
-    Change-Id: Ifecd77ca0b3de3019fae2be39048f9277831676c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/440037
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0bebd68f0880fac61631a5d0c323a9f8ce853ac6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364335
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/reflect/all_test.go | 50 ++++++++++++++++++++++++++++++++++---------------
- src/reflect/value.go    |  5 +++--
- 2 files changed, 38 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/types2/context.go         |  41 ++++----
+ src/cmd/compile/internal/types2/instantiate.go     |  43 +++++----
+ .../compile/internal/types2/instantiate_test.go    | 107 +++++++++++++++++----
+ src/cmd/compile/internal/types2/named.go           |   2 +-
+ src/cmd/compile/internal/types2/subst.go           |   2 +-
+ src/cmd/compile/internal/types2/typestring.go      |   2 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   2 +-
+ 7 files changed, 140 insertions(+), 59 deletions(-)

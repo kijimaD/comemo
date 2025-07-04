@@ -1,32 +1,20 @@
-commit 71080fbb9ecc3d0565de1ea7e4c1d055bebb3524
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 26 22:50:45 2015 -0400
+commit ac6158828870abcbf7d9ef86c89569a2a7d7020c
+Author: Bryan Ford <brynosaurus@gmail.com>
+Date:   Fri Dec 19 14:28:44 2014 -0500
 
-    cmd/compile: remove Val.Ctype
+    math/big: add modular square-root and Jacobi functions
     
-    $ sizeof -p cmd/compile/internal/gc Node
-    Node 248
-    $
+    This change adds Int.ModSqrt to compute modular square-roots via the
+    standard Tonelli-Shanks algorithm, and the Jacobi function that this and
+    many other modular-arithmetic algorithms depend on.
     
-    Change-Id: I0fbfeb0d0b36e225eb282fce9e480a96ec1d278f
-    Reviewed-on: https://go-review.googlesource.com/10524
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    This is needed by change 1883 (https://golang.org/cl/1883), to add
+    support for ANSI-standard compressed encoding of elliptic curve points.
+    
+    Change-Id: Icc4805001bba0b3cb7200e0b0a7f87b14a9e9439
+    Reviewed-on: https://go-review.googlesource.com/1886
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/const.go     | 100 +++++++++++++++----------------
- src/cmd/compile/internal/gc/cplx.go      |   1 -
- src/cmd/compile/internal/gc/dcl.go       |   4 +-
- src/cmd/compile/internal/gc/fmt.go       |   4 +-
- src/cmd/compile/internal/gc/gen.go       |   5 +-
- src/cmd/compile/internal/gc/go.go        |  41 ++++++++++---
- src/cmd/compile/internal/gc/go.y         |   6 +-
- src/cmd/compile/internal/gc/gsubr.go     |   2 +-
- src/cmd/compile/internal/gc/lex.go       |  17 +++---
- src/cmd/compile/internal/gc/obj.go       |   2 +-
- src/cmd/compile/internal/gc/sinit.go     |   4 +-
- src/cmd/compile/internal/gc/subr.go      |   9 +--
- src/cmd/compile/internal/gc/swt.go       |   8 +--
- src/cmd/compile/internal/gc/typecheck.go |  12 ++--
- src/cmd/compile/internal/gc/unsafe.go    |   2 -
- src/cmd/compile/internal/gc/walk.go      |   2 +-
- src/cmd/compile/internal/gc/y.go         |   6 +-
- 17 files changed, 117 insertions(+), 108 deletions(-)
+ src/math/big/int.go      | 118 ++++++++++++++++++++++++++++++++++++++++
+ src/math/big/int_test.go | 137 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 255 insertions(+)

@@ -1,18 +1,19 @@
-commit bf8eef2adc167c2600ac53b8c1f0af5bcfa10ae3
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sun Mar 25 00:15:53 2018 +0530
+commit ed3d6727661250883c3c7e9a5b60d59a01cfa42e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 8 07:16:07 2017 -0800
 
-    net/http: add sniffing support for woff2
+    encoding/json: permit encoding uintptr as a string
     
-    Sniffing woff2 is now added to the spec -
-    https://github.com/whatwg/mimesniff/commit/e29b9f4a22843bf6c7f0177223b0147bc03e37f7
+    Fixes #22629
     
-    Change-Id: Ie63744454d0ee54ed0f985c2873d7eb20a14015a
-    Reviewed-on: https://go-review.googlesource.com/102455
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I31e85f9faa125ee0dfd6d3c5fa89334b00d61e6e
+    Reviewed-on: https://go-review.googlesource.com/76530
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
 
- src/net/http/sniff.go      | 1 +
- src/net/http/sniff_test.go | 3 +--
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/encoding/json/decode_test.go | 42 ++++++++++++++++++++++------------------
+ src/encoding/json/encode.go      |  2 +-
+ src/encoding/json/encode_test.go |  9 ++++++---
+ 3 files changed, 30 insertions(+), 23 deletions(-)

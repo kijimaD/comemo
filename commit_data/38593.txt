@@ -1,16 +1,21 @@
-commit b3e2da629abc5a569a6bfa09f8077f57791ac857
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 28 16:32:09 2019 -0700
+commit 968742a824de0a6459d2820d11b9e2e58803f472
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Oct 29 16:22:37 2018 -0700
 
-    cmd/internal/src: fix a few typos in documentation
+    database/sql: add support for returning cursors to client
     
-    Noticed while reading recent commits.
+    This CL add support for converting a returned cursor (presented
+    to this package as a driver.Rows) and scanning it into a *Rows.
     
-    Change-Id: Ibcd500b0ea5732364124572a17b374402d715090
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170059
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #28515
+    
+    Change-Id: Id8191c568dc135af9e5e8555efcd01987708edcb
+    Reviewed-on: https://go-review.googlesource.com/c/145738
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/src/pos.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/database/sql/convert.go       | 45 ++++++++++++++++++++++++++++++++++----
+ src/database/sql/driver/driver.go |  5 +++++
+ src/database/sql/fakedb_test.go   | 20 ++++++++++++++---
+ src/database/sql/sql.go           |  8 ++++++-
+ src/database/sql/sql_test.go      | 46 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 116 insertions(+), 8 deletions(-)

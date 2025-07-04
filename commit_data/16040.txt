@@ -1,21 +1,14 @@
-commit 144dd2b21cd5ca0ff15a89ad5d8e9eba591b0c1e
-Author: Rob Pike <r@golang.org>
-Date:   Mon Apr 1 15:17:00 2013 -0700
+commit 119189c459ba39859936b796076294eb52c1e830
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Apr 2 00:00:16 2013 +0200
 
-    testing: document that Log and Logf do not usually produce output
-    The text is printed only if the test fails or -test.v is set.
-    Document this behavior in the testing package and 'go help test'.
-    Also put a 'go install' into mkdoc.sh so I don't get tricked by the
-    process of updating the documentation ever again.
+    cmd/gc: use appropriate verb to print array type length.
     
-    Fixes #5174.
+    Fixes #4730.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8118047
+    https://golang.org/cl/8229043
 
- src/cmd/go/doc.go          | 3 ++-
- src/cmd/go/mkdoc.sh        | 1 +
- src/cmd/go/test.go         | 3 ++-
- src/pkg/testing/testing.go | 6 ++++--
- 4 files changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/gc/fmt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

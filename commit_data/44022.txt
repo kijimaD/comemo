@@ -1,20 +1,30 @@
-commit 3d6467824ce42a5ca699b537bcd85f40c63a065e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 14 22:03:29 2020 -0800
+commit 4c003f6b780b471afbf032438eb6c7519458855b
+Author: Kezhu Wang <kezhuw@gmail.com>
+Date:   Mon May 4 02:28:39 2020 +0000
 
-    test: only require issue11674 errors with gc compiler
+    reflect: keep RO flags unchanged in Value.Addr
     
-    The gofrontend code sees that the denominator is not zero,
-    so it computes the values. Dividing zero by a non-zero value
-    produces zero. The language spec doesn't require any of these
-    cases to report an error, so make the errors compiler-specific.
+    Currently, Value.Addr collapses flagRO, which is a combination of
+    flagEmbedRO and flagStickyRO, to flagStickyRO. This causes exported
+    fields of unexported anonymous field from Value.Addr.Elem read only.
     
-    Change-Id: I5ed759a3121e38b937744d32250adcbdf2c4d3c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278117
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    This commit fix this by keeping all bits of flagRO from origin
+    value in Value.Addr. This should be safe due to following reasons:
+    * Result of Value.Addr is not CanSet because of it is not CanAddr
+       but not flagRO.
+    * Addr.Elem get same flagRO as origin, so it should behave same as
+       origin in CanSet.
+    
+    Fixes #32772.
+    
+    Change-Id: I79e086628c0fb6569a50ce63f3b95916f997eda1
+    GitHub-Last-Rev: 78e280e6d06865661b5835def74c252c94a92800
+    GitHub-Pull-Request: golang/go#32787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183937
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue11674.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/reflect/all_test.go | 37 ++++++++++++++++++++++++++++++++++++-
+ src/reflect/value.go    |  5 ++++-
+ 2 files changed, 40 insertions(+), 2 deletions(-)

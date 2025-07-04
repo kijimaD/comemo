@@ -1,17 +1,20 @@
-commit 1b2fbb49c82eb4d6c418cf26edbfb3dab7c3cd07
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 28 10:35:13 2016 -0700
+commit 39304eb69d7f6117e60630452c0e037dbb555f5e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 5 09:43:46 2016 +1100
 
-    cmd/compile: cleanup alg.go for Field slices
+    doc: rewrite references to plan9.bell-labs.com to 9p.io
     
-    Passes toolstash -cmp.
+    The plan9.bell-labs.com site has fallen into disrepair.
+    We'll instead use the site maintained by contributor David du Colombier.
     
-    Change-Id: Ie41d7e74847c44a8fd174731374339c6c32b1460
-    Reviewed-on: https://go-review.googlesource.com/21231
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #14233
+    
+    Change-Id: I0c702e5d3b091cccd42b288ea32f34d507a4733d
+    Reviewed-on: https://go-review.googlesource.com/19240
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/cmd/compile/internal/gc/alg.go   | 30 +++++++++++++-----------------
- src/cmd/compile/internal/gc/align.go |  2 +-
- src/cmd/compile/internal/gc/type.go  |  5 +++++
- 3 files changed, 19 insertions(+), 18 deletions(-)
+ doc/asm.html              | 4 ++--
+ doc/codewalk/codewalk.xml | 2 +-
+ doc/go_faq.html           | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

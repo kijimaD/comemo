@@ -1,0 +1,22 @@
+commit c6d142c4a7c0fa9fc11ad511de8f7d7412b662f7
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 20 14:44:21 2024 -0500
+
+    cmd/compile/internal/ssa: fix ppc64 merging of (CLRLSLDI (SRD ...))
+    
+    The rotate value was not correctly converted from a 64 bit to 32
+    bit rotate. This caused a miscompile of
+    golang.org/x/text/unicode/runenames.Names.
+    
+    Fixes #67526
+    
+    Change-Id: Ief56fbab27ccc71cd4c01117909bfee7f60a2ea1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586915
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 2 +-
+ test/codegen/shift.go                   | 6 +++++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

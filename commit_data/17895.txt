@@ -1,14 +1,14 @@
-commit ee261b75e1a31ab7056a897e1b65fba3568cf9ba
+commit 74eb115b1c7a5b91e6b40d0c6ce78a81d011f6b9
 Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Nov 27 19:32:15 2013 +1100
+Date:   Mon Nov 25 11:03:47 2013 +1100
 
-    misc/vim: send Fmt errors to the quickfix list instead of the location list.
+    misc/vim: describe how to get gofmt-on-save behaviour.
     
-    Output from gofmt is a list of errors, so they should appear in the error list.
+    Fixes #6826.
     
-    R=adg
+    R=golang-dev, bradfitz, adg
     CC=golang-dev
-    https://golang.org/cl/33760043
+    https://golang.org/cl/31770043
 
- misc/vim/ftplugin/go/fmt.vim | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/vim/readme.txt | 5 +++++
+ 1 file changed, 5 insertions(+)

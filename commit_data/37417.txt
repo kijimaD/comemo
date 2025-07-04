@@ -1,16 +1,20 @@
-commit b1e8846dfb619dedbb90ef0b8edbbde2f5e766ea
-Author: mbj36 <mohitbajo36@gmail.com>
-Date:   Fri Nov 16 16:38:39 2018 +0000
+commit 0090c13c91e8ccf4a91312e8237fd3ad2d00b729
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 24 20:21:37 2018 -0400
 
-    net/http: fix typo in the SameSite docs
+    cmd/go: ignore unknown directives in dependency go.mod files
     
-    Fixes #28244
+    This will help with forward compatibility when we add additional
+    directives that only matter for the main module (or that can be
+    safely ignored otherwise).
     
-    Change-Id: I3ca36fd513f5543af0c8af254d267254c7d5e803
-    GitHub-Last-Rev: 83b16fac4e221a249ed036c034367d6f680ae578
-    GitHub-Pull-Request: golang/go#28302
-    Reviewed-on: https://go-review.googlesource.com/c/143480
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ida1e186fb2669b128aeb5a9a1187e2535b72b763
+    Reviewed-on: https://go-review.googlesource.com/125936
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/http/cookie.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modfile/read_test.go         | 15 +++++++++
+ src/cmd/go/internal/modfile/rule.go              | 42 +++++++++++++++++++-----
+ src/cmd/go/internal/modload/load.go              |  4 +--
+ src/cmd/go/testdata/mod/rsc.io_badmod_v1.0.0.txt | 11 +++++++
+ src/cmd/go/testdata/script/mod_load_badmod.txt   | 26 +++++++++++++++
+ 5 files changed, 88 insertions(+), 10 deletions(-)

@@ -1,16 +1,25 @@
-commit 791bb4f5aefdf3d7ae8aea7d360dec6cb238698a
+commit 7579867fece7e42b38d69eca202182f5de786390
 Author: Shenghou Ma <minux@golang.org>
-Date:   Tue May 19 03:39:30 2015 -0400
+Date:   Thu Apr 23 02:16:31 2015 -0400
 
-    cmd/internal/gc: handle 64-bit const i/j/k in cgen_slice on ARM
+    cmd/dist: allow $GO_TEST_TIMEOUT_SCALE to override timeoutScale
     
-    386 is not affected because it doesn't use ginscmp.
+    Some machines are so slow that even with the default timeoutScale,
+    they still timeout some tests. For example, currently some linux/arm
+    builders and the openbsd/arm builder are timing out the runtime
+    test and CL 8397 was proposed to skip some tests on openbsd/arm
+    to fix the build.
     
-    Fixes #10843.
+    Instead of increasing timeoutScale or skipping tests, this CL
+    introduces an environment variable $GO_TEST_TIMEOUT_SCALE that
+    could be set to manually set a larger timeoutScale for those
+    machines/builders.
     
-    Change-Id: I1b3a133bd1e5fabc85236f15d060dbaa4c391cf3
-    Reviewed-on: https://go-review.googlesource.com/10116
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #10314.
+    
+    Change-Id: I16c9a9eb980d6a63309e4cacd79eee2fe05769ee
+    Reviewed-on: https://go-review.googlesource.com/9223
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/cgen.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/dist/test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

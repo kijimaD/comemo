@@ -1,18 +1,14 @@
-commit 42b9e3a8dfb31f18829c45f0995cbf3c78fc90fb
-Author: Keiichi Hirobe <chalenge.akane@gmail.com>
-Date:   Sun Feb 21 12:22:13 2021 +0900
+commit 968e18eebd736870a1e3bf06d941dc06e7b20688
+Author: Macks <macksme@outlook.com>
+Date:   Tue Jun 23 00:09:26 2020 +0000
 
-    context: fix XTestInterlockedCancels
+    text/template: fix lint typo in VariableNode doc
     
-    The test does not use Done channel, so fix that.
-    
-    Change-Id: I795feab2e95de815b8b6ee7a7fd90f19f7af7db1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294749
-    Reviewed-by: Sameer Ajmani <sameer@golang.org>
-    Trust: Sameer Ajmani <sameer@golang.org>
-    Trust: Cody Oss <codyoss@google.com>
-    Run-TryBot: Sameer Ajmani <sameer@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I68b8c782478aa3e7adbd36a2de1c20b04e8c395b
+    GitHub-Last-Rev: 50f27197837e57e1d68b8905eaa66ea142bd45fc
+    GitHub-Pull-Request: golang/go#39622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239383
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/context/context_test.go | 2 +-
+ src/text/template/parse/node.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,24 @@
-commit 5a72bad87ac1152aecd39f7fe1eece88a23b595b
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Dec 17 22:53:38 2016 -0500
+commit 4940a8379096a48af682c266a0e104f249a80816
+Author: Alex Browne <stephenalexbrowne@gmail.com>
+Date:   Sat Nov 7 23:54:41 2015 -0500
 
-    doc/go1.8: document that CGO_ENABLED is sticky
+    cmd/vet: check for duplicate json, xml struct field tags
     
-    Fixes #18363.
+    It is easy to make the mistake of duplicating json struct field
+    tags especially when copy/pasting. This commit causes go vet to
+    report the mistake. Only field tags in the same struct type are
+    considered, because that is the only case which is undoubtedly an
+    error.
     
-    Change-Id: Ifc98506d33a6753cd7db8e505cf86d5626fbbad0
-    Reviewed-on: https://go-review.googlesource.com/34596
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #12791.
+    
+    Change-Id: I4130e4c04b177694cc0daf8f1acaf0751d4f062b
+    Reviewed-on: https://go-review.googlesource.com/16704
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.8.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/vet/main.go               |  6 +++---
+ src/cmd/vet/structtag.go          | 42 ++++++++++++++++++++++++++++++++-------
+ src/cmd/vet/testdata/structtag.go | 28 ++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 10 deletions(-)

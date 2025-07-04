@@ -1,19 +1,15 @@
-commit 2792a414c69d9e6bacee217f6beb92352fe3c2a4
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Mar 23 01:25:45 2022 +0700
+commit 55aefbb268d7d33ebf300ed5b1e38e55c10c8070
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 19 16:34:58 2021 -0400
 
-    cmd/compile/internal/types: remove anyBroke
+    doc/go1.17: mention enabling frame pointer on all ARM64
     
-    anyBroke now always return false, we can get rid of it.
+    Updates #44513.
     
-    Updates #51691
-    
-    Change-Id: Idab5bc9f9f222cc63e50bdde2b23b9404a4bd74e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394557
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I43e95de0423779b3311d96c56f7c8c1cc5be27b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321311
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/types/type.go | 15 ---------------
- 1 file changed, 15 deletions(-)
+ doc/go1.17.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

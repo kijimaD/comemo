@@ -1,32 +1,24 @@
-commit 374bd6a3ac7a201cfb37230942fedaa0451e4de6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon May 15 13:42:13 2023 -0400
+commit ceefd3a37bb2a77b1e9a76fc74360c68ef16ddb8
+Author: Muhammed Can Küçükaslan <32893303+Kucukaslan@users.noreply.github.com>
+Date:   Sun Jul 24 21:44:11 2022 +0000
 
-    cmd/compile/internal/typecheck: remove base.Errorf from Assignop
+    bytes: document that Reader.Reset affects the result of Size
     
-    The documentation for Assignop specifies that if the assignment is not
-    valid, the reason for the failure is returned via a reason string
-    without failing the build.
+    The Reader.Reset changes the underlying byte slice, so it actually
+    changes the return value of the Size method.
     
-    A few cases in Assignop1 -> implements -> ifacelookdot directly call
-    base.Errorf rather than plumbing through the reason string as they
-    should. Drop these calls. Since error messages are mostly unreachable
-    here (it only applies to generated code), don't maintain them and allow
-    them to just fallthrough to the generic "missing method" message.
+    Fixes #54018
     
-    This is important for PGO specialization, which opportunistically checks
-    if candidate interface call targets implement the interface. Many of
-    these will fail, which should not break the build.
-    
-    For #59959.
-    
-    Change-Id: I1891ca0ebebc1c1f51a0d0285035bbe8753036bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494959
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I160deaa2244e95cb93303cb5dfb67a8d90a375ef
+    GitHub-Last-Rev: b04724a072d956db1f84a8f5db0afa0dbb158e96
+    GitHub-Pull-Request: golang/go#54020
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419237
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go | 26 ++++++++------------------
- 1 file changed, 8 insertions(+), 18 deletions(-)
+ src/bytes/reader.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

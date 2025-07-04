@@ -1,19 +1,28 @@
-commit 6117275788ae5f63a1229cf058baf55a818a34c1
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 2 20:57:44 2020 -0400
+commit 0ae9389609f23dc905c58fc2ad7bcc16b770f337
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 28 09:29:40 2019 -0400
 
-    cmd/link: write to temp directory in test
+    runtime: fix textOff for multiple text sections
     
-    In TestMMap, write to temporary directory, instead of the current
-    directory (which may not be writeable).
+    If a compilation has multiple text sections, code in
+    textOff must compare the offset argument against the range
+    for each text section to determine which one it is in.
+    The comparison looks like this:
     
-    Fix linux-mips64le-mengzhuo builder.
+    if uintptr(off) >= sectaddr && uintptr(off) <= sectaddr+sectlen
     
-    Change-Id: I06dc3266f125523568c543634079c447d91903bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227077
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    If the off value being compared is equal to sectaddr+sectlen then it
+    is not within the range of the text section but after it. The
+    comparison should be just '<'.
+    
+    Updates #35207
+    
+    Change-Id: I114633fd734563d38f4e842dd884c6c239f73c95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203817
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/ld/outbuf_test.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/runtime/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

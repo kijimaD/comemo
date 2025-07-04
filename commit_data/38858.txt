@@ -1,25 +1,20 @@
-commit b51c157025c1ff08b5090d9cf13bc88a068c5190
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 22 23:01:26 2019 -0400
+commit 48399cae9f828668bd2c010dc46e4767f2acd011
+Author: SALLEYRON Julien <julien.salleyron@gmail.com>
+Date:   Mon Dec 3 20:46:23 2018 +0000
 
-    cmd/go: move runtime/debug.modinfo to runtime.modinfo
+    net/http/httputil: fix unannounced trailers when body is empty
     
-    It is easier to ensure that the symbol is always present
-    if we move it to package runtime. Avoids init-time work.
-    Also moves it next to buildVersion, the other similar symbol.
+    Fix unannounced trailers when body is empty and without announced trailers.
     
-    Setting up for "go version <binary>".
+    Fixes #29031
     
-    For #31624.
-    
-    Change-Id: I943724469ce6992153e701257eb6f12da88c8e4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173341
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If49951a42fe56d4be4436a999627db4c2678659d
+    GitHub-Last-Rev: 3469adc8f5fd977438350274134950687853a468
+    GitHub-Pull-Request: golang/go#29032
+    Reviewed-on: https://go-review.googlesource.com/c/151898
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/build.go | 12 +++---------
- src/runtime/debug.go                 |  5 +++++
- src/runtime/debug/mod.go             |  6 +++---
- src/runtime/proc.go                  |  8 ++++++++
- 4 files changed, 19 insertions(+), 12 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 18 ++++++-----
+ src/net/http/httputil/reverseproxy_test.go | 48 ++++++++++++++++++++++++------
+ 2 files changed, 49 insertions(+), 17 deletions(-)

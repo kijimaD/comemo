@@ -1,26 +1,46 @@
-commit 0e1d553b4d98b71799b86b0ba9bc338de29b7dfe
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Nov 30 16:58:36 2021 +0700
+commit af1789a61c02fa769fcd4ab8addcbb9a160b987b
+Author: Ruslan Andreev <ruslan.andreev@huawei.com>
+Date:   Wed Jan 13 22:36:19 2021 +0800
 
-    cmd/compile: fix identical to recognize any and interface{}
+    runtime: extend internal atomics to comply with sync/atomic
     
-    Currently, identical handles any and interface{} by checking against
-    Types[TINTER]. This is not always true, since when two generated
-    interface{} types may not use the same *Type instance.
+    The CV add changes according to TODO in Go source-code.
+    Internal atomic set does not comply with sync/atomic library and has shortage
+    operations for signed integers.
+    This patch extend internal atomic set by Int32 and Int64 operations. It's
+    implemented new aliases and asm versions of operations. As a result Cas64 was
+    replaced by Casint64 in findRunnableGCWorker without type casting.
+    Another purpose is unified structure of internal atomics' source code. Before,
+    assembly impementations for different archs were in different files. For
+    example, filename for AMD64 was asm_amd64.s, but filename for RISC-V was
+    atomic_riscv64.s. Some arches have both files without any meaning. So, assembly
+    files were merged and renamed to atomic_{$ARCH}.s filenames.
     
-    Instead, we must check whether Type is empty interface or not.
-    
-    Fixes #49875
-    
-    Change-Id: I28fe4fc0100041a01bb03da795cfe8232b515fc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367754
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I29a05a7cbf5f4a9cc146e8315536c038af545677
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289152
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types/identity.go |  3 ++-
- src/cmd/compile/internal/types/type.go     |  3 ++-
- test/typeparam/issue49875.go               | 14 ++++++++++++++
- 3 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go             |  23 +-
+ src/runtime/internal/atomic/asm_amd64.s            | 187 ------------
+ src/runtime/internal/atomic/asm_arm64.s            |  61 ----
+ src/runtime/internal/atomic/asm_mips64x.s          | 271 ------------------
+ src/runtime/internal/atomic/asm_mipsx.s            | 200 -------------
+ src/runtime/internal/atomic/asm_ppc64x.s           | 253 -----------------
+ .../internal/atomic/{asm_386.s => atomic_386.s}    |  28 +-
+ src/runtime/internal/atomic/atomic_amd64.s         | 225 +++++++++++++++
+ .../internal/atomic/{asm_arm.s => atomic_arm.s}    |  33 ++-
+ src/runtime/internal/atomic/atomic_arm64.s         | 139 +++++++--
+ src/runtime/internal/atomic/atomic_mips64x.s       | 316 ++++++++++++++++++++-
+ src/runtime/internal/atomic/atomic_mipsx.s         | 233 +++++++++++++++
+ src/runtime/internal/atomic/atomic_ppc64x.s        | 295 ++++++++++++++++++-
+ src/runtime/internal/atomic/atomic_riscv64.s       |  29 +-
+ .../atomic/{asm_s390x.s => atomic_s390x.s}         |  32 +++
+ src/runtime/internal/atomic/atomic_wasm.go         |  72 +++++
+ .../internal/atomic/{asm_wasm.s => atomic_wasm.s}  |   2 +-
+ src/runtime/internal/atomic/stubs.go               |  24 ++
+ src/runtime/internal/atomic/sys_linux_arm.s        |   2 +-
+ src/runtime/mgc.go                                 |   3 +-
+ 20 files changed, 1401 insertions(+), 1027 deletions(-)

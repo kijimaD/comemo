@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9236: db9229def8bb23cf254e5027eaf9b5914220e621
+# Index 9236: acb02ebc30bef25318505108d801d073508c0c6e
 
 echo "🚀 Generating explanation for commit 9236..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 9236
-- **コミットハッシュ**: db9229def8bb23cf254e5027eaf9b5914220e621
-- **GitHub URL**: https://github.com/golang/go/commit/db9229def8bb23cf254e5027eaf9b5914220e621
+- **コミットハッシュ**: acb02ebc30bef25318505108d801d073508c0c6e
+- **GitHub URL**: https://github.com/golang/go/commit/acb02ebc30bef25318505108d801d073508c0c6e
 
 ### 章構成
 

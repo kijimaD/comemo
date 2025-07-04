@@ -1,18 +1,14 @@
-commit 7f349e82a257737dac18b28eab69ce793969d9cd
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jun 3 17:02:10 2020 +0000
+commit c170b14c2c1cfb2fd853a37add92a82fd6eb4318
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Tue Dec 24 16:28:16 2019 +0200
 
-    Revert "cmd/compile: improve generated eq algs for structs containing interfaces"
+    doc/go1.14: change hash/maphash package link
     
-    This reverts commit 1cc7be89a94951cbd1b6db669cb5a278e7aea545.
+    Package name and documentation link were wrong.
     
-    Reason for revert: Undoing to get back to semantics discussed in #8606.
-    
-    Change-Id: Ib44a2e79cf113b3d15c3546cd8aa6fc27860819e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236146
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I274906afc3cf7a3d88e3da76549cd6ab008fd0c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212538
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/alg.go | 8 --------
- 1 file changed, 8 deletions(-)
+ doc/go1.14.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

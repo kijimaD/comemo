@@ -1,20 +1,30 @@
-commit 6ed31e3c3e80999e3d1ab62dd49a680ef7ec3384
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu May 16 15:44:57 2024 +0200
+commit 0efbec91cdc8b3e73a869e13dcec73c798147bd6
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 4 12:13:27 2023 -0400
 
-    net: fix typo in ctrlCtxFn parameter name
+    misc/swig: move tests to cmd/cgo/internal
     
-    context.Context parameters are commonly named ctx, not cxt.
+    This moves the misc/swig test to cmd/cgo/internal.
     
-    Change-Id: Icaadbcd38b054694959e5e8a058552a3e54be6d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586016
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    This lets these tests access facilities in internal/testenv. It's also
+    now just a normal test that can run as part of the cmd tests.
+    
+    For #37486.
+    
+    Change-Id: Ibe5026219999d175aa0a310b9886bef3f6f9ed17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492722
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/iprawsock_posix.go |  6 +++---
- src/net/tcpsock_posix.go   |  6 +++---
- src/net/udpsock_posix.go   | 10 +++++-----
- src/net/unixsock_posix.go  | 10 +++++-----
- 4 files changed, 16 insertions(+), 16 deletions(-)
+ misc/swig/nocgo_test.go                              |  7 -------
+ {misc => src/cmd/cgo/internal}/swig/swig_test.go     | 20 ++++++++++++--------
+ .../cmd/cgo/internal}/swig/testdata/callback/main.cc |  0
+ .../cmd/cgo/internal}/swig/testdata/callback/main.go |  0
+ .../cmd/cgo/internal}/swig/testdata/callback/main.h  |  0
+ .../internal}/swig/testdata/callback/main.swigcxx    |  0
+ .../cmd/cgo/internal}/swig/testdata/stdio/main.go    |  0
+ .../cmd/cgo/internal}/swig/testdata/stdio/main.swig  |  0
+ src/cmd/dist/test.go                                 |  3 ---
+ 9 files changed, 12 insertions(+), 18 deletions(-)

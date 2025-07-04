@@ -1,29 +1,22 @@
-commit 7b10c49e0563e43292a72ee1a576fa2345164670
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Apr 3 11:36:12 2024 -0400
+commit ce10e9d84574112b224eae88dc4e0f43710808de
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Mon Apr 17 21:21:41 2023 +0000
 
-    runtime: rename v2 execution tracer files
+    Revert "cmd/compile: allow more inlining of functions that construct closures"
     
-    This change renames the v2 execution tracer files created as part of
+    This reverts commit f8162a0e726f4b3a9df60a37e8ca7883dde61914.
     
-    Updates #66703
-    For #60773
+    Reason for revert: https://github.com/golang/go/issues/59680
     
-    Change-Id: I91bfdc08fec4ec68ff3a6e8b5c86f6f8bcae6e6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576257
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I91821c691a2d019ff0ad5b69509e32f3d56b8f67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485498
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/{trace2.go => trace.go}               | 0
- src/runtime/{trace2buf.go => tracebuf.go}         | 0
- src/runtime/{trace2cpu.go => tracecpu.go}         | 0
- src/runtime/{trace2event.go => traceevent.go}     | 0
- src/runtime/{trace2map.go => tracemap.go}         | 0
- src/runtime/{trace2region.go => traceregion.go}   | 0
- src/runtime/{trace2runtime.go => traceruntime.go} | 0
- src/runtime/{trace2stack.go => tracestack.go}     | 0
- src/runtime/{trace2status.go => tracestatus.go}   | 0
- src/runtime/{trace2string.go => tracestring.go}   | 0
- src/runtime/{trace2time.go => tracetime.go}       | 0
- 11 files changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/compile/internal/inline/inl.go    | 11 ++++++-----
+ src/cmd/compile/internal/test/inl_test.go | 22 +++++++++++++---------
+ test/closure3.dir/main.go                 | 26 +++++++++++---------------
+ 3 files changed, 30 insertions(+), 29 deletions(-)

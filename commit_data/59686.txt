@@ -1,29 +1,36 @@
-commit 27ff0f249c33fdfa9c8e17a0367b46561236f36c
-Author: Jake Bailey <jacob.b.bailey@gmail.com>
-Date:   Mon May 12 20:39:54 2025 -0700
+commit c23579f031ecd09bf37c644723b33736dffa8b92
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Jan 23 15:59:47 2024 -0800
 
-    cmd/compile/internal/ssa: eliminate string copies for calls to unique.Make
+    database/sql: avoid clobbering driver-owned memory in RawBytes
     
-    unique.Make always copies strings passed into it, so it's safe to not
-    copy byte slices converted to strings either. Handle this just like map
-    accesses with string(b) as keys.
+    Depending on the query, a RawBytes can contain memory owned by the
+    driver or by database/sql:
     
-    This CL only handles unique.Make(string(b)), not nested cases like
-    unique.Make([2]string{string(b1), string(b2)}); this could be done in a
-    followup CL but the map lookup code in walk is sufficiently different
-    than the call handling code that I didn't attempt it. (SSA is much
-    easier).
+    If the driver provides the column as a []byte,
+    RawBytes aliases that []byte.
     
-    Fixes #71926
+    If the driver provides the column as any other type,
+    RawBytes contains memory allocated by database/sql.
+    Prior to this CL, Rows.Scan will reuse existing capacity in a
+    RawBytes to permit a single allocation to be reused across rows.
     
-    Change-Id: Ic2f82f2f91963d563b4ddb1282bd49fc40da8b85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672135
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    When a RawBytes is reused across queries, this can result
+    in database/sql writing to driver-owned memory.
+    
+    Add a buffer to Rows to store RawBytes data, and reuse this
+    buffer across calls to Rows.Scan.
+    
+    Fixes #65201
+    
+    Change-Id: Iac640174c7afa97eeb39496f47dec202501b2483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557917
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules | 11 ++++++++
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 35 +++++++++++++++++++++++++
- src/unique/handle_test.go                       |  4 +--
- test/codegen/unique.go                          | 24 +++++++++++++++++
- 4 files changed, 72 insertions(+), 2 deletions(-)
+ src/database/sql/convert.go      |  8 +++----
+ src/database/sql/convert_test.go | 12 +++++++---
+ src/database/sql/sql.go          | 34 +++++++++++++++++++++++++++++
+ src/database/sql/sql_test.go     | 47 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 94 insertions(+), 7 deletions(-)

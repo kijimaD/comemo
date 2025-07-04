@@ -1,28 +1,28 @@
-commit 6375fe4b9e5656e0ac7a46752ec2a997dd62d370
+commit e28f0d92991e60ac3174b2ebf224f37be22c8fad
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 11 11:36:36 2019 -0500
+Date:   Mon Jun 24 12:29:28 2019 -0400
 
-    misc: ensure that test overlay directories are writable
+    cmd/go/internal/modfetch: return structured errors from proxy operations
     
-    Otherwise, the test cannot create new files in the directory.
+    CL 181881 added structured error types for direct fetches.
+    Use those same structured errors to format proxy errors consistently.
     
-    Updates #32407
-    Updates #30316
+    Also ensure that an empty @v/list is treated as equivalent to the module
+    not existing at all.
     
-    Change-Id: Ief0df94a202be92f57d458d4ab4e4daa9ec189b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206458
+    Updates #27173
+    Updates #32715
+    
+    Change-Id: I203fd8259bc4f28b3389745f1a1fde936b0fa24d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183619
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- misc/cgo/life/overlaydir_test.go         | 2 +-
- misc/cgo/stdio/overlaydir_test.go        | 2 +-
- misc/cgo/test/overlaydir_test.go         | 2 +-
- misc/cgo/testcarchive/overlaydir_test.go | 2 +-
- misc/cgo/testcshared/overlaydir_test.go  | 2 +-
- misc/cgo/testplugin/overlaydir_test.go   | 2 +-
- misc/cgo/testshared/overlaydir_test.go   | 2 +-
- misc/cgo/testso/overlaydir_test.go       | 2 +-
- misc/cgo/testsovar/overlaydir_test.go    | 2 +-
- misc/reboot/overlaydir_test.go           | 2 +-
- 10 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 14 +++++-
+ src/cmd/go/internal/modfetch/codehost/git.go      |  2 +-
+ src/cmd/go/internal/modfetch/proxy.go             | 52 ++++++++++++++++-------
+ src/cmd/go/internal/modload/query.go              |  9 +++-
+ src/cmd/go/internal/module/module.go              |  5 ++-
+ src/cmd/go/testdata/script/mod_query_empty.txt    | 52 +++++++++++++++++++++++
+ 6 files changed, 113 insertions(+), 21 deletions(-)

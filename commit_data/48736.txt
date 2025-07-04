@@ -1,40 +1,20 @@
-commit 6eceabf11936638c7000a7a12b4c285ffe9b58f9
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 3 16:30:08 2022 -0400
+commit 4468e1cfb94ed07fea5514dce740180fd3a6d20f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 4 20:04:57 2021 -0400
 
-    go/doc/comment: parse and print headings
+    [dev.typeparams] runtime: allow newproc split stack
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
+    newproc was not allowed to split stack because it had a special
+    stack layout, where the go'd function's arguments were passed on
+    stack but not included in the signature (therefore the stack map).
+    Now it no longer has argument, so it does not need to be nosplit.
     
-    Implement both old-style and new-style headings, like:
-    
-            Text here.
-    
-            Old Style Heading
-    
-            More text here.
-    
-            # New Style Heading
-    
-            More text here.
-    
-    For #51082.
-    
-    Change-Id: I0d735782d0d345794fc2d4e1bdaa0251b8d4bba2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397284
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I6f39730fb1595c4b0438c74118fef418fe1c082b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325919
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- api/next/51082.txt                    |  1 +
- src/go/doc/comment/html.go            | 16 ++++++
- src/go/doc/comment/markdown.go        | 18 ++++++-
- src/go/doc/comment/parse.go           | 49 ++++++++++++++++---
- src/go/doc/comment/print.go           | 48 ++++++++++++++++++
- src/go/doc/comment/testdata/head.txt  | 92 +++++++++++++++++++++++++++++++++++
- src/go/doc/comment/testdata/head2.txt | 36 ++++++++++++++
- src/go/doc/comment/testdata/head3.txt |  7 +++
- src/go/doc/comment/text.go            |  9 +++-
- 9 files changed, 266 insertions(+), 10 deletions(-)
+ src/runtime/proc.go | 22 ----------------------
+ 1 file changed, 22 deletions(-)

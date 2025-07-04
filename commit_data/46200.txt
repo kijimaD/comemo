@@ -1,29 +1,17 @@
-commit f371b30f326b66e4c5c13c7ea51358a42c431752
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Aug 11 23:51:09 2021 -0700
+commit 48dfa2b2dca43c6dc80d7e1d1c605e2918fad3af
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Nov 8 03:09:42 2020 +0100
 
-    unicode/utf8: add AppendRune
+    cmd/link: deal with ADDR32NB relocations the same way as ADDR32 on arm
     
-    AppendRune appends the UTF-8 encoding of a rune to a []byte.
-    It is a generally more user friendly than EncodeRune.
+    As far as I can tell, the addend is the same for both of these, and in
+    this context we don't really care about setting or unsetting the thumb
+    selection bit, so just treat these the same way.
     
-        EncodeASCIIRune-4     2.35ns ± 2%
-        EncodeJapaneseRune-4  4.60ns ± 2%
-        AppendASCIIRune-4     0.30ns ± 3%
-        AppendJapaneseRune-4  4.70ns ± 2%
-    
-    The ASCII case is written to be inlineable.
-    
-    Fixes #47609
-    
-    Change-Id: If4f71eedffd2bd4ef0d7f960cb55b41c637eec54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345571
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I3756c027239f77778c32b317733df9ac92272580
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268238
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/compile/internal/test/inl_test.go |  1 +
- src/unicode/utf8/utf8.go                  | 26 ++++++++++++++++++++++++++
- src/unicode/utf8/utf8_test.go             | 25 +++++++++++++++++++++++++
- 3 files changed, 52 insertions(+)
+ src/cmd/link/internal/loadpe/ldpe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,13 +1,19 @@
-commit 9ef5ee911c2265cde86887032fc56ce4c335d580
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 6 13:59:30 2018 -0400
+commit 7a0bf9436960ffb0b2bd6c7421cd420aa8577402
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Apr 12 16:32:40 2018 +0200
 
-    cmd/go/internal/load: remove unused argument from Lookup
+    net/http: address comments from previous review
     
-    Change-Id: Ia2948a88c6d45a31be17b3d7415559cd53c289ce
-    Reviewed-on: https://go-review.googlesource.com/128015
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Move the test skip to use testenv.SkipFlaky and link to the Go issue.
+    
+    Update #24826
+    
+    Change-Id: I7a0ea3325ffcaa790b25f8cdc429fb52e96a41c7
+    Reviewed-on: https://go-review.googlesource.com/106636
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/load/pkg.go     | 26 +++++++++++---------------
- src/cmd/go/internal/modload/load.go |  6 ++++--
- 2 files changed, 15 insertions(+), 17 deletions(-)
+ src/net/http/serve_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

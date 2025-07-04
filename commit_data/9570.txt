@@ -1,15 +1,13 @@
-commit 7c203b8bc1e4958a7e17d0149f7a86f112d123d6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Aug 31 17:59:35 2011 -0400
+commit 2cc4a54dec14f32ffbc052556ac43f0df375243b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 31 17:38:41 2011 -0400
 
-    unsafe: update doc
+    flag: add Parsed, restore Usage
     
-    changeset: 8812:3fb3e88d5aa8
-    gc: unsafe.Alignof, unsafe.Offsetof, unsafe.Sizeof now return uintptr
-    
-    R=golang-dev, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4951051
+    https://golang.org/cl/4973050
 
- src/pkg/unsafe/unsafe.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/flag/flag.go      | 19 ++++++++++++++++++-
+ src/pkg/flag/flag_test.go |  6 ++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

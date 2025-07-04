@@ -1,12 +1,20 @@
-commit c97b49976d9251701ec6678689c794a352b9f890
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 21 14:05:59 2015 -0700
+commit 0d0ce8a2afb5f31bbbc842910b643192a7d8767e
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Fri Jun 12 12:16:07 2015 +0200
 
-    cmd/go: fix typo in comment
+    cmd/go: fix documentation
     
-    Change-Id: I3d5e46d376953fbdd21ce8c161214eaed6378d84
-    Reviewed-on: https://go-review.googlesource.com/12490
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    The command "go tool pprof help" does not work:
+    
+        $ go tool pprof help
+        open help: no such file or directory
+    
+    The right command is "go tool pprof -h".
+    
+    Change-Id: Icef5d4ab76774905854e46665ac1166d26d35f46
+    Reviewed-on: https://go-review.googlesource.com/10970
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/pkg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/alldocs.go | 2 +-
+ src/cmd/go/test.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

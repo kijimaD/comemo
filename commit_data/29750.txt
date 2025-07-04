@@ -1,17 +1,22 @@
-commit 6c7978fc895099d0053ca7e994ca0936e10ba2d9
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Tue Dec 6 10:40:31 2016 +0100
+commit 4f3a641e6e44fab414f7e384ac55e5b9e8d6fc7e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 6 10:39:50 2016 -0400
 
-    reflect: add example for StructOf
+    math: fix Gamma(-171.5) on all platforms
     
-    This CL adds a simple example for StructOf.
-    The example shows how StructOf can be used in a JSON roundtrip.
+    Using 387 mode was computing it without underflow to zero,
+    apparently due to an 80-bit intermediate. Avoid underflow even
+    with 64-bit floats.
     
-    Change-Id: I9ff1ea9cb8c0cf297c5fae74e68b89931076adfd
-    Reviewed-on: https://go-review.googlesource.com/33953
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    This eliminates the TODOs in the test suite.
+    
+    Fixes linux-386-387 build and fixes #11441.
+    
+    Change-Id: I8abaa63bfdf040438a95625d1cb61042f0302473
+    Reviewed-on: https://go-review.googlesource.com/30540
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/example_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 41 insertions(+)
+ src/math/all_test.go | 12 +++++++++---
+ src/math/gamma.go    | 35 ++++++++++++++++++++++++-----------
+ 2 files changed, 33 insertions(+), 14 deletions(-)

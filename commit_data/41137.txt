@@ -1,24 +1,17 @@
-commit 88ed322afcd8cddc0e1ae5d02fd4d86779a4a2a3
-Author: Kévin Dunglas <dunglas@gmail.com>
-Date:   Tue Jan 21 21:48:41 2020 +0000
+commit 112a72a020f8976876ea7644f9220dbfb0f85464
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Sep 7 04:40:38 2019 +1000
 
-    net/http/httputil: add docs about X-Forwarded-For in ReverseProxy
+    cmd/asm/internal/arch: consolidate LinkArch handling
     
-    ReverseProxy automatically sets the X-Forwarded-For header, if the request
-    already contains a X-Forwarded-For header, the value of the client IP is
-    appended to the existing header value.
-    This behavior isn't documented anywhere, and can lead to IP spoofing
-    security issues is the client is untrusted (the most common situation).
-    This PR documents this behavior.
+    Rather than manually setting the LinkArch for each case, pass the correct
+    *obj.LinkArch to the arch* function, as is already done for archX86().
     
-    For future versions, I proposed #36678 that implements a more secure
-    default behavior and adds support for other forwarded headers.
-    
-    Change-Id: Ief14f5063caebfccb87714f54cffa927c714e5fd
-    GitHub-Last-Rev: fd0bd29a181861ffdb1106b42f59f9489999ccb3
-    GitHub-Pull-Request: golang/go#36672
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215617
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4cf950780aa30a1385e785fb1d26edacb99bda79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193818
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/httputil/reverseproxy.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/asm/internal/arch/arch.go | 40 +++++++++++++--------------------------
+ 1 file changed, 13 insertions(+), 27 deletions(-)

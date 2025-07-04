@@ -1,17 +1,29 @@
-commit b00ebeaebcd8d7535ff08163a7907a6a8fe7b703
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Thu Feb 27 12:11:30 2020 -0600
+commit d6535415fb3246ac5beda22bb6e557700df628ae
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 8 18:21:22 2019 -0400
 
-    net/http/cgi: remove outdated TODO
+    [dev.link] cmd/link: support reflect.Type.Method tracking in deadcode2
     
-    Cookies already work as http.Request parses the Cookie header on-demand
-    when the Cookie methods are called.
+    When reflect.Type.Method is called, all exported methods from a
+    reachable type need to be conservatively live. When such a
+    function is called, the compiler sets an attribute to the
+    function, and the linker needs to check that attribute. Implement
+    this in the index-based deadcode pass.
     
-    Change-Id: Ib7a6f68be02940ff0b56d2465c94545d6fd43847
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221417
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Unify symbol flags and FuncInfo flags to make things simpler. In
+    particular, the deadcode pass can check the reflectMethod
+    attribute without reading in and decoding FuncInfo.
+    
+    Change-Id: Ibb21e172f2996e899c6efa5551a29d0eca62df67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200099
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/http/cgi/child.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/internal/goobj/readnew.go         |  4 ++--
+ src/cmd/internal/goobj2/funcinfo.go       | 13 +------------
+ src/cmd/internal/goobj2/objfile.go        |  5 +++++
+ src/cmd/internal/obj/objfile2.go          | 32 +++++++++++++++----------------
+ src/cmd/link/internal/ld/deadcode2.go     | 24 +++++++++--------------
+ src/cmd/link/internal/objfile/objfile2.go | 22 ++++++++++++++++++---
+ 6 files changed, 51 insertions(+), 49 deletions(-)

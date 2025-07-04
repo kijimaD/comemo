@@ -1,17 +1,12 @@
-commit c69dd3f0547e5846ce259a02d0b6ad9f19b566b6
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 26 16:17:54 2016 -0400
+commit 73be5d82d443def1f721474bff9819155eb5bdf0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 22:15:07 2016 -0700
 
-    cmd/compile: enable DUFFZERO in defframe on MIPS64
+    cmd/compile: use printer in vconv
     
-    DUFFZERO was disabled due to issue #12108. CL 27592 fixed it and
-    enabled DUFFZERO in general, but this one was forgotten.
-    
-    Change-Id: I0476a3a0524c7b54218f7a747bdba76cd823fbc5
-    Reviewed-on: https://go-review.googlesource.com/32181
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ib30ed686448c4c0a5777cdf1d505ea06eb8b2a47
+    Reviewed-on: https://go-review.googlesource.com/27917
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/mips64/ggen.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 54 ++++++++++++++++++++++----------------
+ 1 file changed, 32 insertions(+), 22 deletions(-)

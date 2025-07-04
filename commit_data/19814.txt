@@ -1,13 +1,13 @@
-commit 5e805aff4a8074ee932b4d40bdaf2dd258a03440
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Jul 25 15:13:59 2014 +1000
+commit cf35f5b7429896ae91c4644740f73423ea0dbb27
+Author: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+Date:   Thu Jul 24 18:18:41 2014 -0400
 
-    syscall: fix handling of bool return values in mksyscall_windows.go
+    time: minor typo in doc
     
-    LGTM=chines
-    R=chines
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/118160044
+    https://golang.org/cl/120150043
 
- src/pkg/syscall/mksyscall_windows.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/pkg/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

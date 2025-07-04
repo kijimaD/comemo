@@ -1,26 +1,18 @@
-commit 7f90b960a9711b51bf36f49be4274ac5f7e86a95
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jun 27 20:45:22 2024 -0700
+commit ee6b9dd47f6091b475dd85b3c989b2b940f24a15
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 25 14:09:45 2023 -0700
 
-    cmd/compile: don't elide zero extension on top of signed values
+    doc/go1.21: merge x/exp/slices issue into slices package
     
-    v = ... compute some value, which zeros top 32 bits ...
-    w = zero-extend v
+    For #57348
     
-    We want to remove the zero-extension operation, as it doesn't do anything.
-    But if v is typed as a signed value, and it gets spilled/restored, it
-    might be re-sign-extended upon restore. So the zero-extend isn't actually
-    a NOP when there might be calls or other reasons to spill in between v and w.
-    
-    Fixes #68227
-    
-    Change-Id: I3b30b8e56c7d70deac1fb09d2becc7395acbadf8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595675
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Joedian Reid <joedian@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I84943711b033d63f0993133f93d9f09ce2af5965
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498395
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go | 17 ++++++++++---
- test/fixedbugs/issue68227.go            | 43 +++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 3 deletions(-)
+ doc/go1.21.html | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

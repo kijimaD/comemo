@@ -1,18 +1,14 @@
-commit bc926713c7d9acc2b72ba1b6d64e39e17bfe624d
+commit 756df8e081273a7177632278a7ddbebb2044e3f1
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon May 2 10:50:12 2011 -0400
+Date:   Mon May 2 10:49:42 2011 -0400
 
-    net: enable SO_REUSEPORT on BSD variants
+    net: fix ipv6 test
     
-    Fixes #1694.
+    Fixes #1767.
     
-    R=golang-dev, rsc1, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4445067
+    https://golang.org/cl/4436073
 
- src/pkg/net/Makefile        |  4 ++++
- src/pkg/net/sock.go         | 12 +-----------
- src/pkg/net/sock_bsd.go     | 31 +++++++++++++++++++++++++++++++
- src/pkg/net/sock_linux.go   | 25 +++++++++++++++++++++++++
- src/pkg/net/sock_windows.go | 25 +++++++++++++++++++++++++
- 5 files changed, 86 insertions(+), 11 deletions(-)
+ src/pkg/net/dialgoogle_test.go | 96 ++++++++++++++++++++++++++++++------------
+ 1 file changed, 69 insertions(+), 27 deletions(-)

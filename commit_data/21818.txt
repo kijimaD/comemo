@@ -1,26 +1,12 @@
-commit 5c2233f261b5088c35c67b00021b25156b9af96e
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Mar 1 18:08:15 2015 +0100
+commit 9209d893c88054f35be9757eaad8449eb3a90105
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 2 16:42:40 2015 -0800
 
-    runtime: don't use /dev/random on Plan 9
+    strconv: fix internal documentation (clarification, typos)
     
-    Plan 9 provides a /dev/random device to return a
-    stream of random numbers. However, the method used
-    to generate random numbers on Plan 9 is slow and
-    reading from /dev/random may block.
-    
-    We don't want our Go programs to be significantly
-    slowed down just to slightly improve the distribution
-    of hash values.
-    
-    So, we do the same thing as NaCl and rely exclusively
-    on extendRandom to generate pseudo-random numbers.
-    
-    Fixes #10028.
-    
-    Change-Id: I7e11a9b109c22f23608eb09c406b7c3dba31f26a
-    Reviewed-on: https://go-review.googlesource.com/6386
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7514e643a6a81ca715adbf6f8d19d3b2dd43fe6c
+    Reviewed-on: https://go-review.googlesource.com/3810
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/os1_plan9.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/strconv/decimal.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,12 +1,16 @@
-commit e636f6f51c073b7539b01fc2fcc7c17e25e29294
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Dec 22 23:18:34 2011 +0900
+commit 43bc8a9b53e212af4d24f9a4960e5c452555efb6
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Dec 22 23:42:43 2011 +1100
 
-    cmd/gc: make sure use of pthread for gcc-4.5 and beyond
+    syscall: make getdirentries work on netbsd
     
-    R=golang-dev, rsc, n13m3y3r, rogpeppe
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/5501060
+    https://golang.org/cl/5504068
 
- src/cmd/go/build.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/pkg/syscall/syscall_netbsd.go        |  9 ++++-----
+ src/pkg/syscall/zsyscall_netbsd_386.go   | 17 +++++++++++++++++
+ src/pkg/syscall/zsyscall_netbsd_amd64.go | 17 +++++++++++++++++
+ src/pkg/syscall/ztypes_netbsd_386.go     |  6 +++---
+ src/pkg/syscall/ztypes_netbsd_amd64.go   |  6 +++---
+ 5 files changed, 44 insertions(+), 11 deletions(-)

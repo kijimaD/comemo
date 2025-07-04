@@ -1,14 +1,14 @@
-commit e7c4a6dfcaf88644f08fbc6ddc5904f4857aafb8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 8 13:53:32 2011 -0400
+commit 8dc0ba7ae57df78e28ce031dfd0a1521d318fed2
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri Apr 8 13:45:56 2011 -0400
 
-    gc: fix weird error message
+    io: fixes for Read with n > 0, os.EOF
     
-    Fixes #1670.
-    
-    R=ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4386045
+    https://golang.org/cl/4271080
 
- src/cmd/gc/subr.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/pkg/io/io.go      | 20 ++++++++++----------
+ src/pkg/io/io_test.go | 33 ++++++++++++++++++++++++++++-----
+ src/pkg/io/multi.go   |  6 ++----
+ 3 files changed, 40 insertions(+), 19 deletions(-)

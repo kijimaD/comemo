@@ -1,22 +1,26 @@
-commit 074b73b1b2db1a1d1bb17d25bb335802e7b59f69
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Feb 13 14:39:58 2017 -0500
+commit 14f3284ddb682ccf111716b50f43dc6ee072cf4c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 28 18:40:38 2016 +0000
 
-    cmd/compile: fix s390x load-combining rules
+    Revert "runtime/pprof: write profiles in protobuf format."
     
-    MOVD{reg,nop} operations (added in CL 36256) inserted to preserve
-    type information were blocking the load-combining rules. Fix this
-    by merging type changes into loads wherever possible.
+    This reverts commit 7d14401bcbee4a8ff33ac869ef5ebb156a179ab6.
     
-    Fixes #19059.
+    Reason for revert: Doesn't build.
     
-    Change-Id: I8a1df06eb0f231b40ae43107d4a3bd0b9c441b59
-    Reviewed-on: https://go-review.googlesource.com/36843
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I766179ab9225109d9232f783326e4d3843254980
+    Reviewed-on: https://go-review.googlesource.com/32256
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go      |  39 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules |  34 ++
- src/cmd/compile/internal/ssa/rewriteS390X.go | 622 ++++++++++++++++++++++++++-
- 3 files changed, 674 insertions(+), 21 deletions(-)
+ src/go/build/deps_test.go                          |  14 +-
+ src/runtime/crash_cgo_test.go                      |   3 +-
+ src/runtime/pprof/decoder_for_test.go              | 807 ---------------------
+ src/runtime/pprof/internal/profile/encode.go       | 187 -----
+ src/runtime/pprof/internal/profile/profile.go      | 112 ---
+ .../pprof/internal/profile/profile_memmap.go       | 302 --------
+ src/runtime/pprof/internal/profile/proto.go        | 156 ----
+ .../pprof/internal/protopprof/protopprof.go        | 295 --------
+ src/runtime/pprof/mprof_test.go                    |  64 +-
+ src/runtime/pprof/pprof.go                         | 382 +++++-----
+ src/runtime/pprof/pprof_test.go                    | 227 ++++--
+ 11 files changed, 409 insertions(+), 2140 deletions(-)

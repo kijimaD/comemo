@@ -1,18 +1,22 @@
-commit dc9879e8fde3af804ac310ee54cf67efdae26aab
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Apr 12 17:11:25 2020 -0700
+commit 130f3c061765f4f22da23ebf2fd4f7d0b137d826
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 1 09:13:40 2019 +0700
 
-    cmd/compile: convert more AMD64.rules lines to typed aux mode
+    cmd/compile: revert change to "bound" in typecheckarraylit
     
-    Change-Id: Idded860128b1a23680520d8c2b9f6d8620dcfcc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228077
-    Run-TryBot: Keith Randall <khr@golang.org>
+    In CL 204617, I intend to make "bound" parameter to have special meaning
+    in typecheckarraylit, so we can distinguish between type-checks array
+    literal and slice literal. But we end up with other solution. The CL was
+    submitted without reverting the "bound" parameter in case of slice
+    literal.
+    
+    Technically, it's not harmful, but causes the code harder to read and maintain.
+    
+    Change-Id: Ia522ccc9a6b8e25d7eaad4aa4957cb4fa18edc60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204618
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules | 302 +++++++++---------
- src/cmd/compile/internal/ssa/gen/rulegen.go  |  21 +-
- src/cmd/compile/internal/ssa/op.go           |   4 +
- src/cmd/compile/internal/ssa/rewrite.go      |  18 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 448 +++++++++++++--------------
- 5 files changed, 413 insertions(+), 380 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,35 +1,21 @@
-commit 2959128dc57618d7d5773411403ef0a255a9f72f
-Author: Milan Knezevic <milan.knezevic@mips.com>
-Date:   Thu Apr 26 15:37:27 2018 +0200
+commit 596e3d9c0176db442a51202a2ae2834ac892d594
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 4 22:26:20 2018 +0000
 
-    cmd/compile: add softfloat support to mips64{,le}
+    net/http: don't validate WriteHeader code if header's already been sent
     
-    mips64 softfloat support is based on mips implementation and introduces
-    new enviroment variable GOMIPS64.
+    Also vendors x/net/http git rev 42fe2e1c for:
     
-    GOMIPS64 is a GOARCH=mips64{,le} specific option, for a choice between
-    hard-float and soft-float. Valid values are 'hardfloat' (default) and
-    'softfloat'. It is passed to the assembler as
-    'GOMIPS64_{hardfloat,softfloat}'.
+        http2: don't check WriteHeader status if we've already sent the header
+        https://golang.org/cl/86255
     
-    Change-Id: I7f73078627f7cb37c588a38fb5c997fe09c56134
-    Reviewed-on: https://go-review.googlesource.com/108475
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #23010
+    
+    Change-Id: I4f3dd63acb52d5a34a0350aaf847a7a376d6968f
+    Reviewed-on: https://go-review.googlesource.com/86275
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/asm.html                              |  6 ++++++
- src/cmd/compile/internal/mips64/galign.go |  2 +-
- src/cmd/dist/build.go                     | 16 ++++++++++++++++
- src/cmd/dist/buildruntime.go              |  2 ++
- src/cmd/go/alldocs.go                     |  3 +++
- src/cmd/go/internal/cfg/cfg.go            |  7 ++++---
- src/cmd/go/internal/envcmd/env.go         |  2 ++
- src/cmd/go/internal/help/helpdoc.go       |  3 +++
- src/cmd/go/internal/work/gc.go            |  5 +++++
- src/cmd/internal/objabi/util.go           | 24 +++++++++++++++++-------
- src/runtime/cgo/asm_mips64x.s             | 11 ++++++++++-
- src/runtime/cgo/gcc_mips64x.S             | 13 ++++++++++++-
- test/codegen/math.go                      |  3 ++-
- test/run.go                               |  2 +-
- 14 files changed, 84 insertions(+), 15 deletions(-)
+ src/net/http/clientserver_test.go | 56 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/h2_bundle.go         |  2 +-
+ src/net/http/server.go            |  2 +-
+ 3 files changed, 58 insertions(+), 2 deletions(-)

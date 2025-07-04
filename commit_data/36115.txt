@@ -1,19 +1,18 @@
-commit 90066bf06a9b10b3b222a289934b93723bb788d6
-Author: Baokun Lee <nototon@gmail.com>
-Date:   Sat Jul 21 01:37:21 2018 +0800
+commit eef42f928db025ef11973cdb6a2e6dee49ad4b5e
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu Apr 5 00:31:34 2018 +0300
 
-    cmd/go/internal/modfetch: run git log with "-c log.showsignature=false"
+    cmd/internal/obj/x86: make AsmBuf receiver name consistent
     
-    The old version git not support "--no-show-signature", git add this from
-    v2.10.0.
+    Fixes golint receiver name complaints.
     
-    Fixes golang/go#26501.
+    We can't go with "a" name as it sometimes is used for obj.Addr args.
     
-    Change-Id: Ia6b54488651e8687b08a4d40e092822bf960c4fe
-    Reviewed-on: https://go-review.googlesource.com/125315
-    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    Change-Id: I66556f4e3dc42cfaaa4db3ed7772fa6756ea9a9b
+    Reviewed-on: https://go-review.googlesource.com/104796
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/x86/asm6.go | 802 +++++++++++++++++++--------------------
+ 1 file changed, 401 insertions(+), 401 deletions(-)

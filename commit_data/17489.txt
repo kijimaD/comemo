@@ -1,17 +1,12 @@
-commit af2a3193afde74fc6b653f31fb3c65f836f231d8
+commit 17e5539f7d3e17e3c585b3c4e6d4448d7f953626
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 6 16:49:11 2013 -0400
+Date:   Fri Sep 6 16:15:30 2013 -0400
 
-    cmd/5g, cmd/6g, cmd/8g: simplify for loop in bitmap generation
+    test: fix build (update for new error message)
     
-    Lucio De Re reports that the more complex
-    loop miscompiles on Plan 9.
-    
-    R=ken2
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/13602043
+    https://golang.org/cl/13521044
 
- src/cmd/5g/ggen.c | 4 +++-
- src/cmd/6g/ggen.c | 5 ++++-
- src/cmd/8g/ggen.c | 5 ++++-
- 3 files changed, 11 insertions(+), 3 deletions(-)
+ test/syntax/chan1.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

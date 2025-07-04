@@ -1,12 +1,15 @@
-commit 5a03cd56a18302b24ef7b6110912cd2356360165
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 1 14:17:25 2012 -0700
+commit 48bd5c501095acc4d9a7cc471906d99c984324f1
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Mon Oct 1 15:04:52 2012 -0400
 
-    cmd/godoc: clearer comments in FormatSelections
+    cmd/go/build: Add magic data for Plan 9 binaries.
     
-    R=golang-dev, rsc
+    This change allows the Go build and install tools to
+    recognize Plan 9 i386 and amd64 binaries.
+    
+    R=rsc, r, rminnich
     CC=golang-dev
-    https://golang.org/cl/6561073
+    https://golang.org/cl/6575064
 
- src/cmd/godoc/format.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go | 2 ++
+ 1 file changed, 2 insertions(+)

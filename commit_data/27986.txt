@@ -1,29 +1,17 @@
-commit bd2838be77caf367cd6aede50c48279ee6b3a6c4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jun 1 11:34:28 2016 -0700
+commit 889c0a66fc7a43b23cc02ee42cfa17d221fce3c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 22 14:50:20 2016 -0700
 
-    cmd/compile: use a map to detect duplicate type switch cases
+    cmd/compile: don't export pos info in new export format for now
     
-    This is a bit simpler than playing sorting games,
-    and it is clearer that it generates errors
-    in the correct (source) order.
+    Exporting filenames as part of the position information can lead
+    to different object files which breaks tests.
     
-    It also allows us to simplify sorting.
-    
-    It also prevents quadratic error messages for
-    (pathological) inputs with many duplicate type cases.
-    
-    While we’re here, refactoring deduping into separate functions.
-    
-    Negligible compilebench impact.
-    
-    Fixes #15912.
-    
-    Change-Id: I6cc19edd38875389a70ccbdbdf0d9b7d5ac5946f
-    Reviewed-on: https://go-review.googlesource.com/26762
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ia678ab64293ebf04bf83601e6ba72919d05762a4
+    Reviewed-on: https://go-review.googlesource.com/22385
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/swt.go | 81 +++++++++++++++++++++-----------------
- test/switch5.go                    |  2 +-
- 2 files changed, 45 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 15 +++++++++++++++
+ src/cmd/compile/internal/gc/bimport.go | 11 +++++++++--
+ src/go/internal/gcimporter/bimport.go  | 11 +++++++++--
+ 3 files changed, 33 insertions(+), 4 deletions(-)

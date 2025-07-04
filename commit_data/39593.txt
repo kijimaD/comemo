@@ -1,16 +1,19 @@
-commit 2754118731b81baf0c812116a9b72b6153abf79d
-Author: Pure White <wu.purewhite@gmail.com>
-Date:   Sun Aug 11 05:37:29 2019 +0000
+commit a77f85a61874c05097a60f08d9dda71512d9dcc3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 6 17:23:56 2019 -0800
 
-    doc/asm: document go_asm.h only works in the runtime package
+    cmd/compile: remove work-arounds for 0o/0O octals
     
-    Fixes #33054
+    With math/big supporting the new octal prefixes directly,
+    the compiler doesn't have to manually convert such numbers
+    into old-style 0-prefix octals anymore.
     
-    Change-Id: I687d45e092d721a6c22888cc7ddbe420c16a5af9
-    GitHub-Last-Rev: a7208c89a0d613a53ab057e0b4418ae4719cfcbd
-    GitHub-Pull-Request: golang/go#33069
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185917
-    Reviewed-by: Rob Pike <r@golang.org>
+    Updates #12711.
+    
+    Change-Id: I300bdd095836595426a1478d68da179f39e5531a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165861
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/asm.html | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/mpfloat.go | 27 +++++----------------------
+ src/cmd/compile/internal/gc/mpint.go   |  5 +----
+ 2 files changed, 6 insertions(+), 26 deletions(-)

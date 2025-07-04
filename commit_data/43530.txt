@@ -1,20 +1,14 @@
-commit 80c6b92ecb911409f57d06793a1213395b75ebe2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Aug 7 16:37:29 2020 +0000
+commit 82f6d8eabb49dbd16dd6e35f6a02cf585f279c02
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 9 20:21:13 2020 -0400
 
-    runtime,runtime/metrics: export goroutine count as a metric
+    [dev.link] cmd/link: use new-style Reloc accessors in loadpe
     
-    For #37112.
-    
-    Change-Id: I994dfe848605b95ef6aec24f53869e929247e987
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247049
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I3601a5b4573e3e742a3e48c9709bbff616619d89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227899
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/metrics.go             | 6 ++++++
- src/runtime/metrics/description.go | 5 +++++
- src/runtime/metrics/doc.go         | 3 +++
- src/runtime/metrics_test.go        | 4 ++++
- 4 files changed, 18 insertions(+)
+ src/cmd/link/internal/loadpe/ldpe.go | 51 +++++++++++++++++++-----------------
+ 1 file changed, 27 insertions(+), 24 deletions(-)

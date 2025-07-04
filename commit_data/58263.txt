@@ -1,20 +1,29 @@
-commit d524c954b14c861e6a442e09abd38ba074ad376d
-Author: David Chase <drchase@google.com>
-Date:   Tue Nov 19 17:18:38 2024 -0500
+commit 9299547e4dec01a7fed8226f8d3080eccf965aa4
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Oct 14 01:24:33 2023 +0800
 
-    cmd/compile: use very high budget for once-called closures
+    image: add available godoc link
     
-    This should make it much more likely that rangefunc
-    iterators become "plain inline code".
-    
-    Change-Id: I8026603afdc5249f60cc663c4bc15cb1d26d1c83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630696
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I2839ecb091c4f0b30d0dcee708bf9e9a55e3672a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535196
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
 
- src/cmd/compile/internal/inline/inl.go             | 87 ++++++++++++++------
- .../internal/inline/interleaved/interleaved.go     | 96 ++++++++++++++++++----
- test/closure3.dir/main.go                          | 50 +++++------
- 3 files changed, 167 insertions(+), 66 deletions(-)
+ src/image/color/color.go           |  4 +--
+ src/image/color/palette/palette.go |  2 +-
+ src/image/color/ycbcr.go           |  8 ++---
+ src/image/draw/draw.go             | 14 ++++-----
+ src/image/format.go                |  6 ++--
+ src/image/geom.go                  | 22 +++++++-------
+ src/image/gif/reader.go            |  4 +--
+ src/image/image.go                 | 60 +++++++++++++++++++-------------------
+ src/image/jpeg/reader.go           |  4 +--
+ src/image/jpeg/writer.go           |  2 +-
+ src/image/names.go                 |  6 ++--
+ src/image/png/reader.go            |  2 +-
+ src/image/png/writer.go            |  6 ++--
+ src/image/ycbcr.go                 |  2 +-
+ 14 files changed, 71 insertions(+), 71 deletions(-)

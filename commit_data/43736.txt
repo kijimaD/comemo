@@ -1,36 +1,21 @@
-commit a6755fc0debc3005e8bd730521ecc8dba61a24e8
-Author: Cholerae Hu <choleraehyq@gmail.com>
-Date:   Fri Jul 31 13:57:48 2020 +0800
+commit 25992d025f01d27bd7e38d45daa95e420d56ece5
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 22 11:35:03 2020 -0400
 
-    cmd/compile: check indirect connection between if block and phi block in addLocalInductiveFacts
+    [dev.link] cmd/link/internal/loader: preprocess numeric constants earlier
     
-    CL 244579 added guard clauses to prevent a faulty state that was
-    possible under the incorrect logic of the uniquePred loop in
-    addLocalInductiveFacts. That faulty state was still making the
-    intended optimization, but not for the correct reason.
-    Removing the faulty state also removed the overly permissive application
-    of the optimization, and therefore made these two tests fail.
-    We disabled the tests of this optimization in CL 244579 to allow us to
-    quickly apply the fix in the CL. This CL now corrects the logic of the
-    uniquePred loop in order to apply the optimization correctly.
+    Change the timing for preprocessing of integer/floating point constant
+    symbols so that we populate them with content at an earlier stage.
+    This is needed to allow them can be picked up by the loader-API
+    version of dodata().
     
-    The comment above the uniquePred loop says that it will follow unique
-    predecessors until it reaches a join point. Without updating the child
-    node on each iteration, it cannot follow the chain of unique
-    predecessors more than one step. Adding the update to the child node
-    on each iteration of the loop allows the logic to follow the chain of
-    unique predecessors until reaching a join point (because a non-unique
-    predecessor will signify a join point).
-    
-    Updates #40502.
-    
-    Change-Id: I23d8367046a2ab3ce4be969631f9ba15dc533e6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246157
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Icf09f4f4b318b4f77e11d4a0f0a9cbecd76a1d6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229438
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 2 +-
- test/prove.go                         | 6 ++----
- 2 files changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/lib.go        |  2 +-
+ src/cmd/link/internal/loader/loader.go | 39 ++++++++++++++++++----------------
+ 2 files changed, 22 insertions(+), 19 deletions(-)

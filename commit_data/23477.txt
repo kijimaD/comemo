@@ -1,16 +1,13 @@
-commit 703166ea14e510a4aee805f956475570130f2df2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 24 16:50:49 2015 +0200
+commit d36cc027959170c9927a52f139482d2369f173af
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 14:46:20 2015 -0400
 
-    net/url: validate ports in URLs and bytes after IPv6 literals
+    reflect: make PtrTo(FuncOf(...)) not crash
     
-    Fixes #11208
-    
-    Change-Id: I35cc94129577b2a977fd35aafb0a5fb02c534a7c
-    Reviewed-on: https://go-review.googlesource.com/11414
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ie67e295bf327126dfdc75b73979fe33fbcb79ad9
+    Reviewed-on: https://go-review.googlesource.com/10150
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/readrequest_test.go |  8 +++++++
- src/net/url/url.go               | 46 ++++++++++++++++++++++++++++++++--------
- src/net/url/url_test.go          | 33 ++++++++++++++++++++++++++++
- 3 files changed, 78 insertions(+), 9 deletions(-)
+ src/reflect/all_test.go | 23 ++++++++++++++++++++++-
+ src/reflect/type.go     |  2 +-
+ 2 files changed, 23 insertions(+), 2 deletions(-)

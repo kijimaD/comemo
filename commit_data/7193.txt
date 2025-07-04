@@ -1,16 +1,15 @@
-commit 0bec484e6fc1553edce91eed523d9642f7870516
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Jan 20 07:38:34 2011 -0500
+commit 6d94b14e1981f960f45deb9a57f4360c79593238
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jan 20 21:24:15 2011 +1100
 
-    crypto/openpgp: add s2k
+    syscall: include all, even duplictate, invented error messages
     
-    s2k implements the string-to-key functions for OpenPGP
+    Otherwise syscall.Errstr() returns "" for some (EWOULDBLOCK) errors.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3937043
+    https://golang.org/cl/3941041
 
- src/pkg/crypto/openpgp/s2k/Makefile    |  11 +++
- src/pkg/crypto/openpgp/s2k/s2k.go      | 146 +++++++++++++++++++++++++++++++++
- src/pkg/crypto/openpgp/s2k/s2k_test.go |  94 +++++++++++++++++++++
- 3 files changed, 251 insertions(+)
+ src/pkg/syscall/mkerrors_windows.sh    | 10 +---------
+ src/pkg/syscall/zerrors_windows_386.go |  3 +++
+ 2 files changed, 4 insertions(+), 9 deletions(-)

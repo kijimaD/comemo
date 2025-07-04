@@ -1,20 +1,23 @@
-commit 45447b4bfff4227a8945951dd7d37f2873992e1b
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Tue Feb 11 15:50:55 2025 -0500
+commit c71eedf90aff3fc73a645b88d2e5166b8a0179fd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 6 15:19:59 2023 -0500
 
-    net/http: use runtime.AddCleanup instead of runtime.SetFinalizer
+    cmd/go: accept clang versions with vendor prefixes
     
-    Replace the usage of runtime.SetFinalizer with runtime.AddCleanup in
-    tests.
+    To better diagnose bugs like this one in the future, I think
+    we should also refuse to use a C compiler if we can't identify
+    a sensible version for it. I did not do that in this CL because
+    I want it to be small and low-risk for possible backporting.
     
-    Updates #70907
+    Fixes #64423.
     
-    Change-Id: Idd3f1c07f6a7709352ca09948fbcb4a0ad9418bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648655
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I21e44fc55f6fcf76633e4fecf6400c226a742351
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547998
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/net/http/clientserver_test.go | 2 +-
- src/net/http/transport_test.go    | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/work/buildid.go                |  17 ++-
+ .../testdata/script/build_cc_cache_issue64423.txt  | 121 +++++++++++++++++++++
+ 2 files changed, 136 insertions(+), 2 deletions(-)

@@ -1,18 +1,37 @@
-commit f3424ceff2fa48615ed98580f337ab044925c940
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 13 21:57:41 2020 -0700
+commit d16ec137568fb20e674a99c265e7c340c065dd69
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 10 14:38:15 2019 -0400
 
-    go/types: use same local variable consistently (minor cleanup)
+    runtime: scan stacks conservatively at async safe points
     
-    Currently this CL has no effect because V == x.typ in the affected
-    code. But if we should ever manipulate V (e.g., to support some form
-    of lazy evaluation of the type), not using V consistently would
-    lead to a subtle bug.
+    This adds support for scanning the stack when a goroutine is stopped
+    at an async safe point. This is not yet lit up because asyncPreempt is
+    not yet injected, but prepares us for that.
     
-    Change-Id: I465e72d18bbd2b6cd8fcbd746e0d28d14f758c03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228105
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This works by conservatively scanning the registers dumped in the
+    frame of asyncPreempt and its parent frame, which was stopped at an
+    asynchronous safe point.
+    
+    Conservative scanning works by only marking words that are pointers to
+    valid, allocated heap objects. One complication is pointers to stack
+    objects. In this case, we can't determine if the stack object is still
+    "allocated" or if it was freed by an earlier GC. Hence, we need to
+    propagate the conservative-ness of scanning stack objects: if all
+    pointers found to a stack object were found via conservative scanning,
+    then the stack object itself needs to be scanned conservatively, since
+    its pointers may point to dead objects.
+    
+    For #10958, #24543.
+    
+    Change-Id: I7ff84b058c37cde3de8a982da07002eaba126fd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201761
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/operand.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/objabi/funcid.go |   3 +
+ src/runtime/mgc.go                |   4 +
+ src/runtime/mgcmark.go            | 165 ++++++++++++++++++++++++++++++++++++--
+ src/runtime/mgcstack.go           |  76 ++++++++++++------
+ src/runtime/symtab.go             |   1 +
+ 5 files changed, 217 insertions(+), 32 deletions(-)

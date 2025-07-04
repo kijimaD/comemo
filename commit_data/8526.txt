@@ -1,13 +1,24 @@
-commit f369fc09f41bcb9b7bfdfbc21332abe98f89059e
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Fri May 27 16:47:26 2011 -0700
+commit 399a311e64aa7bc5282ce1489a53f1f25c2edeb0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 27 16:43:02 2011 -0700
 
-    go/scanner: don't allow "0x" and "0X" as integers
+    http: client+server benchmark
     
-    R=gri
+    baseline runs: (6g, gopher.mtv)
+    
+    http_test.BenchmarkClientServer  5000  412588 ns/op
+    http_test.BenchmarkClientServer  5000  403346 ns/op
+    http_test.BenchmarkClientServer  5000  413936 ns/op
+    http_test.BenchmarkClientServer  5000  410287 ns/op
+    http_test.BenchmarkClientServer  5000  388037 ns/op
+    http_test.BenchmarkClientServer  5000  405545 ns/op
+    http_test.BenchmarkClientServer  5000  405179 ns/op
+    http_test.BenchmarkClientServer  5000  413827 ns/op
+    http_test.BenchmarkClientServer  5000  392723 ns/op
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4560047
+    https://golang.org/cl/4515155
 
- src/pkg/go/scanner/scanner.go      | 4 ++++
- src/pkg/go/scanner/scanner_test.go | 2 ++
- 2 files changed, 6 insertions(+)
+ src/pkg/http/serve_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

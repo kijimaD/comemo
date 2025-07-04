@@ -1,34 +1,36 @@
-commit 05ed18f4f6c661bfe01db0d8c25e5d7b65658a54
+commit 6e318bda6c4236caf5a7f02d5ce545f5365094e0
 Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Oct 26 14:02:30 2011 +1100
+Date:   Wed Oct 26 11:36:46 2011 +1100
 
-    html: improve parsing of lists
+    html: improve parsing of tables
     
-    Make a <li> tag close the previous <li> element.
-    Make a </ul> tag close <li> elements.
+    When foster parenting, merge adjacent text nodes.
+    Properly close table row at </tr> tag.
     
-    Pass tests1.dat, test 33:
-    <!DOCTYPE html><li>hello<li>world<ul>how<li>do</ul>you</body><!--do-->
+    Pass tests1.dat, test 32:
+    <!-----><font><div>hello<table>excite!<b>me!<th><i>please!</tr><!--X-->
     
-    | <!DOCTYPE html>
+    | <!-- - -->
     | <html>
     |   <head>
     |   <body>
-    |     <li>
-    |       "hello"
-    |     <li>
-    |       "world"
-    |       <ul>
-    |         "how"
-    |         <li>
-    |           "do"
-    |       "you"
-    |   <!-- do -->
+    |     <font>
+    |       <div>
+    |         "helloexcite!"
+    |         <b>
+    |           "me!"
+    |         <table>
+    |           <tbody>
+    |             <tr>
+    |               <th>
+    |                 <i>
+    |                   "please!"
+    |             <!-- X -->
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5321051
+    https://golang.org/cl/5323048
 
- src/pkg/html/parse.go      | 20 ++++++++++++++++++++
+ src/pkg/html/parse.go      | 33 ++++++++++++++++++++++++++-------
  src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ 2 files changed, 27 insertions(+), 8 deletions(-)

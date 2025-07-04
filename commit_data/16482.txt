@@ -1,15 +1,18 @@
-commit 941db1ed39cfb5a80ceb94dc24766165a1d1bd68
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 4 06:20:57 2013 -0700
+commit 62891fb811980cce1f859254306265f2d4922da2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jun 4 08:18:36 2013 +0200
 
-    encoding/gob: consistently use unsafe.Pointer for pointer values
+    cmd/gc: fix missing slice/array types in export data.
     
-    Fixes #5621.
+    Fixes #5614.
     
-    R=golang-dev, cshapiro, r, fullung
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/9988043
+    https://golang.org/cl/9953044
 
- src/pkg/encoding/gob/decode.go | 49 +++++++++++++++++++++---------------------
- src/pkg/encoding/gob/encode.go | 28 ++++++++++++------------
- 2 files changed, 38 insertions(+), 39 deletions(-)
+ src/cmd/gc/export.c                       |  1 +
+ test/fixedbugs/issue5614.dir/rethinkgo.go | 16 ++++++++++++++++
+ test/fixedbugs/issue5614.dir/x.go         |  7 +++++++
+ test/fixedbugs/issue5614.dir/y.go         |  5 +++++
+ test/fixedbugs/issue5614.go               | 11 +++++++++++
+ 5 files changed, 40 insertions(+)

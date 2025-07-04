@@ -1,20 +1,14 @@
-commit 7bcc6a1615c8265eb64d44e6c066ab699577db18
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 9 12:08:59 2015 -0700
+commit 1e7f57954baf8fa991e4551504856897f438f490
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu May 14 00:58:06 2015 -0400
 
-    cmd/compile: add -importmap option
+    go/build: introduce go1.5 build tag
     
-    The -importmap option takes an argument of the form old=new
-    and specifies that import "old" should be interpreted as if it said
-    import "new". The option may be repeated to specify multiple mappings.
-    
-    This option is here to support the go command's new -vendor flag.
-    
-    Change-Id: I31b4ed4249b549982a720bf61bb230462b33c59b
-    Reviewed-on: https://go-review.googlesource.com/10922
+    Change-Id: Iab2f8e1c4443f39b79c1c63a7a30062074b48764
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/10042
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/doc.go             |  3 +++
- src/cmd/compile/internal/gc/lex.go | 20 ++++++++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/go/build/build.go | 6 +-----
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 2 insertions(+), 5 deletions(-)

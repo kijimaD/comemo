@@ -1,0 +1,28 @@
+commit a4fcfaa1676f40a1dc5879cdabe98471c6054daf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 6 13:51:51 2025 -0800
+
+    go/types, types2: better error messages for channel sends and receives
+    
+    Use the same code pattern for sends and receives and factor it out
+    into a new helper method Checker.chanElem.
+    
+    Provide the exact error cause rather than simply referring to the
+    core type.
+    
+    For #70128.
+    
+    Change-Id: I4a0b597a487b78c057eebe06c4ac28f9bf1f7719
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647455
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/expr.go            | 79 ++++++++++++++++-----
+ src/cmd/compile/internal/types2/stmt.go            | 16 +----
+ src/go/types/expr.go                               | 80 +++++++++++++++++-----
+ src/go/types/stmt.go                               | 16 +----
+ .../types/testdata/fixedbugs/issue43671.go         |  8 +--
+ .../types/testdata/fixedbugs/issue47115.go         |  8 +--
+ 6 files changed, 134 insertions(+), 73 deletions(-)

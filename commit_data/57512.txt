@@ -1,23 +1,18 @@
-commit 2f24fdde4ee777d5e4686ea83dd5f1bd56a15340
-Author: Conrad Irwin <conrad.irwin@gmail.com>
-Date:   Thu Jul 18 21:37:57 2024 -0600
+commit d788b27cd4768fbbc82aef636a70b51a5d621181
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Aug 11 11:00:44 2023 +0800
 
-    cmd/go: add tools to "all"
+    internal/fuzz: use the built-in min function
     
-    Packages referenced by tool lines in go.mod files will now be included
-    in the module graph for the new "tool" package pattern and the "all"
-    package pattern.
-    
-    For golang/go#48429
-    
-    Change-Id: I128f6a50880814bd5395674426c9a7ee2ddc19bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521959
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I26be9a9faa27c6c03cf8b9dec5908d8617d61312
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518276
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/modload/init.go      | 23 +++++++++
- src/cmd/go/internal/modload/load.go      | 13 ++++-
- src/cmd/go/internal/search/search.go     |  4 +-
- src/cmd/go/testdata/script/list_tool.txt | 82 ++++++++++++++++++++++++++++++++
- 4 files changed, 119 insertions(+), 3 deletions(-)
+ src/internal/fuzz/mutator.go | 7 -------
+ 1 file changed, 7 deletions(-)

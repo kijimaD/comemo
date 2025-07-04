@@ -1,24 +1,13 @@
-commit 70e3b1df4a5d5b91f6c0e7bd4f7879d6ae95fc12
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 12 16:04:07 2018 -0500
+commit d365890ba6b7b51f69e65d32dd76d3e59f83ece9
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Jul 19 16:31:12 2018 -0400
 
-    crypto/tls: don't modify Config.Certificates in BuildNameToCertificate
+    api: add ErrorHandler function to httputil.ReverseProxy
     
-    The Config does not own the memory pointed to by the Certificate slice.
-    Instead, opportunistically use Certificate.Leaf and let the application
-    set it if it desires the performance gain.
-    
-    This is a partial rollback of CL 107627. See the linked issue for the
-    full explanation.
-    
-    Fixes #28744
-    
-    Change-Id: I33ce9e6712e3f87939d9d0932a06d24e48ba4567
-    Reviewed-on: https://go-review.googlesource.com/c/149098
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie706c43c9a11cf30ca0f2139a4e9eabac8c75c75
+    Reviewed-on: https://go-review.googlesource.com/125096
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/common.go   |  8 ++++----
- src/crypto/tls/tls_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 4 deletions(-)
+ api/go1.11.txt | 1 +
+ 1 file changed, 1 insertion(+)

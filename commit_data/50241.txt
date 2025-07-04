@@ -1,30 +1,26 @@
-commit c801e4b10f708c180a3708bcf39881338691287c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 25 16:14:43 2022 -0700
+commit 662c5eed3324a334d2d9418deb9e60a6765ff972
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Oct 10 10:43:20 2021 -0400
 
-    cmd/compile/internal/syntax: use BadExpr instead of fake CallExpr in bad go/defer
+    go/types: accept constraint literals with elided interfaces
     
-    If the go/defer syntax is bad, using a fake CallExpr may produce
-    a follow-on error in the type checker. Instead store a BadExpr
-    in the syntax tree (since an error has already been reported).
+    This is a port of CL 353139 to go/types, adjusted for error reporting
+    and for the different representation of field lists in go/ast. A TODO is
+    added to verify if types2 produces redundant error messages for type
+    parameters sharing a bound.
     
-    Adjust various tests.
+    For #48424
     
-    For #54511.
-    
-    Change-Id: Ib2d25f8eab7d5745275188d83d11620cad6ef47c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425675
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I3549942be0328de616d1d87d0ba621311fc53576
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354989
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/syntax/nodes.go            |  2 +-
- src/cmd/compile/internal/syntax/parser.go           | 21 +++++++++++++--------
- .../compile/internal/syntax/testdata/issue20789.go  |  2 +-
- src/cmd/compile/internal/types2/stmt.go             |  2 +-
- .../compile/internal/types2/testdata/check/stmt0.go |  4 ++--
- test/fixedbugs/issue20789.go                        |  2 +-
- test/fixedbugs/issue23586.go                        |  8 +++++---
- 7 files changed, 24 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/types2/decl.go        |  2 ++
+ src/go/types/decl.go                           | 31 +++++++++++++---
+ src/go/types/testdata/examples/typesets.go2    | 48 +++++++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue39723.go2 |  2 +-
+ src/go/types/typeparam.go                      | 49 ++++++++++++++++++--------
+ 5 files changed, 113 insertions(+), 19 deletions(-)

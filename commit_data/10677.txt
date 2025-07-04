@@ -1,12 +1,24 @@
-commit 9a358df947580c585f5596d89a2ab2be22fea018
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Thu Dec 8 22:27:14 2011 -0500
+commit a250f37cbc93a0d625741b0d380154ed3a94ca09
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 8 22:08:03 2011 -0500
 
-    spec: fix typo in example comment
+    update tree for new default type rule
     
-    R=rsc, golang-dev
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5475046
+    https://golang.org/cl/5448091
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/cgo/gcc.go              |  2 +-
+ src/cmd/godoc/dirtrees.go       |  2 +-
+ src/pkg/bytes/bytes.go          |  2 +-
+ src/pkg/exp/types/gcimporter.go | 22 +++++++++++++++++-----
+ src/pkg/fmt/scan_test.go        | 12 +++++++-----
+ src/pkg/go/build/dir.go         |  6 +++---
+ src/pkg/html/escape.go          |  2 +-
+ src/pkg/html/template/css.go    |  2 +-
+ src/pkg/math/big/nat.go         |  2 +-
+ src/pkg/regexp/syntax/parse.go  |  8 ++++----
+ src/pkg/strings/strings.go      |  2 +-
+ src/pkg/strings/strings_test.go |  2 +-
+ src/pkg/unicode/letter.go       |  8 ++++----
+ 13 files changed, 43 insertions(+), 29 deletions(-)

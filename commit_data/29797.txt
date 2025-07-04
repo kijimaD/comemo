@@ -1,17 +1,19 @@
-commit b00b214e0d5eecfbb98a7a52d65da07a8c9628f7
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Sun Dec 11 08:14:38 2016 -0800
+commit 88562dc83ecc3e0c5ce85f22356cb7114e4756df
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 10 16:03:13 2016 -0400
 
-    os: must fixup path when 248 bytes long
+    math/big: move ProbablyPrime into its own source file
     
-    Fixes #18283
+    A later CL will be adding more code here.
+    It will help to keep it separate from the other code.
     
-    Change-Id: Ic044d2d0657579e8e7786d7264fda2037ddc5ffb
-    Reviewed-on: https://go-review.googlesource.com/34280
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I971ba53de819cd10991b51fdec665984939a5f9b
+    Reviewed-on: https://go-review.googlesource.com/30709
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/os_test.go      | 91 ++++++++++++++++++++++++++++----------------------
- src/os/path_windows.go |  7 ++--
- 2 files changed, 56 insertions(+), 42 deletions(-)
+ src/math/big/int.go        |  13 ------
+ src/math/big/int_test.go   |  90 -------------------------------------
+ src/math/big/nat.go        |  90 -------------------------------------
+ src/math/big/prime.go      | 110 +++++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/prime_test.go | 100 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 210 insertions(+), 193 deletions(-)

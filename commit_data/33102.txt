@@ -1,22 +1,19 @@
-commit 350b74bc4b9f37ba29ef02c2f89d687ae8563a05
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Oct 13 12:41:09 2017 -0400
+commit fea7c43ea238d8e18f3bafaac2740b3fa8975ae5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 11 11:03:36 2017 -0400
 
-    cmd/link: zero symtab fields correctly
+    sync/atomic: clarify 64-bit alignment bug
     
-    CL 69370 introduced a hasmain field to moduledata after the
-    modulehashes slice. However that code was relying on the zeroing
-    code after it to cover modulehashes if len(Shlibs) == 0. The
-    hasmain field gets in the way of that. So clear modulehashes
-    explicitly in that case.
+    Local variables can also be relied on the be 64-bit aligned, since
+    they will be escaped to the heap if used with any atomic operations.
     
-    Found when looking at #22250. Not sure if it's related.
+    Also, allocated arrays are also aligned, just like structs and slices.
     
-    Change-Id: I81050cb4554cd49e9f245d261ef422f97d026df4
-    Reviewed-on: https://go-review.googlesource.com/70730
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #18955.
+    
+    Change-Id: I8a1897f6ff78922c8bfcf20d6eb4bcb17a70ba2d
+    Reviewed-on: https://go-review.googlesource.com/48112
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/symtab.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/sync/atomic/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

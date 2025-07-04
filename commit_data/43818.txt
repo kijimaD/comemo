@@ -1,16 +1,17 @@
-commit bcfaeca58c791ada53fae18fffa26936bc245423
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Oct 28 10:48:17 2020 +0100
+commit 49f10f37975f0a08ac5ae320d3a29f936b56d0a9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 24 16:26:50 2020 -0700
 
-    time: in NewTicker, document that the 1st tick comes after d
+    cmd/compile: convert another tranch of generic rules to typed aux
     
-    Fixes #42245
+    Passes toolstash-check.
     
-    Change-Id: I3b298ab6be65569389873d68bd3c6e49cf892c69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265818
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I27c01f03c5303876bbf6878a81ffdc4e95de3e3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230031
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/time/tick.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  534 +++++-----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1250 ++++++++++++------------
+ 2 files changed, 892 insertions(+), 892 deletions(-)

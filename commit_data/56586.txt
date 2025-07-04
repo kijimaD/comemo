@@ -1,19 +1,19 @@
-commit 814e72f2ef280da54d1af8088b9a732fda9f217b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 21 14:50:10 2024 -0700
+commit b7e767b022f96687ecbde61ee7efd61a711f798b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 10 20:42:23 2023 +0000
 
-    go/types, types2: don't panic converting a constant to aliased type parameter
+    runtime: capture per-p trace state in a type
     
-    For #67547.
+    More tightening up of the tracer's interface.
     
-    Change-Id: I1b2118a311dce906327ae6e29e582da539c60b2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587157
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I992141c7f30e5c2d5d77d1fcd6817d35bc6e5f6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494191
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/conversions.go      |  2 +-
- src/go/types/conversions.go                         |  2 +-
- src/internal/types/testdata/fixedbugs/issue67547.go | 10 ++++++++++
- 3 files changed, 12 insertions(+), 2 deletions(-)
+ src/runtime/mgcsweep.go |  2 +-
+ src/runtime/runtime2.go | 10 +---------
+ src/runtime/trace.go    | 44 +++++++++++++++++++++++++++++---------------
+ 3 files changed, 31 insertions(+), 25 deletions(-)

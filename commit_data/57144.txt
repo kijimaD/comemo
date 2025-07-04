@@ -1,15 +1,36 @@
-commit b538e953ee5e50a78880106452458c9694fe27e1
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 7 14:25:31 2024 -0700
+commit 6691f438c38d103e9399cd203286642b68257230
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 21 15:27:20 2023 -0700
 
-    cmd/compile: clean up some unused code in prove pass
+    cmd/dist, internal/abi: support bootstrapping with gccgo
     
-    Change-Id: Ib695064c5a77a3f86d1d2a74f96823e65199b8e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603956
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    The required gc bootstrap compiler, 1.17, has an internal/lazyregexp
+    package. It permits that package to be imported by internal/profile
+    while bootstrapping. The gccgo compiler also has an internal/lazyregexp
+    package, but it does not permit the gc compiler to import it.
+    
+    Permit bootstrapping with gccgo by adding internal/lazyregexp to the
+    list of bootstrap directories.
+    
+    The gccgo compiler recognizes the magic functions internal/abi.FuncPCABI0
+    and FuncPCABIInternal, but only in the internal/abi package, not
+    in the bootstrapping internal/abi package.
+    
+    Permit bootstrapping with gccgo by adding definitions of those functions
+    with build tags so that they are only used by gccgo.
+    
+    Fixes #60913
+    
+    Change-Id: I3a78848d545db13314409d170d63f4cc737ca12e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505036
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/prove.go   | 82 +--------------------------------
- src/cmd/compile/internal/ssa/rewrite.go | 55 ++++++++++++++++++++++
- 2 files changed, 56 insertions(+), 81 deletions(-)
+ src/cmd/dist/buildtool.go        |  5 +++++
+ src/internal/abi/funcpc.go       |  2 ++
+ src/internal/abi/funcpc_gccgo.go | 21 +++++++++++++++++++++
+ 3 files changed, 28 insertions(+)

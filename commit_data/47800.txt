@@ -1,13 +1,27 @@
-commit dc5a8f9647257584a17efef219edc7d494b9a5bc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 14 15:39:14 2021 -0800
+commit 585b52261c1b4e26b029616581ee0e891ad49183
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 10 23:02:04 2021 -0400
 
-    doc/go1.18: fix an unclosed anchor
+    runtime: remove deferreturn dummy argument
     
-    Change-Id: I432bcc6ff917d008598b2f37c6e826f588a3d6d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372074
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    deferreturn has a dummy argument, that is only used for getting
+    the caller's SP. When generating deferreturn calls, the compiler
+    does not pass an actual argument or reserve its stack space.
+    Also, the current code is written with the assumption about where
+    the argument's address is on the stack. Currently this is correct
+    for both ABI0 and the register ABI, but it may change in the
+    future (e.g. if we remove dedicated spill slots). Remove the
+    argument.
+    
+    Also remove the argument for getargp.
+    
+    Change-Id: I96d07efa79a9c1a53ef3fc5adbecc11877e99dc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309329
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.18.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/panic.go | 22 ++++++++++------------
+ 1 file changed, 10 insertions(+), 12 deletions(-)

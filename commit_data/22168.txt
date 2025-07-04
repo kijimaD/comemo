@@ -1,17 +1,12 @@
-commit 2c4cf2f6f2ccfb43869b9e6b881f29699bc29bfd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 23 17:31:25 2015 -0700
+commit f716c5c5bb814090503eebe15699a3068a55b296
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 24 10:21:14 2015 -0500
 
-    math/big: fix known bug in Float.Float64
+    cmd/internal/gc: restore detail in plain syntax errors
     
-    - handle exponent over- and underflow
-    - handle denormalized numbers
-    - added test cases
-    
-    Change-Id: I1bbb9904b0c104f54696944e1f57559881f6eeeb
-    Reviewed-on: https://go-review.googlesource.com/7982
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ifc4b25fa57d0c9242968246d2193aa29f6b87700
+    Reviewed-on: https://go-review.googlesource.com/5950
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/math/big/float.go      | 71 +++++++++++++++++++++++++++++++++++++---------
- src/math/big/float_test.go | 66 ++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 118 insertions(+), 19 deletions(-)
+ src/cmd/internal/gc/subr.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

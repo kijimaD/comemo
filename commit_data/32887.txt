@@ -1,35 +1,18 @@
-commit 0828ec1ea8f1733d61db0893fe8c03abbcebc2e5
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Wed Sep 27 20:31:55 2017 -0300
+commit 5c37397a471c061fd92a7b9cc799a9c9e66dcd9d
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jun 12 11:28:18 2017 -0700
 
-    flag: align multi-line usage strings
+    database/sql: correct level of write to same var for race detector
     
-    Previously, a multi-line flag usage string would not be indented with the
-    rest of the usage strings. This made long usage strings difficult to read.
+    Rather then write to the same variable per fakeConn, write to either
+    fakeConn or rowsCursor.
     
-    For example, the usage for flag.String("A", "", "1\n2\n3") would be printed
-    as:
+    Fixes #20646
     
-      -A    1
-    2
-    3
-    
-    But will now be printed as:
-    
-      -A    1
-            2
-            3
-    
-    Also fixes a slight error in the FlagSet.PrintDefaults documentation.
-    
-    Fixes #20799
-    
-    Change-Id: I4379c6b7590fdb93a2809a01046a0f6ae32c3e5d
-    Reviewed-on: https://go-review.googlesource.com/66711
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ifc79f989bd1606b8e3ebecb1e7844cce3ad06e17
+    Reviewed-on: https://go-review.googlesource.com/45393
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/flag/flag.go      | 10 ++++++----
- src/flag/flag_test.go |  8 ++++++++
- 2 files changed, 14 insertions(+), 4 deletions(-)
+ src/database/sql/fakedb_test.go | 73 ++++++++++++++++++++++++++---------------
+ src/database/sql/sql_test.go    | 12 +++----
+ 2 files changed, 51 insertions(+), 34 deletions(-)

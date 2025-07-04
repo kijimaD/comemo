@@ -1,23 +1,17 @@
-commit 9f2951b5d1bd0b5be67d32725f1236436c16d217
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 22 10:22:00 2022 -0500
+commit 122654739dce506364d10c450afcc36d7572922d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 28 13:15:16 2022 -0800
 
-    reflect: remove deprecation notices from SliceHeader, StringHeader
+    doc/go1.18: mention new debug/dwarf DataBitOffset fields
     
-    There has been no proposal discussion about adding these notices.
-    Also, even if we did decide to add them, then since their replacements
-    are only appearing in Go 1.20, go.dev/wiki/Deprecation says that we
-    should wait until Go 1.22 to add the deprecation notice.
+    For #46784
+    For #47694
+    For #50685
     
-    Filed #56906 for the proposal discussion.
-    
-    Fixes #56905.
-    
-    Change-Id: If86cce65aa00b4b62b2b18e82503431dcbdbcfed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452761
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5351b56722d036a520d1a598ef7af95c5eb44c35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381778
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/reflect/value.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.18.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

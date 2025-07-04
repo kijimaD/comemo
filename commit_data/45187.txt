@@ -1,17 +1,22 @@
-commit acb189ea59d7f47e5db075e502dcce5eac6571dc
-Author: ian woolf <btw515wolf2@gmail.com>
-Date:   Mon Apr 12 17:19:03 2021 +0800
+commit 5acec489a1987bd2f3d342f63d02e08d546f0fc3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 10:31:03 2020 -0400
 
-    net/http: make ReadRequest return an error when requests have multiple Host headers
+    go/build: add Package.IgnoredOtherFiles
     
-    Fixes #45513
+    Just like it is useful to report ignored .go files,
+    it is also useful to report ignored non-.go files.
     
-    Change-Id: I59e717a4bbd3e71320deff519e4f9587ee5c8756
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308952
-    Trust: Damien Neil <dneil@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also, remove _* and .* files from IgnoredGoFiles.
+    The fact that they were there at all was a mistake.
+    This list is for files being ignored due to build constraints.
+    
+    Change-Id: Ie08252dde9f56bda08647e7ebeab7906e9271c54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240551
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/http/request.go      | 22 +++++++++++-----------
- src/net/http/request_test.go |  4 ++++
- src/net/http/server.go       |  5 +----
- 3 files changed, 16 insertions(+), 15 deletions(-)
+ src/go/build/build.go | 111 +++++++++++++++++++++++++++-----------------------
+ 1 file changed, 61 insertions(+), 50 deletions(-)

@@ -1,12 +1,15 @@
-commit 95117d30a22962d5de9bfcef338e9e7851ff9154
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jul 18 17:54:32 2011 -0700
+commit 47e6042f73b07c5eaf28b978711605025c3d0df6
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Mon Jul 18 16:15:01 2011 -0400
 
-    time: typo in documentation
+    runtime: fix select pass 3
     
-    R=r
+    Fixes #2075
+    
+    R=rsc, ken, r
     CC=golang-dev
-    https://golang.org/cl/4763048
+    https://golang.org/cl/4748045
 
- src/pkg/time/format.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/chan.c |  9 ++++++---
+ test/chan/select6.go   | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 3 deletions(-)

@@ -1,12 +1,19 @@
-commit 4f1fca9564944ded19938f1a84399a72c759d17c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 7 23:27:11 2017 +0000
+commit 538b4bab3dd9e34b3d30b6aeaef8db1d34275274
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 11 17:19:24 2017 +1000
 
-    doc/go1.10: fix HTML close tags
+    misc/cgo/testcshared: actually run test executable on android
     
-    Change-Id: I28ddb8cd347120c08d5b58ae20f481b60416abc1
-    Reviewed-on: https://go-review.googlesource.com/82755
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    CL 62593 broken TestExportedSymbols and TestUnexportedSymbols
+    because it started executing android test binary on host.
+    Make them run on android.
+    
+    Hopefully fixes android build.
+    
+    Change-Id: Ic0bb9f0cbbefca23828574282caa33a03ef72431
+    Reviewed-on: https://go-review.googlesource.com/62830
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
 
- doc/go1.10.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

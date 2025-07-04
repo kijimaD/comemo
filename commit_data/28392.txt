@@ -1,25 +1,17 @@
-commit df2b63f09be280544e58c8d17fe34c863521ed10
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Sep 14 20:07:13 2016 -0700
+commit dc4427f3727804ded270bc6a7a8066ccb3c151d0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 19 18:08:43 2016 +0000
 
-    cmd/compile: unwrap fewer CONVNOPs in staticassign
+    context: make DeadlineExceeded have a Timeout method
     
-    staticassign unwraps all CONVNOPs.
-    However, in the included test, we need the
-    CONVNOP for everything to typecheck.
-    Stop unwrapping unnecessarily.
+    Fixes #14238
     
-    The code we generate for this example is
-    suboptimal, but that's not new; see #17113.
-    
-    Fixes #17111.
-    
-    Change-Id: I29532787a074a6fe19a5cc53271eb9c84bf1b576
-    Reviewed-on: https://go-review.googlesource.com/29213
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I1538bfb5cfa63e36a89df1f6eb9f5a0dcafb6ce5
+    Reviewed-on: https://go-review.googlesource.com/23256
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/sinit.go |  2 +-
- test/fixedbugs/issue17111.go         | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/context/context.go      |  8 +++++++-
+ src/context/context_test.go | 12 ++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

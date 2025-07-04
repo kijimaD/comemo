@@ -1,21 +1,14 @@
-commit 7c15b2ab4bfec46b07794c5406a438f993cdc56e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Apr 3 00:44:39 2016 +0000
+commit d70c04cf08683e2b0a26fb13808f8cacb1bcdd38
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Feb 20 23:24:27 2016 -0500
 
-    os: make IsExists also recognize syscall.ENOTEMPTY
+    runtime: fix missing word in comment
     
-    And adds missing tests.
-    
-    Fixes #14970
-    
-    Change-Id: I0dba02603bc245f555498cb5dd3e0a9d87c52353
-    Reviewed-on: https://go-review.googlesource.com/21467
+    Change-Id: I6cb8ac7b59812e82111ab3b0f8303ab8194a5129
+    Reviewed-on: https://go-review.googlesource.com/19791
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/error_test.go         | 12 ++++++++----
- src/os/error_unix.go         |  2 +-
- src/os/error_unix_test.go    | 39 +++++++++++++++++++++++++++++++++++++++
- src/os/error_windows_test.go | 35 +++++++++++++++++++++++++++++++++++
- 4 files changed, 83 insertions(+), 5 deletions(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

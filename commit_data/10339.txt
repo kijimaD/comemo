@@ -1,33 +1,53 @@
-commit 83f61a27d6f1ef053c00b4cc2fd9668fdf354ad8
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Nov 11 11:41:46 2011 +1100
+commit dd2abe51526867b7574a10708a028a24a3a41ad9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 10 19:08:28 2011 -0500
 
-    html: parse column groups
+    runtime, syscall: convert from godefs to cgo
     
-    Pass tests1.dat, test 108:
-    <table><colgroup><col><colgroup><col><col><col><colgroup><col><col><thead><tr><td></table>
-    
-    | <html>
-    |   <head>
-    |   <body>
-    |     <table>
-    |       <colgroup>
-    |         <col>
-    |       <colgroup>
-    |         <col>
-    |         <col>
-    |         <col>
-    |       <colgroup>
-    |         <col>
-    |         <col>
-    |       <thead>
-    |         <tr>
-    |           <td>
-    
-    R=nigeltao
+    R=golang-dev, mikioh.mikioh, r
     CC=golang-dev
-    https://golang.org/cl/5369061
+    https://golang.org/cl/5348052
 
- src/pkg/html/parse.go      | 50 +++++++++++++++++++++++++++++++++++++++++++++-
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 50 insertions(+), 2 deletions(-)
+ src/pkg/runtime/darwin/386/defs.h       | 557 ++++++++++++++++-------------
+ src/pkg/runtime/darwin/386/signal.c     |  10 +-
+ src/pkg/runtime/darwin/amd64/defs.h     | 576 ++++++++++++++++--------------
+ src/pkg/runtime/darwin/amd64/signal.c   |  10 +-
+ src/pkg/runtime/darwin/defs.c           | 159 ---------
+ src/pkg/runtime/darwin/defs.go          | 159 +++++++++
+ src/pkg/runtime/freebsd/defs.c          | 110 ------
+ src/pkg/runtime/freebsd/defs.go         | 115 ++++++
+ src/pkg/runtime/linux/386/defs.h        | 316 +++++++++--------
+ src/pkg/runtime/linux/amd64/defs.h      | 376 ++++++++++----------
+ src/pkg/runtime/linux/defs.c            |  95 -----
+ src/pkg/runtime/linux/defs.go           | 100 ++++++
+ src/pkg/runtime/linux/defs1.c           |  24 --
+ src/pkg/runtime/linux/defs1.go          |  35 ++
+ src/pkg/runtime/linux/defs2.c           | 120 -------
+ src/pkg/runtime/linux/defs2.go          | 121 +++++++
+ src/pkg/runtime/linux/defs_arm.c        | 122 -------
+ src/pkg/runtime/linux/defs_arm.go       | 121 +++++++
+ src/pkg/runtime/openbsd/defs.c          | 104 ------
+ src/pkg/runtime/openbsd/defs.go         | 109 ++++++
+ src/pkg/runtime/windows/defs.c          |  49 ---
+ src/pkg/runtime/windows/defs.go         |  64 ++++
+ src/pkg/syscall/mkall.sh                |  42 +--
+ src/pkg/syscall/mkerrors.sh             |  33 +-
+ src/pkg/syscall/types_darwin.c          | 180 ----------
+ src/pkg/syscall/types_darwin.go         | 232 ++++++++++++
+ src/pkg/syscall/types_freebsd.c         | 192 ----------
+ src/pkg/syscall/types_freebsd.go        | 240 +++++++++++++
+ src/pkg/syscall/types_linux.c           | 397 ---------------------
+ src/pkg/syscall/types_linux.go          | 452 ++++++++++++++++++++++++
+ src/pkg/syscall/types_openbsd.c         | 182 ----------
+ src/pkg/syscall/types_openbsd.go        | 229 ++++++++++++
+ src/pkg/syscall/zerrors_darwin_386.go   |  60 ++--
+ src/pkg/syscall/zerrors_darwin_amd64.go |  60 ++--
+ src/pkg/syscall/zerrors_linux_386.go    | 157 +++++----
+ src/pkg/syscall/zerrors_linux_amd64.go  | 159 +++++----
+ src/pkg/syscall/zsysnum_linux_386.go    |   4 +
+ src/pkg/syscall/zsysnum_linux_amd64.go  |   4 +
+ src/pkg/syscall/ztypes_darwin_386.go    | 108 +++---
+ src/pkg/syscall/ztypes_darwin_amd64.go  | 106 +++---
+ src/pkg/syscall/ztypes_linux_386.go     | 571 +++++++++++++++---------------
+ src/pkg/syscall/ztypes_linux_amd64.go   | 603 ++++++++++++++++----------------
+ 42 files changed, 3961 insertions(+), 3502 deletions(-)

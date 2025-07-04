@@ -1,29 +1,24 @@
-commit 18d27b2d754923854e05c3b37a2b799d9c063164
+commit 34846aef78e2e27da8eaadff2d9ea78cd99d491d
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 18 22:19:58 2015 -0400
+Date:   Mon Jun 29 13:12:10 2015 -0400
 
-    net: force LookupAddr results to be rooted DNS paths when using cgo
+    cmd/link: fix -s with external linking
     
-    Go 1.4 and before have always returned DNS names with a trailing dot
-    for reverse lookups, as they do for basically all other routines returning
-    DNS names. Go 1.4 and before always implemented LookupAddr using
-    pure Go (not C library calls).
+    This code used to only be run for ELF, with the predictable
+    result that using -s with external linking broke on Windows and OS X.
+    Moving it here should fix Windows and does fix OS X.
     
-    Go 1.5 added the ability to make a C library call to implement LookupAddr.
-    Unfortunately the C library call returns a DNS name without a trailing dot
-    (an unrooted name), meaning that if turn off cgo during make.bash then
-    you still get the rooted name but with cgo on you get an unrooted name.
-    The unrooted name is inconsistent with the pure Go implementation
-    and with all previous Go releases, so change it to a rooted name.
+    CL 10835 also claims to fix the crash on Windows.
+    I don't know whether it does so correctly, but regardless,
+    this CL should make that one a no-op.
     
-    Fixes #12189.
+    Fixes #10254.
     
-    Change-Id: I3d6b72277c121fe085ea6af30e5fe8019fc490ad
-    Reviewed-on: https://go-review.googlesource.com/13697
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I2e7b45ab0c28568ddbb1b50581dcc157ae0e7ffe
+    Reviewed-on: https://go-review.googlesource.com/11695
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/cgo_unix.go      |   5 +++
- src/net/lookup_test.go   | 109 +++++++++++++++++++++++++++++++++++++++++++++++
- src/net/non_unix_test.go |  11 +++++
- src/net/unix_test.go     |  25 +++++++++++
- 4 files changed, 150 insertions(+)
+ src/cmd/dist/test.go            | 19 ++++++++++---------
+ src/cmd/link/internal/ld/elf.go |  2 --
+ src/cmd/link/internal/ld/lib.go |  6 ++++++
+ 3 files changed, 16 insertions(+), 11 deletions(-)

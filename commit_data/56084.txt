@@ -1,20 +1,35 @@
-commit 2830d5457e4120ab9ee475b81205c9f84eed82f8
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Thu Mar 28 12:50:04 2024 +0800
+commit b3bc8620f89153fddc1a30ee17c1d93654ed4314
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Apr 1 10:33:26 2023 -0700
 
-    runtime: make use of builtin clear in tests
+    cmd/compile: use correct type for byteswaps on multi-byte stores
     
-    This is a follow-up to CL 574675.
+    Use the type of the store for the byteswap, not the type of the
+    store's value argument.
     
-    Change-Id: I98c3ea968e9c7dc61472849c385a1e697568aa30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574975
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Normally when we're storing a 16-bit value, the value being stored is
+    also typed as 16 bits. But sometimes it is typed as something smaller,
+    usually because it is the result of an upcast from a smaller value,
+    and that upcast needs no instructions.
+    
+    If the type of the store's arg is thinner than the type being stored,
+    and the byteswap'd value uses that thinner type, and the byteswap'd
+    value needs to be spilled & restored, that spill/restore happens using
+    the thinner type, which causes us to lose some of the top bits of the
+    value.
+    
+    Fixes #59367
+    
+    Change-Id: If6ce1e8a76f18bf8e9d79871b6caa438bc3cce4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481395
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/hash_test.go    | 4 +---
- src/runtime/memmove_test.go | 4 +---
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules | 12 ++--
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules | 36 ++++++------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 24 ++++----
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 74 +++++++++++++------------
+ test/fixedbugs/issue59367.go                  | 80 +++++++++++++++++++++++++++
+ 5 files changed, 154 insertions(+), 72 deletions(-)

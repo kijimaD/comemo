@@ -1,20 +1,35 @@
-commit febbef593e8d77500d0e330db91a7be1a71d05e9
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 15 14:42:42 2021 -0800
+commit b182ba7fabcd233a03bb8169634605a7fac6a856
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed May 20 08:49:59 2020 +0000
 
-    doc: mention generics in release notes
+    cmd/compile: optimize codes with arm64 REV16 instruction
     
-    Also mention local types restriction.
+    Optimize some patterns into rev16/rev16w instruction.
     
-    We probably want to say more at some point, this is just a
-    placeholder to start.
+    Pattern1:
+        (c & 0xff00ff00)>>8 | (c & 0x00ff00ff)<<8
+    To:
+        rev16w c
     
-    Update #47631
+    Pattern2:
+        (c & 0xff00ff00ff00ff00)>>8 | (c & 0x00ff00ff00ff00ff)<<8
+    To:
+        rev16 c
     
-    Change-Id: I828e451e1e8504d21cb55c7132e9cb330b160a54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364134
-    Trust: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This patch is a copy of CL 239637, contributed by Alice Xu(dianhong.xu@arm.com).
+    
+    Change-Id: I96936c1db87618bc1903c04221c7e9b2779455b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268377
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/compile/internal/arm64/ssa.go              |   1 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules       |  16 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go       |   1 +
+ src/cmd/compile/internal/ssa/opGen.go              |  14 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go       | 225 +++++++++++++++++++++
+ .../compile/internal/test/testdata/arith_test.go   |  43 ++++
+ test/codegen/bitfield.go                           |  20 ++
+ 7 files changed, 320 insertions(+)

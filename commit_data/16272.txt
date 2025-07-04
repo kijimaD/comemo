@@ -1,16 +1,12 @@
-commit b3b1efd88291c63b9717db190ded45df2ef8c243
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue May 7 06:53:02 2013 +0800
+commit 61dbc3401a1af9feb0bbcf782adddd867bc3110f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 6 15:02:56 2013 -0700
 
-    runtime: reduce max arena size on windows/amd64 to 32 GiB
-    Update #5236
-    Update #5402
-    This CL reduces gofmt's committed memory from 545864 KiB to 139568 KiB.
-    Note: Go 1.0.3 uses about 70MiB.
+    doc: add FAQ entry about language changes
     
-    R=golang-dev, r, iant, nightlyone
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/9245043
+    https://golang.org/cl/9244043
 
- src/pkg/runtime/malloc.h | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ doc/go_faq.html | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

@@ -1,17 +1,26 @@
-commit dd3856e1b0d9250f4625108b9979d09ab48175e4
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sat Jun 28 20:47:06 2014 +1000
+commit 03f2189a1b20a5140191d51fc660422bc172f2b5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jun 27 18:19:02 2014 -0700
 
-    flag: add a little more doc comment to Duration.
+    runtime: make garbage collector faster by deleting code again
+    Remove GC bitmap backward scanning.
+    This was already done once in https://golang.org/cl/5530074/
+    Still makes GC a bit faster.
+    On the garbage benchmark, before:
+            gc-pause-one=237345195
+            gc-pause-total=4746903
+            cputime=32427775
+            time=32458208
+    after:
+            gc-pause-one=235484019
+            gc-pause-total=4709680
+            cputime=31861965
+            time=31877772
+    Also prepares mgc0.c for future changes.
     
-    The only text that describes the accepted format is in the package doc,
-    which is far away from these functions. The other flag types don't need
-    this explicitness because they are more obvious.
-    
-    LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/101550043
+    R=golang-codereviews, khr, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/105380043
 
- src/pkg/flag/flag.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/mgc0.c | 29 ++---------------------------
+ 1 file changed, 2 insertions(+), 27 deletions(-)

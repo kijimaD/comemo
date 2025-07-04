@@ -1,30 +1,39 @@
-commit 8354f6b5bb5baf03cb64dbf736c276f297ebea96
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Tue Jan 10 08:36:00 2023 +0100
+commit e79c39f004769fc55e60c2fb052155486295d533
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Wed Nov 17 17:46:22 2021 +0300
 
-    cmd/compile: use a boolean as a avoid clobbering flags mov marker
+    encoding/xml: improve the test coverage, fix minor bugs
     
-    The Value type implements Aux interface because it is being used as a
-    "avoid clobbering flags" marker by amd64, x86 and s390x SSA parts.
+    Improve the test coverage of encoding/xml package by adding
+    the test cases for the execution paths that were not covered before.
     
-    Create a boolean that implements the Aux interface. Use it as the marker
-    instead. We no longer need Value to implement Aux.
+    Since it reveals a couple of issues, fix them as well while we're at it.
     
-    Resolves a TODO.
+    As I used an `strings.EqualFold` instead of adding one more `strings.ToLower`,
+    our fix to `autoClose()` tends to run faster as well as a result.
     
-    See CL 275756 for more info.
+            name             old time/op    new time/op    delta
+            HTMLAutoClose-8    5.93µs ± 2%    5.75µs ± 3%  -3.16%  (p=0.000 n=10+10)
+            name             old alloc/op   new alloc/op   delta
+            HTMLAutoClose-8    2.60kB ± 0%    2.58kB ± 0%  -0.46%  (p=0.000 n=10+10)
+            name             old allocs/op  new allocs/op  delta
+            HTMLAutoClose-8      72.0 ± 0%      67.0 ± 0%  -6.94%  (p=0.000 n=10+10)
     
-    Change-Id: I8a1eddf7e738b8aa31e82f3c4c590bafd2cdc56b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461156
+    The overall `encoding/xml` test coverage increase is `88.1% -> 89.9%`;
+    although it may look insignificant, this CL covers some important corner cases,
+    like `autoClose()` functionality (that was not tested at all).
+    
+    Fixes #49635
+    Fixes #49636
+    
+    Change-Id: I50b2769896c197eb285672313b7148f4fe8bdb38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364734
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go   | 2 +-
- src/cmd/compile/internal/s390x/ssa.go   | 2 +-
- src/cmd/compile/internal/ssa/rewrite.go | 7 +++++++
- src/cmd/compile/internal/ssa/value.go   | 3 ---
- src/cmd/compile/internal/x86/ssa.go     | 2 +-
- 5 files changed, 10 insertions(+), 6 deletions(-)
+ src/encoding/xml/xml.go      |  10 +--
+ src/encoding/xml/xml_test.go | 165 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 168 insertions(+), 7 deletions(-)

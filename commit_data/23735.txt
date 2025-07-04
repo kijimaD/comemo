@@ -1,12 +1,19 @@
-commit a81c6563525521a116582b93a4a95f3e8a6ceec9
-Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
-Date:   Fri Jul 17 15:40:26 2015 -0400
+commit 10425507fd6f36bfe0fefa759d12322eba72b9b5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 8 17:56:27 2015 -0700
 
-    androidtest.bash: robust cleanup in case of failure.
+    cmd/dist: move guts of race.bash into dist
     
-    Change-Id: I69ed001bca4987e08b46a8288f6feae2aca6a142
-    Reviewed-on: https://go-review.googlesource.com/12380
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    After a little build coordinator change, this will get us sharding of
+    the race builder.
+    
+    Update #11074
+    
+    Change-Id: I4c55267563b6f5e213def7dd6707c837ae2106bf
+    Reviewed-on: https://go-review.googlesource.com/10845
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/androidtest.bash | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/dist/test.go | 69 +++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/race.bash        |  9 +------
+ src/race.bat         | 10 +-------
+ 3 files changed, 67 insertions(+), 21 deletions(-)

@@ -1,32 +1,25 @@
-commit ebd96933c11d67997d1609c06b0cf076067a4f50
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 21 11:06:43 2015 -0700
+commit be1eb57a8b4f4728b1bfae18d7847ff111e2f46f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 22 13:46:15 2015 -0700
 
-    cmd/vet: build the binary only once in the test
+    [dev.ssa] cmd/compile/internal/ssa: implement multiplies
     
-    Recent changes caused vet to build the binary for each Test function.
-    This is wasteful and will become only more so as more tests are added.
-    Use testing.Main to build only once.
+    Use width-and-signed-specific multiply opcodes.
+    Implement OMUL.
+    A few other cleanups.
     
-    Verified that compilation errors still appear if the binary cannot be
-    built.
+    Fixes #11467
     
-    Before:
-            real    0m11.169s
-            user    0m18.328s
-            sys     0m2.152s
-    
-    After:
-            real    0m5.132s
-            user    0m9.404s
-            sys     0m1.168s
-    
-    Of course if the compiler were fast we might not notice, but vet is
-    a big program and growing bigger all the time, as are the tests.
-    
-    Change-Id: I209a8fdcace94bc5cec946f5dd365d7191f44c02
-    Reviewed-on: https://go-review.googlesource.com/14822
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib0fe80a1a9b7208dbb8a2b6b652a478847f5d244
+    Reviewed-on: https://go-review.googlesource.com/12540
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/vet/vet_test.go | 62 ++++++++++++++++++++++++++++---------------------
- 1 file changed, 36 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             |  36 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  16 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  12 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |   7 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  10 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 123 ++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 236 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  93 ++++++++--
+ 8 files changed, 485 insertions(+), 48 deletions(-)

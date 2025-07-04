@@ -1,18 +1,17 @@
-commit 2a8d99e427ab19cb4f00680244f31818b53aa238
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 10 22:16:43 2017 -0700
+commit 9657e0b0777f3af3b48908cc39e5ab6d06022422
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 24 14:53:31 2017 -0500
 
-    cmd/compile/internal/ssa: remove unused Typ fields
+    [dev.typealias] cmd/doc: update for type alias
     
-    These are never accessed.
+    For #18130.
     
-    Change-Id: I45975972d19d1f263f6545c9ed648511501094c6
-    Reviewed-on: https://go-review.googlesource.com/40315
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I06b05a2b45a2aa6764053fc51e05883063572dad
+    Reviewed-on: https://go-review.googlesource.com/35670
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go           | 8 ++++----
- src/cmd/compile/internal/ssa/value.go        | 2 --
- src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
- 3 files changed, 5 insertions(+), 7 deletions(-)
+ src/cmd/doc/doc_test.go     | 14 ++++++++++++++
+ src/cmd/doc/pkg.go          |  6 +++++-
+ src/cmd/doc/testdata/pkg.go |  4 ++++
+ 3 files changed, 23 insertions(+), 1 deletion(-)

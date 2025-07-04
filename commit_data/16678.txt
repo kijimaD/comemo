@@ -1,20 +1,18 @@
-commit c1fc8d529654e5a98f82e5d835d1c9f659957a1b
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Jun 28 23:29:13 2013 +0200
+commit a3f842a4c1aea97a79f751887555fd8497d0fed0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 28 13:37:07 2013 -0700
 
-    cmd/gc: fix missing export data for inlining in a few other cases.
+    runtime: shorten hash lookup stack frames
     
-    Exported inlined functions that perform a string conversion
-    using a non-exported named type may miss it in export data.
+    On amd64 the frames are very close to the limit for a
+    nosplit (textflag 7) function, in part because the C compiler
+    does not make any attempt to reclaim space allocated for
+    completely registerized variables. Avoid a few short-lived
+    variables to reclaim two words.
     
-    Fixes #5755.
-    
-    R=rsc, golang-dev, ality, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/10464043
+    https://golang.org/cl/10758043
 
- src/cmd/gc/export.c                  |  5 +++
- test/fixedbugs/issue5755.dir/a.go    | 60 ++++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue5755.dir/main.go | 23 ++++++++++++++
- test/fixedbugs/issue5755.go          | 10 ++++++
- 4 files changed, 98 insertions(+)
+ src/pkg/runtime/hashmap_fast.c | 40 ++++++++++++++++++----------------------
+ 1 file changed, 18 insertions(+), 22 deletions(-)

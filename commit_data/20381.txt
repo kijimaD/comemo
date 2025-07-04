@@ -1,44 +1,13 @@
-commit d955dfb0075addb844d1d683a96967bb7ea0dea7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 9 17:41:48 2014 -0700
+commit d3a2021f71d5a4d31bba88ca634823b14904e239
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 4 16:23:37 2014 +0900
 
-    runtime: cleanup openbsd semasleep implementation
+    runtime: fix typos
     
-    The previous implementation had several subtle issues.  It's not
-    clear if any of these could actually be causing the flakiness
-    problems on openbsd/386, but fixing them should only help.
-    
-    1. thrsleep() is implemented internally as unlock, then test *abort
-    (if abort != nil), then tsleep().  Under the current code, that makes
-    it theoretically possible that semasleep()/thrsleep() could release
-    waitsemalock, then a racing semawakeup() could acquire the lock,
-    increment waitsemacount, and call thrwakeup()/wakeup() before
-    thrsleep() reaches tsleep().  (In practice, OpenBSD's big kernel lock
-    seems unlikely to let this actually happen.)
-    
-    The proper way to avoid this is to pass &waitsemacount as the abort
-    pointer to thrsleep so thrsleep knows to re-check it before going to
-    sleep, and to wakeup if it's non-zero.  Then we avoid any races.
-    (I actually suspect openbsd's sema{sleep,wakeup}() could be further
-    simplified using cas/xadd instead of locks, but I don't want to be
-    more intrusive than necessary so late in the 1.4 release cycle.)
-    
-    2. semasleep() takes a relative sleep duration, but thrsleep() needs
-    an absolute sleep deadline.  Instead of recomputing the deadline each
-    iteration, compute it once up front and use (*Timespec)(nil) to signify
-    no deadline.  Ensures we retry properly if there's a spurious wakeup.
-    
-    3. Instead of assuming if thrsleep() woke up and waitsemacount wasn't
-    available that we must have hit the deadline, check that the system
-    call returned EWOULDBLOCK.
-    
-    4. Instead of assuming that 64-bit systems are little-endian, compute
-    timediv() using a temporary int32 nsec and then assign it to tv_nsec.
-    
-    LGTM=iant
-    R=jsing, iant
+    LGTM=dvyukov
+    R=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/137960043
+    https://golang.org/cl/141000043
 
- src/runtime/os_openbsd.c | 55 +++++++++++++++++++-----------------------------
- 1 file changed, 22 insertions(+), 33 deletions(-)
+ src/pkg/runtime/netpoll.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

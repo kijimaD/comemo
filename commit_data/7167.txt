@@ -1,12 +1,13 @@
-commit 035fcb0da2490d72299ccddcaa324c4f00b4e3c4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 19 15:24:25 2011 -0500
+commit f96c1d076ad24992f2f028736e3941e74a1ae4b6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 19 15:13:42 2011 -0500
 
-    net: fix build on freebsd
+    http: support for relative URLs
     
-    TBR=adg
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/3992044
+    https://golang.org/cl/4002041
 
- src/pkg/net/server_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/pkg/http/url.go      | 152 ++++++++++++++++++++++++++++++-----------------
+ src/pkg/http/url_test.go | 152 +++++++++++++++++++++++++++++++++++------------
+ 2 files changed, 210 insertions(+), 94 deletions(-)

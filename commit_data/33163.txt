@@ -1,20 +1,14 @@
-commit 3813f941f6ff80f64d14db35f8b6446e10e45411
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 18 16:04:45 2017 -0700
+commit 3498012e79e7955513c5a39e193a7a4f7a6cf231
+Author: yansal <yannsalaun1@gmail.com>
+Date:   Wed Jul 19 23:04:36 2017 +0200
 
-    internal/poll: always decref if setting deadline fails
+    net/mail: Fix typo
     
-    No test because at present it is never called in a way that fails.
-    When #22114 is implemented, failure will be possible. Not including this
-    change in that work because this change is separable and clearly correct.
+    Fixes #21089
     
-    Updates #22114
-    
-    Change-Id: I81eb9eec8800e8082d918c0e5fb71282f538267e
-    Reviewed-on: https://go-review.googlesource.com/71751
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joe Tsai <joetsai@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idd65c7185b3e19f33958eb165cb5b09c06db3d56
+    Reviewed-on: https://go-review.googlesource.com/50110
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/poll/fd_poll_runtime.go | 2 +-
+ src/net/mail/message.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

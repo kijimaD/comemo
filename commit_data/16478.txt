@@ -1,17 +1,15 @@
-commit 9bc0eaf60e7d04d5c3fd24ad7e89fdae6615be82
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jun 4 12:50:40 2013 +1000
+commit 59fb90ac85be4c2c024d84287e03c200ef4fa24e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 3 16:39:42 2013 -0400
 
-    runtime: update defs_windows_*.h files
+    cmd/go: document flag passing for tests
+    Fixes #5566.
     
-    New version of cmd/cgo from
-    https://golang.org/cl/9574043/
-    is used to regenerate these.
-    
-    R=golang-dev, iant
-    CC=golang-dev
-    https://golang.org/cl/9679046
+    R=rsc
+    CC=gobot, golang-dev
+    https://golang.org/cl/9882043
 
- src/pkg/runtime/defs_windows_386.h   | 170 ++++++++++++++---------------
- src/pkg/runtime/defs_windows_amd64.h | 200 ++++++++++++++++++-----------------
- 2 files changed, 189 insertions(+), 181 deletions(-)
+ src/cmd/go/doc.go  | 8 +++++++-
+ src/cmd/go/run.go  | 1 +
+ src/cmd/go/test.go | 7 ++++++-
+ 3 files changed, 14 insertions(+), 2 deletions(-)

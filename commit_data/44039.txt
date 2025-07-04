@@ -1,21 +1,15 @@
-commit ae652a4ac9354fef81610ca616b872262ea51281
-Author: Henrique Vicente <henriquevicente@gmail.com>
-Date:   Mon Nov 16 03:09:31 2020 +0100
+commit fdb8a3e63846f07a10f44b0f26b839817e336db5
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Apr 30 16:01:19 2020 -0400
 
-    os/signal: fix flaky tests for NotifyContext.
+    crypto/tls: marshal sessionState using cryptobyte
     
-    Test failures started to happen sporadically on some builds after the introduction of NotifyContext.
-    To make these tests more robust and avoid the risk of crosstalk we run them in a separate process.
-    
-    Fixes #41561.
-    
-    Change-Id: Ia7af105c316afd11765358f1e5e253ccfe2adc2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270198
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I95a60b837e19d0c4bf45ea74baa5843a8244a186
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231218
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/os/signal/signal_test.go | 102 +++++++++++++++++++++++++------------------
- 1 file changed, 60 insertions(+), 42 deletions(-)
+ src/crypto/tls/handshake_messages_test.go |   8 +--
+ src/crypto/tls/ticket.go                  | 107 +++++++++++-------------------
+ 2 files changed, 41 insertions(+), 74 deletions(-)

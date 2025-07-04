@@ -1,21 +1,24 @@
-commit f0390ffc9d461cb84207b5a94c4b645c87673406
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 5 11:01:10 2019 -0500
+commit 98100c56da0da1503e7612921eff821409aa6cce
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 31 16:58:44 2019 +1000
 
-    cmd/go/internal/modfetch: remove non-hermetic test
+    cmd/cover: fix counting of blocks split by goto statements
     
-    The test for gopkg.in/yaml.v2@v2 assumes that there are
-    no future upstream releases. That assumption empirically
-    does not hold. Backporting fixes to this test is annoying,
-    and other gopkg.in cases are already reasonably covered,
-    so remove the problematic test.
+    When adding coverage counters to a block, the block's statement list is
+    mutated. CL 77150 removed the part where the mutated list is assigned
+    back to its parent node; this was confusing ast.Walk, which would then
+    lose its place and stop walking the current block, dropping counters in
+    the process.
     
-    Updates #28856
+    This change has addCounters make a copy of the list before mutating
+    it, so that the original list doesn't change under Walk's feet.
     
-    Change-Id: I6455baa1816ac69e02d1ad5d03b82a93e1481a17
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205437
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fix #32200
+    
+    Change-Id: Ia3b67d8cee860ceb7caf8748cb7a80ff9c6276e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179581
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo_test.go | 12 ------------
- 1 file changed, 12 deletions(-)
+ src/cmd/cover/cover.go         | 3 +++
+ src/cmd/cover/testdata/test.go | 4 ++++
+ 2 files changed, 7 insertions(+)

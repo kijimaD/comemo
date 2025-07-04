@@ -1,21 +1,32 @@
-commit ce7e5013a68ef4572b9fa439b1402145ef710631
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 19:26:37 2021 -0500
+commit ffa9983b998cd9667dec0cc5eeb102b14696e28b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 12:44:17 2021 -0700
 
-    go/types: allow slicing for operands with []byte|string type sets
+    cmd/compile/internal/types2: review of api_test.go
     
-    This is a port of CL 363662 from types2 to go/types. An error message
-    was adjusted to be on the operand in test data.
+    The changes between (equivalent, and reviewed) go/types/api_test.go
+    and api_test.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker, the addition of the
+    TestConvertibleTo and TestAssignableTo tests, and adjustments to test
+    prefixes (genericPkg, brokenPkg to be in line with go/types).
     
-    Change-Id: I4d2d69976f4f05e0d89ba1c6bf8b3e4cf1a82316
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364899
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    There are several differences to go/types/api_test.go:
+    - use of syntax rather than go/ast package
+    - use of the parseSrc helper function
+    - TestTypesInfo test entries reflect different handling of untyped nil
+    - TestInferredInfo is (for go1.17) in another file controlled by a build
+      constraint in go/types
+    - TestSelection test is currently skipped (types2 position information
+      is not accurate enough)
+    - TestScopeLookupParent doesn't have access to a scanner and instead
+      relies on syntax.CommentsDo.
+    - Broken packages are assumed to contain generic code for the tests.
+    
+    Change-Id: Ic14e6fb9d6bef5416df39e465b5994de76f84097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304131
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/builtins.go                   | 23 ++++---------------
- src/go/types/index.go                      |  4 ++--
- src/go/types/testdata/check/typeparams.go2 |  4 ++++
- src/go/types/type.go                       | 37 ++++++++++++++++++++++++++++++
- 4 files changed, 47 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go        | 150 ++++++++++++++-------
+ src/cmd/compile/internal/types2/typestring_test.go |   4 +-
+ 2 files changed, 103 insertions(+), 51 deletions(-)

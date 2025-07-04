@@ -1,19 +1,20 @@
-commit b07f60b97ff5ea9ae4cf21b549e9d25ccd695f36
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 12 14:18:45 2018 +0200
+commit 3080b7d0af65858400b13134c1c471e2cb35e647
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 26 21:20:41 2018 -0400
 
-    runtime: use functions from mem_bsd.go on Darwin
+    runtime: unify fetching of locals and arguments maps
     
-    The implementations of the functions in mem_darwin.go is identical to
-    the ones defined in mem_bsd.go for all other BSD-like GOOSes. Also use
-    them on Darwin.
+    Currently we have two nearly identical copies of the code that fetches
+    the locals and arguments liveness maps for a frame, plus a third
+    that's a poor knock-off. Unify these all into a single function.
     
-    Change-Id: Ie7c170c1a50666475e79599471081cd85f0837ad
-    Reviewed-on: https://go-review.googlesource.com/134875
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ibce7926a0b0e3d23182112da4e25df899579a585
+    Reviewed-on: https://go-review.googlesource.com/109698
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mem_bsd.go    |  2 +-
- src/runtime/mem_darwin.go | 62 -----------------------------------------------
- 2 files changed, 1 insertion(+), 63 deletions(-)
+ src/runtime/mbitmap.go |  22 ++------
+ src/runtime/mgcmark.go |  79 +++-----------------------
+ src/runtime/stack.go   | 149 +++++++++++++++++++++++++++++--------------------
+ 3 files changed, 101 insertions(+), 149 deletions(-)

@@ -1,16 +1,25 @@
-commit 297c1d297f4cee55a6aee5eb68583d0139aef076
-Author: Andrei Korzhevskii <a.korzhevskiy@gmail.com>
-Date:   Mon Mar 23 18:23:53 2015 +0300
+commit 612dd6c26274d7183b21d38120bc98c45dcf2736
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Fri Feb 27 10:46:42 2015 -0800
 
-    database/sql: provide stats on number of open connections to the database.
+    build: run cgo tests with -pie if the external linker supports it.
     
-    This change provides a convenient way to monitor database connection pool.
+    PIE binaries can be built by the Go compiler in external link mode with
+    extldflags="-pie". These binaries support ASLR (address space layout
+    randomization) when executed on systems with appropriate kernel/dynamic
+    linker support.
     
-    Change-Id: I4b3757855b43f3b254acf9312e2a16e2f87840d0
-    Reviewed-on: https://go-review.googlesource.com/7950
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This CL enables some cgo tests to run with -pie as a sanity check (in
+    addition to the other linker flag combinations they already test).
+    
+    I have tested this functionality more thoroughly by building the full
+    compiler testsuite (test/...) and standard library tests with -pie
+    and executing them remotely on ChromeOS devices for all three linux
+    architectures (linux_amd64, linux_386, and linux_arm).
+    
+    Change-Id: I3f644a72e94c3341f3360dfee58db5ec3a591e26
+    Reviewed-on: https://go-review.googlesource.com/6280
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go      | 16 ++++++++++++++++
- src/database/sql/sql_test.go | 20 ++++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/run.bash | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,24 +1,16 @@
-commit 9b379d7e04750bbf6615cdfc1783db53c3d9bdc9
-Author: Andrew Williams <williams.andrew@gmail.com>
-Date:   Sun Jan 25 12:53:34 2015 -0600
+commit 96c91fa9dbc9327b5a9526c9c3ccc1a5c5694cb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 17 11:56:29 2015 -0400
 
-    syscall: relocate linux death signal code
+    cmd/internal/gc: add String methods to *Mpint, *Mpflt, *Node, *NodeList, *Sym, *Type
     
-    Fix bug on Linux SysProcAttr handling: setting both Pdeathsig and
-    Credential caused Pdeathsig to be ignored. This is because the kernel
-    clears the deathsignal field when performing a setuid/setgid
-    system call.
+    The next CL will remove unnecessary conv calls.
     
-    Avoid this by moving Pdeathsig handling after Credential handling.
-    
-    Fixes #9686
-    
-    Change-Id: Id01896ad4e979b8c448e0061f00aa8762ca0ac94
-    Reviewed-on: https://go-review.googlesource.com/3290
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0e8dbd1756cdec1ef6095ae67629cd3fae0fb4a4
+    Reviewed-on: https://go-review.googlesource.com/9031
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/syscall/exec_linux.go         |  40 +++++------
- src/syscall/syscall_linux_test.go | 140 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 160 insertions(+), 20 deletions(-)
+ src/cmd/internal/gc/fmt.go      | 16 ++++++++++++++++
+ src/cmd/internal/gc/mparith2.go |  4 ++++
+ src/cmd/internal/gc/mparith3.go |  4 ++++
+ 3 files changed, 24 insertions(+)

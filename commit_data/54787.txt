@@ -1,21 +1,23 @@
-commit 57322b3cbf1ed26c3b19c6edcd5758c794a36467
+commit 37ca171ce79a86924b7db4dd07b1e7760cfed4fc
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 18 17:30:31 2023 -0700
+Date:   Tue Nov 8 15:08:48 2022 -0800
 
-    debug/elf: return error in DynString for invalid dynamic section size
+    net: rewrite nsswitch.conf parsing to work like other parsers
     
-    No test case because the problem can only happen for invalid data.
-    Let the fuzzer find cases like this.
+    Seems simpler than having two different parsing mechanisms.
     
-    Fixes #63610
-    
-    Change-Id: I797b4d9bdb08286ad3e3a9a6f800ee8c90cb7261
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536400
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I4f8468bc025f8e03f59ec9c79b17721581b64eed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448855
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/debug/elf/file.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/net/conf_test.go | 52 +++++++++++++++++++++++++++-----------------
+ src/net/nss.go       | 61 ++++++++++++++++++++++++++--------------------------
+ src/net/nss_test.go  |  7 ++++--
+ src/net/parse.go     | 50 +++++++++++-------------------------------
+ 4 files changed, 81 insertions(+), 89 deletions(-)

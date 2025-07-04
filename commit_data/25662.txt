@@ -1,16 +1,16 @@
-commit bdc3db0b0c4044ed396238fb7e01574988a14aad
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Jan 19 20:47:59 2016 +0100
+commit 0b314e1af98689443772ff3b9ee00db3fced94d0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 12 15:33:23 2015 +0000
 
-    doc: update install from source instructions for go1.5.3
+    net/http: add method constants
     
-    Fixes #14020
+    Fixes #12078
     
-    Change-Id: I454c2613912a7efcb464c6e6f3ac2e0ec89fb719
-    Reviewed-on: https://go-review.googlesource.com/18750
+    Change-Id: Ia8738123b07ca29be4a0cf400ee143729c8b5b3c
+    Reviewed-on: https://go-review.googlesource.com/16860
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/install-source.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/method.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

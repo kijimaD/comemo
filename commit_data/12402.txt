@@ -1,12 +1,21 @@
-commit 195ccd5dacad9604e0630d3aa160ecd496dce6db
+commit d4e138328525341c9893f51255add19276960bb9
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Mar 6 10:07:08 2012 +0900
+Date:   Tue Mar 6 09:43:45 2012 +0900
 
-    net: fix windows build
+    net: improve server and file tests
     
-    R=golang-dev, bradfitz
+    * Splits into three server tests.
+      - TestStreamConnServer for tcp, tcp4, tcp6 and unix networks
+      - TestSeqpacketConnServer for unixpacket networks
+      - TestDatagramPacketConnServer for udp, udp4, udp6 and unixgram networks
+    * Adds both PacketConn and Conn test clients to datagram packet conn tests.
+    * Fixes wildcard listen test cases on dual IP stack platform.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5755045
+    https://golang.org/cl/5701066
 
- src/pkg/net/file_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/pkg/net/file_test.go    | 102 +++++++--
+ src/pkg/net/server_test.go  | 541 +++++++++++++++++++++++++++++++-------------
+ src/pkg/net/timeout_test.go |  39 ++--
+ 3 files changed, 490 insertions(+), 192 deletions(-)

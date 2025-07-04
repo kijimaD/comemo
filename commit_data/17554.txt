@@ -1,31 +1,26 @@
-commit fa4984d535b23c0d2b14650a8842d63083893af3
+commit 397ba2cb4a10ec5e383f1df7617b4b8bccf8dfab
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 11:59:19 2013 -0400
+Date:   Wed Sep 11 11:30:08 2013 -0400
 
-    runtime: show runtime.panic frame in traceback
+    cmd/cgo: replace C.malloc with our own wrapper
     
-    Otherwise, if panic starts running deferred functions,
-    the code that panicked appears to be calling those
-    functions directly, which is not the case and can be
-    confusing.
+    This allows us to make two changes:
     
-    For example:
+    1. Force the argument type to be size_t, even on broken
+       systems that declare malloc to take a ulong.
     
-    main.Two()
-            /Users/rsc/x.go:12 +0x2a
-    runtime.panic(0x20dc0, 0x2100cc010)
-            /Users/rsc/g/go/src/pkg/runtime/panic.c:248 +0x106
-    main.One()
-            /Users/rsc/x.go:8 +0x55
+    2. Call runtime.throw if malloc fails.
+       (That is, the program crashes; it does not panic.)
     
-    This makes clear(er) that main.Two is being called during
-    a panic, not as a direct call from main.One.
-    
-    Fixes #5832.
+    Fixes #3403.
+    Fixes #5926.
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13302051
+    https://golang.org/cl/13413047
 
- src/pkg/runtime/symtab.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/cgo/ast.go        |  7 +++++++
+ src/cmd/cgo/main.go       |  2 +-
+ src/cmd/cgo/out.go        | 40 ++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/cgocall.c |  2 ++
+ 4 files changed, 48 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 20721e5c79a24137f4e9921fd4a894936afeb373
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 8 14:51:39 2024 -0400
+
+    runtime: fix eagerly typo
+    
+    Change-Id: I3150e2d0b9f5590c6da95392b0b51df94b8c20eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584338
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

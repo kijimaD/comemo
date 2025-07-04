@@ -1,17 +1,16 @@
-commit 8f82bff545ed7d1f432038b7ad97e46c4bb5cf77
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Nov 16 20:06:11 2012 +0400
+commit aaf3b71288ac09953932025898a694300eab58cf
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Nov 16 19:33:59 2012 +1100
 
-    runtime: hide mheap from race detector
-    This significantly decreases amount of shadow memory
-    mapped by race detector.
-    I haven't tested on Windows, but on Linux it reduces
-    virtual memory size from 1351m to 330m for fmt.test.
-    Fixes #4379.
+    crypto/tls: add support for loading EC X.509 key pairs
     
-    R=golang-dev, alex.brainman, iant
+    Add support for loading X.509 key pairs that consist of a certificate
+    with an EC public key and its corresponding EC private key.
+    
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/6849057
+    https://golang.org/cl/6776043
 
- src/pkg/runtime/race.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/crypto/tls/tls.go      | 72 ++++++++++++++++++++++++++++++------------
+ src/pkg/crypto/tls/tls_test.go | 64 +++++++++++++++++++++++++++++++------
+ 2 files changed, 107 insertions(+), 29 deletions(-)

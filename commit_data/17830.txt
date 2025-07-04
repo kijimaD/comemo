@@ -1,15 +1,12 @@
-commit c8ddfd9ad179b03e565ad33bda13a75aa9be3ed0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 22 18:33:23 2013 -0400
+commit 580ea8b5fdea04f0bcfc809a6545a7ebced8c358
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Oct 22 12:35:04 2013 -0400
 
-    cmd/cgo: use __typeof__, -w instead of typeof, -Wno-all
+    misc/emacs: handle empty "import ()" in go-goto-imports
     
-    Suggested by iant in earlier CL.
-    
-    R=golang-dev, bradfitz, iant
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/14920052
+    https://golang.org/cl/14454058
 
- src/cmd/cgo/doc.go | 16 ++++++++--------
- src/cmd/cgo/gcc.go | 14 +++++++-------
- 2 files changed, 15 insertions(+), 15 deletions(-)
+ misc/emacs/go-mode.el | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,40 @@
+commit 180ea45566d19e60aa2d660f6139b7f6e18ff56b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 16:06:23 2024 -0400
+
+    runtime/coverage: remove uses of //go:linkname
+    
+    Move code to internal/coverage/cfile, making it possible to
+    access directly from testing/internal/testdeps, so that we can
+    avoid needing //go:linkname hacks.
+    
+    For #67401.
+    
+    Change-Id: I10b23a9970164afd2165e718ef3b2d9e86783883
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585820
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/internal/load/test.go                   | 42 ++------------
+ src/go/build/deps_test.go                          |  7 ++-
+ .../coverage => internal/coverage/cfile}/apis.go   | 37 ++----------
+ .../coverage => internal/coverage/cfile}/emit.go   | 21 ++++---
+ .../coverage/cfile}/emitdata_test.go               |  8 +--
+ .../coverage => internal/coverage/cfile}/hooks.go  | 10 ++--
+ .../coverage/cfile}/testdata/harness.go            |  0
+ .../coverage/cfile}/testdata/issue56006/repro.go   |  0
+ .../cfile}/testdata/issue56006/repro_test.go       |  0
+ .../coverage/cfile}/testdata/issue59563/repro.go   |  0
+ .../cfile}/testdata/issue59563/repro_test.go       |  0
+ .../coverage/cfile}/testsupport.go                 | 22 ++------
+ .../coverage/cfile}/ts_test.go                     | 12 ++--
+ src/runtime/coverage/coverage.go                   | 66 ++++++++++++++++++++++
+ src/runtime/coverage/dummy.s                       |  8 ---
+ src/runtime/covercounter.go                        |  4 +-
+ src/runtime/covermeta.go                           |  8 +--
+ src/testing/internal/testdeps/deps.go              | 31 ++++++++++
+ src/testing/newcover.go                            | 10 ++--
+ src/testing/testing.go                             |  6 ++
+ 20 files changed, 160 insertions(+), 132 deletions(-)

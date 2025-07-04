@@ -1,22 +1,12 @@
-commit 27d0a731a28636a6bcc70943466f57a161e0a104
+commit cb375ffbb091a67c2bd17c994bd1f3526f3a0c35
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 30 19:54:36 2011 -0700
+Date:   Sat Apr 30 19:54:08 2011 -0700
 
-    mime/multipart: fix regression from previous ReadSlice change
-    
-    The previous change to make multipart use ReadSlice out of
-    paranoia broke multipart to not deal with large lines in
-    the bodies.
-    
-    We should only be paranoid about long lines in the header
-    sections.
-    
-    Fixes http://code.google.com/p/camlistore/issues/detail?id=4
+    http: new error for reading a body after it's been closed
     
     R=adg
     CC=golang-dev
-    https://golang.org/cl/4432083
+    https://golang.org/cl/4433094
 
- src/pkg/mime/multipart/multipart.go      | 197 +++++++++++++++----------------
- src/pkg/mime/multipart/multipart_test.go | 125 ++++++++++++++++----
- 2 files changed, 194 insertions(+), 128 deletions(-)
+ src/pkg/http/transfer.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

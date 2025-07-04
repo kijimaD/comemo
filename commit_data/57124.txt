@@ -1,16 +1,16 @@
-commit ed31d642cb3465ad9cf5d891285ea82948e26026
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Wed Aug 7 20:14:30 2024 +0300
+commit 82e17c4d11296b0444c94b3f7527e79f2e82a8d6
+Author: Christopher Taylor <ccmtaylor@gmail.com>
+Date:   Thu Jun 22 07:32:37 2023 +0000
 
-    fmt: remove ineffective else branch in test
+    log/slog: fix broken link to Record.Clone in package docs
     
-    Change-Id: I8e47266e8b3fb2f2ae07455b317de58dfcdd8016
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603536
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If8b937fa9db89a537ad7d4ccb8c04f84d2cff3db
+    GitHub-Last-Rev: fdd4338118e6e19a0a3673f364afcdb0b60236a4
+    GitHub-Pull-Request: golang/go#60938
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505075
+    TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/fmt/fmt_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/log/slog/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

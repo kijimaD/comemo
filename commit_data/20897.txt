@@ -1,13 +1,13 @@
-commit f07ea227eec5fb99d8b6b22ac099692474126831
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 17 11:27:53 2014 +1100
+commit ffa5e5f7fc51e791427468ebe00a6479191430d7
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Sat Oct 25 10:30:14 2014 -0700
 
-    misc/makerelease: use release-branch.go1.4 for tools and tour
+    cmd/go: pass $CGO_LDFLAGS to linker with the "gccgo" toolchain.
     
-    TBR=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/175870043
+    LGTM=iant
+    R=iant, minux
+    CC=golang-codereviews, golang-dev
+    https://golang.org/cl/157460043
 
- misc/makerelease/makerelease.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go | 1 +
+ 1 file changed, 1 insertion(+)

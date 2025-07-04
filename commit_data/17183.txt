@@ -1,22 +1,14 @@
-commit 39a7017c26eeb1b5514ca6b756e1c7eede170e6b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Aug 13 20:00:58 2013 +0900
+commit d1b66439f91377bceee1dd190a0be6c8367f7268
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 14:14:24 2013 +0400
 
-    net: make deadline helpers join to netFD as its methods
+    runtime: eliminate excessive notewakeup calls in timers
+    If the timer goroutine is wakeup by timeout,
+    other goroutines will still notewakeup because sleeping is still set.
     
-    Just for readability reasons; to prevent overlooking deadline stuff
-    across over platforms.
-    
-    R=golang-dev, dvyukov
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8656044
+    https://golang.org/cl/12763043
 
- src/pkg/net/fd_plan9.go        |  6 +++---
- src/pkg/net/fd_poll_runtime.go | 12 ++++++------
- src/pkg/net/fd_poll_unix.go    | 14 +++++++-------
- src/pkg/net/net.go             |  6 +++---
- src/pkg/net/sock_posix.go      |  4 ++--
- src/pkg/net/tcpsock_plan9.go   |  2 +-
- src/pkg/net/tcpsock_posix.go   |  2 +-
- src/pkg/net/unixsock_posix.go  |  2 +-
- 8 files changed, 24 insertions(+), 24 deletions(-)
+ src/pkg/runtime/time.goc | 1 +
+ 1 file changed, 1 insertion(+)

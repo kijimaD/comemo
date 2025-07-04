@@ -1,12 +1,13 @@
-commit 4855c1c14589de01140087f93ecbd9153c9b1a8b
+commit 87b315a78f91447f072a1a37a4b40ebb38475d01
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Dec 5 15:26:18 2012 +1100
+Date:   Wed Dec 5 15:13:03 2012 +1100
 
-    net: change windows netFD finalizer to behave similar to unix
+    net: add missing close socket code
     
-    R=dave, mikioh.mikioh
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6873046
+    https://golang.org/cl/6868067
 
- src/pkg/net/fd_windows.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_windows.go   | 5 +++--
+ src/pkg/net/timeout_test.go | 1 +
+ 2 files changed, 4 insertions(+), 2 deletions(-)

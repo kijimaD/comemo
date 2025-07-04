@@ -1,26 +1,18 @@
-commit 2b39e418be9d70e8933a7e598555a11188c7bd6d
+commit f08acae76e8a66a5fe245fd5c6948de8add04257
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Feb 26 09:51:33 2013 -0800
+Date:   Tue Feb 26 09:25:46 2013 -0800
 
-    all: clean up C function prototypes
+    build: do not set GOBIN on Plan 9
     
-    R=minux.ma, rsc, akumar, bradfitz
+    Also, I synced the rc files with changes
+    that have been made to make.bash, etc.
+    
+    R=seed, rminnich, r
     CC=golang-dev
-    https://golang.org/cl/7313070
+    https://golang.org/cl/7389049
 
- src/cmd/dist/windows.c                |  3 ++-
- src/cmd/ld/dwarf.c                    |  6 ++++--
- src/cmd/prof/main.c                   |  3 ++-
- src/lib9/main.c                       |  4 +++-
- src/lib9/utf/rune.c                   |  3 ++-
- src/lib9/windows.c                    | 12 ++++++++----
- src/libmach/sym.c                     |  3 ++-
- src/pkg/runtime/cgo/gcc_freebsd_arm.c | 16 +++++++++++++---
- src/pkg/runtime/cgo/gcc_linux_arm.c   | 16 +++++++++++++---
- src/pkg/runtime/cgo/gcc_netbsd_arm.c  | 16 +++++++++++++---
- src/pkg/runtime/cpuprof.c             |  4 +++-
- src/pkg/runtime/race0.c               |  2 +-
- src/pkg/runtime/signal_freebsd_arm.c  |  3 ++-
- src/pkg/runtime/signal_linux_arm.c    |  3 ++-
- src/pkg/runtime/vdso_linux_amd64.c    | 12 +++++++++---
- 15 files changed, 79 insertions(+), 27 deletions(-)
+ src/all.rc           |  2 ++
+ src/cmd/dist/plan9.c |  6 ------
+ src/make.rc          | 20 +++++++++++++-------
+ src/run.rc           | 19 ++++++++++++++++---
+ 4 files changed, 31 insertions(+), 16 deletions(-)

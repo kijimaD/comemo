@@ -1,19 +1,32 @@
-commit 50452720ba8a582d24870bfe0b4d1a97e6652f4f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 8 13:05:01 2012 -0400
+commit 072e36d5ef1d51f70b446e6f5b141595e1108ebd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Jun 8 13:13:02 2012 +1000
 
-    regexp/syntax: unexport ErrUnexpectedParen
+    cmd/5c, cmd/5g, cmd/5l: fix cross compilation failure on darwin
     
-    This new error is the only API change in the current draft of
-    Go 1.0.2 CLs. I'd like to include the CL that introduced it,
-    because it replaces a mysterious 'internal error' with a
-    useful error message, but I don't want any API changes,
-    so unexport the error constant for now. It can be
-    re-exported for Go 1.1.
+    Fixes #3708.
     
-    R=golang-dev, r
+    The fix to allow 5{c,g,l} to compile under clang 3.1 broke cross
+    compilation on darwin using the Apple default compiler on 10.7.3.
+    
+    This failure was introduced in 9b455eb64690.
+    
+    This has been tested by cross compiling on darwin/amd64 to linux/arm using
+    
+    * gcc version 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.1.00)
+    * clang version 3.1 (branches/release_31)
+    
+    As well as on linux/arm using
+    
+    * gcc version 4.6.3 (Ubuntu/Linaro 4.6.3-1ubuntu5)
+    * Ubuntu clang version 3.0-6ubuntu3 (tags/RELEASE_30/final) (based on LLVM 3.0)
+    * Debian clang version 3.1-4 (branches/release_31) (based on LLVM 3.1)
+    
+    R=consalus, rsc
     CC=golang-dev
-    https://golang.org/cl/6294055
+    https://golang.org/cl/6307058
 
- src/pkg/regexp/syntax/parse.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/5c/list.c | 2 +-
+ src/cmd/5g/list.c | 2 +-
+ src/cmd/5l/list.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

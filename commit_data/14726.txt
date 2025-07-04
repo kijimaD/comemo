@@ -1,15 +1,14 @@
-commit 4b7c2dfcea6568f4f9c5d9b0aadd205821e6f7d3
-Author: Emil Hessman <c.emil.hessman@gmail.com>
-Date:   Sat Dec 22 13:41:01 2012 -0500
+commit 1cad1f8d1c605e527422b569e9daabc60c66f936
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 13:36:39 2012 -0500
 
-    testing: fix example test fd leak
+    fmt: document width and flags a bit more
     
-    Close the read side of the pipe.
-    Fixes #4551.
+    Fixes #4581.
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6962049
+    https://golang.org/cl/7000052
 
- src/pkg/testing/example.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/fmt/doc.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

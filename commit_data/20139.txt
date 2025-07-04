@@ -1,16 +1,14 @@
-commit 0eaea6010ae65bc37f19f6f99ae328eef48abf2d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Aug 26 05:39:04 2014 +0000
+commit c6442c994a1976a2fecd01af1d26c925eb03c8a1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 19 08:07:58 2014 -0700
 
-    runtime: convert int64tofloat64, uint64tofloat64 to Go
+    cmd/6a, cmd/8a: document AJxx condition codes
     
-    I noticed that 5g doesn't flush the float64 result back to the stack, hence the change in the function signature. I'm wondering if I should also change the signature for the other two functions.
-    
-    LGTM=rsc
-    R=minux, josharian, rsc
+    LGTM=ruiu, rsc
+    R=rsc, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/132990044
+    https://golang.org/cl/130870043
 
- src/pkg/runtime/vlrt.go    | 26 +++++++++++++++++++++-----
- src/pkg/runtime/vlrt_arm.c | 14 --------------
- 2 files changed, 21 insertions(+), 19 deletions(-)
+ src/cmd/6a/lex.c | 34 +++++++++++++++++-----------------
+ src/cmd/8a/lex.c | 34 +++++++++++++++++-----------------
+ 2 files changed, 34 insertions(+), 34 deletions(-)

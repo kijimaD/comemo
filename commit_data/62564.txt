@@ -1,0 +1,20 @@
+commit 12ea4f7785f27c322a657aa1ead7efc692a351dd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Mar 12 15:14:44 2025 -0400
+
+    doc/next: add release note for new toolchain line behavior
+    
+    The go command will now no longer update the toolchain line implicitly
+    to the local toolchain version when updating the go line. Document that
+    in a release note.
+    
+    For #65847
+    
+    Change-Id: I4e970d881a43c22292fe9fa65a9835d0214ef7bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657178
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/3-tools.md | 6 ++++++
+ 1 file changed, 6 insertions(+)

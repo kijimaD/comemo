@@ -1,37 +1,17 @@
-commit 82629da828d43f2ce2a57dc1e1534d8235974ad0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 3 21:00:58 2023 +0000
+commit 346698eea71139280e3b3380554371b5d332ce02
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 26 15:09:34 2022 -0700
 
-    Revert "crypto/sha256: add WriteString and WriteByte method"
+    doc/go1.19: add release notes for net/http and net/url
     
-    This reverts CL 481478
+    For #51400
     
-    Reason for revert: can cause cgo errors when using boringcrypto.
-    See #59954.
-    
-    For #38776
-    For #59954
-    
-    Change-Id: Ic520f9fede152d22ab69996ad84c44f3e0d783bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492356
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I6412132db79074eef7d2cb3d66456c48b0d745a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408877
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/crypto/internal/boring/sha.go        | 14 --------
- src/crypto/sha256/sha256.go              | 59 +++++---------------------------
- src/crypto/sha256/sha256_test.go         | 33 +-----------------
- src/crypto/sha256/sha256block.go         |  2 +-
- src/crypto/sha256/sha256block_386.s      |  6 ++--
- src/crypto/sha256/sha256block_amd64.s    | 14 ++++----
- src/crypto/sha256/sha256block_arm64.go   | 18 ++--------
- src/crypto/sha256/sha256block_arm64.s    |  8 ++---
- src/crypto/sha256/sha256block_decl.go    | 12 +------
- src/crypto/sha256/sha256block_generic.go |  4 ---
- src/crypto/sha256/sha256block_ppc64x.s   |  8 ++---
- src/crypto/sha256/sha256block_s390x.go   |  9 +----
- src/crypto/sha256/sha256block_s390x.s    |  8 ++---
- 13 files changed, 38 insertions(+), 157 deletions(-)
+ doc/go1.19.html | 38 +++++++++++++++++++++++++++++++-------
+ 1 file changed, 31 insertions(+), 7 deletions(-)

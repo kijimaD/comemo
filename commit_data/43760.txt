@@ -1,43 +1,38 @@
-commit a2d01473aec0e9d19ff31bb9727dcc350d500e56
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Nov 3 13:12:19 2020 -0500
+commit 681ba4307781a1f1581bda3c52255186e4b79546
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 21 15:59:11 2020 -0700
 
-    cmd/go: support cgo files in overlays
+    cmd/compile: move fixVariadicCall from walk to order
     
-    This is a roll-forward of golang.org/cl/267197, which was reverted in
-    golang.org/cl/267357. It makes the following changes in addition to
-    the ones in the next paragraph: It avoids outputting trimpath
-    arguments for an overlay unless the overlay affects the package being
-    compiled (to avoid hitting windows command line argument limits), and
-    it fixes processing of regexps in the script test framework to treat
-    the first *non flag* argument to grep, stdout, and stderr as a regexp,
-    not just the first argument.
+    This CL moves fixVariadicCall from mid-Walk of function calls to
+    early-Order, in preparation for moving it even earlier in the future.
     
-    golang.org/cl/267917 was a roll-forward of golang.org/cl/262618, which
-    was reverted in golang.org/cl/267037. The only differences between
-    this CL and the original were the three calls to fflush from the C
-    files in build_overlay.txt, to guarantee that the string we were
-    expecting was
-    actually written out.
+    Notably, rewriting variadic calls this early introduces two
+    compilation output changes:
     
-    The CL requires rewriting the paths of the files passed to the cgo
-    tool toolchain to use the overlaid paths instead of the disk paths of
-    files. Because the directories of the overlaid paths don't exist in
-    general, the cgo tool have been updated to run in base.Cwd instead of
-    the package directory.
+    1. Previously, Order visited the ODDDARG before the rest of the
+    arguments list, whereas the natural time to visit it is at the end of
+    the list (as we visit arguments left-to-right, and the ... argument is
+    the rightmost one). Changing this ordering permutes the autotmp
+    allocation order, which in turn permutes autotmp naming and stack
+    offsets.
     
-    For #39958
+    2. Previously, Walk separately walked all of the variadic arguments
+    before walking the entire slice literal, whereas the more natural
+    thing to do is just walk the entire slice literal. This triggers
+    slightly different code paths for composite literal construction in
+    some cases.
     
-    Change-Id: I1bd96db257564bcfd95b3502aeca14d04bd28618
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267797
-    Trust: Michael Matloob <matloob@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Neither of these have semantic impact. They simply mean we're now
+    compiling f(a,b,c) the same way as we were already compiling
+    f([]T{a,b,c}...).
+    
+    Change-Id: I40ccc5725697a116370111ebe746b2639562fe87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229601
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/internal/work/exec.go                  | 48 +++++++++++--
- src/cmd/go/internal/work/gc.go                    | 45 ++++++++++--
- src/cmd/go/testdata/script/build_overlay.txt      | 83 ++++++++++++++++++++++-
- src/cmd/go/testdata/script/build_trimpath_cgo.txt | 28 ++++++++
- 4 files changed, 189 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 29 ++++++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go  | 15 +++++----------
+ 2 files changed, 21 insertions(+), 23 deletions(-)

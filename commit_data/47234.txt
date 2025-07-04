@@ -1,19 +1,27 @@
-commit 747e4afe0756cefd4281ba77855c6666e07beabf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 3 18:06:42 2021 -0700
+commit 2e794c2bb1302af764670dba894bbfe537bd63f0
+Author: Alexey Vilenski <bynovhack@gmail.com>
+Date:   Fri Mar 5 11:37:54 2021 +0000
 
-    cmd/compile/internal/types2: remove qualification from type parameter strings
+    testing: add TB.Setenv
     
-    This is a clean port of CL 360938 from go/types to types2.
+    Add a new method TB.Setenv that'll set environment variables
+    only for the isolated lifetime of the test, and will clean up
+    and unset these variables when the test ends.
+    This method disables the test or benchmark from running in
+    parallel.
     
-    For #49215.
+    Fixes #41260
     
-    Change-Id: If20779c862b71641cb6afe4c281fbad5488a8abe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361266
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I0a18f094ec1c6ec3157b4b12993ea3075e2e9867
+    GitHub-Last-Rev: 0ca12fa565318f350b927e2ef94f3b4f792c75c2
+    GitHub-Pull-Request: golang/go#41857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260577
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
 
- src/cmd/compile/internal/types2/api_test.go      | 14 +++++++-------
- src/cmd/compile/internal/types2/builtins_test.go |  6 +++---
- src/cmd/compile/internal/types2/typestring.go    |  4 ----
- 3 files changed, 10 insertions(+), 14 deletions(-)
+ src/testing/testing.go      | 42 +++++++++++++++++++++++
+ src/testing/testing_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 125 insertions(+)

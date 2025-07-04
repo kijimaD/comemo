@@ -1,34 +1,15 @@
-commit f135c326402aaa757aa96aad283a91873d4ae124
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Aug 4 13:09:29 2016 -0400
+commit 6531fab06fc4667b7d167c7e3ee936f28bac68e2
+Author: Tal Shprecher <tshprecher@gmail.com>
+Date:   Tue Apr 12 22:29:34 2016 -0700
 
-    runtime: initialize hash algs before typemap
+    cmd/compile: remove unnecessary assignments while type checking.
     
-    When compiling with -buildmode=shared, a map[int32]*_type is created for
-    each extra module mapping duplicate types back to a canonical object.
-    This is done in the function typelinksinit, which is called before the
-    init function that sets up the hash functions for the map
-    implementation. The result is typemap becomes unusable after
-    runtime initialization.
-    
-    The fix in this CL is to move algorithm init before typelinksinit in
-    the runtime setup process. (For 1.8, we may want to turn typemap into
-    a sorted slice of types and use binary search.)
-    
-    Manually tested on GOOS=linux with:
-    
-            GOHOSTARCH=386 GOARCH=386 ./make.bash && \
-                    go install -buildmode=shared std && \
-                    cd ../test && \
-                    go run run.go -linkshared
-    
-    Fixes #16590
-    
-    Change-Id: Idc08c50cc70d20028276fbf564509d2cd5405210
-    Reviewed-on: https://go-review.googlesource.com/25469
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ica0ec84714d7f01d800d62fa10cdb08321d43cf3
+    Reviewed-on: https://go-review.googlesource.com/21967
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/alg.go  | 2 +-
- src/runtime/proc.go | 3 ++-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 6 ------
+ 1 file changed, 6 deletions(-)

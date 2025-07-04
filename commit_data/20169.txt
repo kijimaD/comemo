@@ -1,24 +1,17 @@
-commit 6179aca54825867db3ab15bfff28fbda73e49378
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 28 10:46:59 2014 -0400
+commit 84b70df44c0092d1ce395cf22049d1e3af194c12
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Aug 22 18:36:01 2014 +1000
 
-    runtime: convert runtime1.goc, noasm_arm.goc to Go
+    misc/nacl: fix build
+    
+    Add gofmt.go and gofmt_test.go as they are part of the test data set.
+    
+    See CL 130440043.
     
     LGTM=dvyukov
-    R=golang-codereviews, bradfitz, dvyukov
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/135070043
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/132820044
 
- src/pkg/runtime/asm_386.s      |   2 +-
- src/pkg/runtime/asm_amd64.s    |   2 +-
- src/pkg/runtime/asm_amd64p32.s |   2 +-
- src/pkg/runtime/debug.go       |  26 +++++++--
- src/pkg/runtime/error.go       |   5 +-
- src/pkg/runtime/extern.go      |  69 ++++++++++++++++++++++--
- src/pkg/runtime/noasm_arm.go   |  54 +++++++++++++++++++
- src/pkg/runtime/noasm_arm.goc  |  74 --------------------------
- src/pkg/runtime/runtime.c      |   7 +++
- src/pkg/runtime/runtime1.goc   | 116 -----------------------------------------
- src/pkg/runtime/stubs.goc      |   5 ++
- src/pkg/runtime/thunk.s        |   6 +++
- 12 files changed, 167 insertions(+), 201 deletions(-)
+ misc/nacl/testzip.proto | 2 ++
+ 1 file changed, 2 insertions(+)

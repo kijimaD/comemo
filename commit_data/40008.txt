@@ -1,17 +1,17 @@
-commit 7fc2625ef16c9e271ca3016f761157ec082cc45a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 7 16:25:05 2019 -0700
+commit fda5e6d6fa7abfe974a58dfeeceb95a8165d1b63
+Author: Ahsun Ahmed <ahmed.ahsun@gmail.com>
+Date:   Thu Mar 21 22:45:49 2019 +0600
 
-    net/http: propagate Client.Timeout down into Request's context deadline
+    errors: return false if nil error is passed to As
     
-    Fixes #31657
+    Fixes #30970
     
-    Change-Id: I85e9595d3ea30d410f1f4b787925a6879a72bdf2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175857
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: I333676b55a2364e329fffeafca8fc57d45a0b84b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168598
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/client.go      | 90 +++++++++++++++++++++++++++++++++++----------
- src/net/http/client_test.go | 21 ++++++++++-
- 2 files changed, 90 insertions(+), 21 deletions(-)
+ src/errors/wrap.go      | 9 ++++-----
+ src/errors/wrap_test.go | 4 ++++
+ 2 files changed, 8 insertions(+), 5 deletions(-)

@@ -1,22 +1,12 @@
-commit 3039bff9d07ce05dc9af8c155c6929ae5e53a231
-Author: Tom Bergan <tombergan@google.com>
-Date:   Thu Nov 2 15:41:10 2017 -0700
+commit 03929984b9b473aa1c2e7f86c89a9c3624667d59
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 15 11:32:02 2017 -0400
 
-    net/http: clarify when it is safe to reuse a request
+    runtime: fix getclosureptr doc
     
-    The godoc for RoundTrip already specifies when it's ok to reuse a
-    request that contains a body: the caller must wait until RoundTrip
-    calls Close on Request.Body.
-    
-    This CL adds a small clarification: If the request does not have a
-    body, it can be reused as long as the caller does not mutate the
-    Request until RoundTrip fails or the Response.Body is closed.
-    
-    Fixes #19653
-    
-    Change-Id: I56652a9369978d11650e2e6314104831c2ce5e78
-    Reviewed-on: https://go-review.googlesource.com/75671
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1b42fca2107b06e6fc95728f7bf3d08d005c4cb4
+    Reviewed-on: https://go-review.googlesource.com/55810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/client.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

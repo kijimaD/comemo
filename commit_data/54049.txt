@@ -1,22 +1,17 @@
-commit 14a3ffc3d2165ef03c3ffd0037a4fa6dbb776026
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Jun 28 12:03:22 2023 +0700
+commit 0053ec452db5bd973c7ac9f4faa5041884e460e8
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Aug 25 22:08:10 2022 +0800
 
-    cmd/compile: use types2.Sizes instead of compiler own implementation
+    reflect: rtype.MethodByName using binary search
     
-    With #61035 fixed, types2.Sizes matches the compiler behavior, so use its
-    Sizes implementation instead of rolling our own copy.
-    
-    Updates #61035
-    
-    Change-Id: I7b9efd27a01f729a04c79cd6b4ee5f417fe6e664
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506716
+    Change-Id: If36e9fd7d6b1993ca2d0d382e7fa52212170c798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425481
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/noder/irgen.go |   3 +-
- src/cmd/compile/internal/noder/sizes.go | 185 --------------------------------
- 2 files changed, 2 insertions(+), 186 deletions(-)
+ src/reflect/all_test.go | 10 ++++++++++
+ src/reflect/type.go     | 22 ++++++++++++++++++----
+ 2 files changed, 28 insertions(+), 4 deletions(-)

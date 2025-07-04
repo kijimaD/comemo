@@ -1,37 +1,18 @@
-commit 96186a58e3ceb6bc3703f9dae0c37e2118a01b0d
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Jul 5 17:46:51 2018 +0100
+commit cceee685be4436c8fd417e9c248429b8625b978d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 15 11:15:22 2018 +0100
 
-    net/http: deflake TestServerShutdownStateNew
+    test/codegen: port floats tests to codegen
     
-    This function tests that calling Shutdown on a Server that has a "new"
-    connection yet to write any bytes, in which case it should wait for five
-    seconds until considering the connection as "idle".
+    And delete them from asm_test.
     
-    However, the test was flaky. If Shutdown happened to run before the
-    server accepted the connection, the connection would immediately be
-    rejected as the server is already closed, as opposed to being accepted
-    in the "new" state. Then, Shutdown would return almost immediately, as
-    it had no connections to wait for:
-    
-            --- FAIL: TestServerShutdownStateNew (2.00s)
-                serve_test.go:5603: shutdown too soon after 49.41µs
-                serve_test.go:5617: timeout waiting for Read to unblock
-    
-    Fix this by making sure that the connection has been accepted before
-    calling Shutdown. Verified that the flake is gone after 50k concurrent
-    runs of the test with no failures, whereas the test used to fail around
-    10% of the time on my laptop:
-    
-            go test -c && stress -p 256 ./http.test -test.run TestServerShutdownStateNew
-    
-    Fixes #26233.
-    
-    Change-Id: I819d7eedb67c48839313427675facb39d9c17257
-    Reviewed-on: https://go-review.googlesource.com/122355
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ibdaca3496eefc73c731b511ddb9636a1f3dff68c
+    Reviewed-on: https://go-review.googlesource.com/100915
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go | 95 ---------------------------------
+ test/codegen/arithmetic.go              |  3 +-
+ test/codegen/floats.go                  | 73 +++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 96 deletions(-)

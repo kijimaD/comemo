@@ -1,14 +1,24 @@
-commit 0bbb6665d85c1e80c3b479a4c00dc8a0a1b83ec8
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Sep 19 16:31:03 2017 +0900
+commit e6e6cad632f6192a146bbc586a62f2e34c96c2bf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 24 00:05:04 2017 +0000
 
-    cmd/go: fix file leak in TestBuildmodePIE
+    net/http: update bundled x/net/http2
     
-    Change-Id: Ifeb93f6dc75fb5f90d595211fb0f97a89bf74526
-    Reviewed-on: https://go-review.googlesource.com/64530
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This updates the bundled copy of x/net/http2 to x/net git rev a8e8f92cd6 for:
+    
+        http2: remove extra goroutine stack from awaitGracefulShutdown
+        https://golang.org/cl/43230
+    
+        http2: Discard DATA frames from the server after the response body is closed
+        https://golang.org/cl/43810
+    
+    Fixes #20302
+    Fixes #18471
+    Fixes #20448
+    
+    Change-Id: I00972836deb2fe6049f631ee44901732a641b171
+    Reviewed-on: https://go-review.googlesource.com/44006
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/cmd/go/go_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/http/h2_bundle.go | 237 ++++++++++++++++++++++++++++++----------------
+ 1 file changed, 157 insertions(+), 80 deletions(-)

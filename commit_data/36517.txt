@@ -1,18 +1,19 @@
-commit 225981f8e78b6755bbe34c2e5d035a534ed1b25d
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed Aug 29 03:24:13 2018 +0000
+commit 8b9ecbf374d2c8be1423c24a235d6e3ff8bafe15
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed May 2 19:48:04 2018 +0200
 
-    syscall: skip an unsupported test case on android
+    misc/ios: ensure deferred cleanup functions are run even on error
     
-    Lookup is not supported on android, and the test
-    syscall/exec_linux_test.go which relies on it will fail on
-    android/arm64.
+    log.Fatal exits the process and doesn't allow deferred functions
+    to run. Extract log.Fatal calls to main where all deferred functions
+    have completed.
     
-    Fixes #27327
+    For the iOS builder.
     
-    Change-Id: I6fdb8992d4634ac7e3689360ff114e9431b5e90c
-    Reviewed-on: https://go-review.googlesource.com/131995
+    Change-Id: Id1ef9955bed19944a819d6137a611d6ecbe624a6
+    Reviewed-on: https://go-review.googlesource.com/110955
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/exec_linux_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ misc/ios/go_darwin_arm_exec.go | 31 +++++++++++++++++--------------
+ 1 file changed, 17 insertions(+), 14 deletions(-)

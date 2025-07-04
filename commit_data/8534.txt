@@ -1,13 +1,12 @@
-commit a479bc8d02625534566dff96f096d4f29d916d38
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon May 30 10:55:37 2011 +1000
+commit 5d5d84f3df7f735563a411b5dc940bcf731bc771
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 30 10:48:08 2011 +1000
 
-    image/png: fix encoding of images that don't start at (0, 0).
+    gob: fix documentation on Decoder.Decode.
     
-    R=r
+    R=r, adg
     CC=golang-dev
-    https://golang.org/cl/4560049
+    https://golang.org/cl/4515159
 
- src/pkg/image/png/writer.go      | 74 ++++++++++++++++++++++------------------
- src/pkg/image/png/writer_test.go | 73 ++++++++++++++++++++++++++-------------
- 2 files changed, 90 insertions(+), 57 deletions(-)
+ src/pkg/gob/decoder.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,17 +1,43 @@
-commit 02ff646fef25769c7ba756fcdf03f13b7afbf4f3
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Jan 11 10:15:49 2011 -0500
+commit 4bdaf59cc9aab1f4bf6919460a2e9b50c023d3eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 10 15:34:29 2011 -0800
 
-    cgo: fix enum const conflict
+    godoc: support for regular expression full text search
     
-    This change prevents enum consts from conflicting with themselves
-    when loaded twice in different go files.
+    Regular expressions may now be used in conjuction with full text
+    search. Godoc will show the first 10000 occurences in the source
+    code and highlight the respective text segments.
     
-    Fixes #1400.
+    - added new flag -testDir to specify a small directory for testing
+      (fast index creation; default = "")
     
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/3849044
+    - use new FormatText function to format text and Go source
+      code in HTML, supporting multiple kinds of text selections
+      simulatenously); this replaces the uses of go/printer
+      Stylers
+    
+    - for now removed currently unused mechanism for identifier-
+      specific JS popups (will come back in some form once we
+      have type or other useful information)
+    
+    - various typo fixes and minor cleanups throughout
+    
+    Missing:
+    - indexing of non-.go files
+    
+    R=r, r2
+    CC=golang-dev, rsc
+    https://golang.org/cl/3699041
 
- src/cmd/cgo/gcc.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ doc/all.css              |  23 ++-
+ lib/godoc/search.html    |  21 +--
+ lib/godoc/search.txt     |   5 +-
+ lib/godoc/source.html    |  20 ---
+ src/cmd/godoc/Makefile   |   1 +
+ src/cmd/godoc/doc.go     |   2 +-
+ src/cmd/godoc/format.go  | 342 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/godoc/godoc.go   | 396 +++++++++++------------------------------------
+ src/cmd/godoc/index.go   | 128 +++++++++------
+ src/cmd/godoc/main.go    |  27 ++--
+ src/cmd/godoc/snippet.go |  32 +---
+ 11 files changed, 574 insertions(+), 423 deletions(-)

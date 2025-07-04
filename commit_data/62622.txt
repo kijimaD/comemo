@@ -1,0 +1,23 @@
+commit 1eb1579fba916efd48e81d0f8c9ad548e6c77de0
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Feb 13 16:38:08 2025 -0800
+
+    os: add Root.Lchown
+    
+    For #67002
+    
+    Change-Id: I1bbf18838a1dd2281a2b6e56fc8a58ef70007adc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649536
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/67002.txt                     |  1 +
+ doc/next/6-stdlib/99-minor/os/67002.md |  1 +
+ src/os/root.go                         |  6 +++
+ src/os/root_noopenat.go                | 10 +++++
+ src/os/root_openat.go                  | 10 +++++
+ src/os/root_unix.go                    |  6 +++
+ src/os/root_unix_test.go               | 77 ++++++++++++++++++++++++++++++++++
+ src/os/root_windows.go                 |  4 ++
+ 8 files changed, 115 insertions(+)

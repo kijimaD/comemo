@@ -1,15 +1,27 @@
-commit be93207c8f19a601551dd6021f13b3c964aa258a
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Thu Jan 19 09:34:37 2012 +1100
+commit f2030938522fae7c6b65569a20a7b9ed1431b8f8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 18 14:31:31 2012 -0800
 
-    image/color: rename modelYCbCr to yCbCrModel.
+    test: change several tests to not print
     
-    This matches the other color models. It seems that this was missed
-    during the review of 5544073.
+    This will make these tests more meaningful for gccgo, which
+    runs tests in parallel and has no equivalent to golden.out.
     
-    R=nigeltao, david.crawshaw
+    Remove ken/simpprint.go since it duplicates helloworld.go.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5536057
+    https://golang.org/cl/5536058
 
- src/pkg/image/color/ycbcr.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ test/fixedbugs/bug027.go | 23 ++++++++++++++++---
+ test/fixedbugs/bug070.go | 19 ++++++++++++----
+ test/golden.out          | 57 ------------------------------------------------
+ test/ken/cplx4.go        | 28 ++++++++++++++++++------
+ test/ken/label.go        |  2 --
+ test/ken/rob1.go         | 18 +++++++++------
+ test/ken/rob2.go         | 32 ++++++++++++++++-----------
+ test/ken/simpprint.go    | 13 -----------
+ test/ken/simpswitch.go   | 13 ++++++-----
+ test/peano.go            | 10 ++++++++-
+ test/turing.go           |  6 ++++-
+ 11 files changed, 108 insertions(+), 113 deletions(-)

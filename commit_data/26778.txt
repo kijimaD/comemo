@@ -1,14 +1,46 @@
-commit 1e7c61d8c3fc0916b73cb7411afa45e99b50aac4
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Mar 20 21:49:52 2016 -0400
+commit e0fa809f4cd219c04efb5b4d78250ab937589dca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 16:07:04 2016 -0800
 
-    math/big: add s390x function implementations
+    cmd/compile: rationalize (lex)?lineno handling
     
-    Change-Id: I2aadc885d6330460e494c687757f07c5e006f3b0
-    Reviewed-on: https://go-review.googlesource.com/20937
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Previously, many error messages inconsistantly used either lexlineno
+    and lineno.  In general this works out okay because they're almost
+    always the same.  The only exceptional case is after lexing a
+    multi-line raw string literal, where lineno will be the line number of
+    the opening quote and lexlineno is the line number of the closing
+    quote.
+    
+    This CL makes the compiler's error message more consistent:
+    
+    - Lexer error messages related to invalid byte sequences (i.e., NUL
+    bytes, bad UTF-8 sequences, and non-initial BOMs) are emitted at
+    lexlineno (i.e., the source line that contains the invalid byte
+    sequence).
+    
+    - All other error messages (notably the parser's "syntax errors") now
+    use lineno.  The minor change from this is that bogus input like:
+    
+        package `
+        bogus`
+    
+    will emit "syntax error: unexpected string literal, expecting name"
+    error at line 1, instead of line 2.
+    
+    - Instead of maintaining prevlineno all the time, just record it
+    when/where actually needed and not already available elsewhere (which
+    turns out to be just one function).
+    
+    - Lastly, we remove the legacy "syntax error near ..." fallback in
+    Yerror, now that the parser always emits more detailed syntax error
+    messages.
+    
+    Change-Id: Iaf5f784223d0385fa3a5b09ef2b2ad447feab02f
+    Reviewed-on: https://go-review.googlesource.com/19925
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/big/arith_s390x.s | 565 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 565 insertions(+)
+ src/cmd/compile/internal/gc/go.go     |  5 +++--
+ src/cmd/compile/internal/gc/lex.go    | 19 +++++++------------
+ src/cmd/compile/internal/gc/parser.go | 22 ++++++++++++----------
+ src/cmd/compile/internal/gc/subr.go   | 14 ++++----------
+ 4 files changed, 26 insertions(+), 34 deletions(-)

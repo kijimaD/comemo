@@ -1,24 +1,23 @@
-commit 6bc593805f2c2b0ef8b194cc186b804237744cb4
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Wed Mar 8 11:36:30 2017 +0200
+commit 03ca047dd334f6018f06f7fc9a7a4e2608b1f8d3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 12 17:57:35 2016 +1100
 
-    cmd/vet: eliminate "might be too small for shift" warnings
+    debug/pe: do not create symbol table if FileHeader.PointerToSymbolTable is 0
     
-    Determine int, uint and uintptr bit sizes from GOARCH environment
-    variable if it is set. Otherwise use host-specific sizes.
+    https://github.com/tpn/pdfs/raw/master/Microsoft Portable Executable and Common Object File Format Specification - 1999 (pecoff).doc
+    says this about PointerToSymbolTable:
     
-    Fixes #19321
+    File offset of the COFF symbol table or 0 if none is present.
     
-    Change-Id: I494b8e4b49b59d32794f50ff2ce06ba040cb8460
-    Reviewed-on: https://go-review.googlesource.com/37950
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Do as it says.
+    
+    Fixes #17809.
+    
+    Change-Id: Ib1ad83532f36a3e56c7e058dc9b2acfbf60c4e72
+    Reviewed-on: https://go-review.googlesource.com/33170
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/all/whitelist/32bit.txt |  16 ++++++
- src/cmd/vet/all/whitelist/64bit.txt |  26 ---------
- src/cmd/vet/all/whitelist/all.txt   |  18 ------
- src/cmd/vet/shift.go                |  16 ++++--
- src/cmd/vet/testdata/shift.go       | 111 +++++++++++++++++++++---------------
- src/cmd/vet/types.go                |   5 ++
- src/go/types/sizes.go               |   6 +-
- 7 files changed, 102 insertions(+), 96 deletions(-)
+ src/debug/pe/symbol.go | 3 +++
+ 1 file changed, 3 insertions(+)

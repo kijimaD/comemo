@@ -1,12 +1,26 @@
-commit 136f12f51fde69d5b0c89ec7a9cd9436c7b7535d
+commit 5b93fc9da67d59159e8c30494136c9761e350c1f
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 11:12:14 2012 -0500
+Date:   Wed Feb 8 10:33:54 2012 -0500
 
-    cmd/dist: pass -m32 or -m64 to link too, not just compile
+    runtime, pprof: add profiling of thread creation
     
-    R=golang-dev, iant
+    Same idea as heap profile: how did each thread get created?
+    Low memory (256 bytes per OS thread), high reward for
+    programs that suddenly have many threads running.
+    
+    Fixes #1477.
+    
+    R=golang-dev, r, dvyukov
     CC=golang-dev
-    https://golang.org/cl/5646053
+    https://golang.org/cl/5639059
 
- src/cmd/dist/build.c | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.c            |   6 +++
+ src/cmd/prof/pprof              | 103 ++++++++++++++++++++++++++++++----------
+ src/pkg/net/http/pprof/pprof.go |  16 ++++++-
+ src/pkg/runtime/Makefile        |  40 +---------------
+ src/pkg/runtime/debug.go        |  26 ++++++++++
+ src/pkg/runtime/mprof.goc       |  27 ++++++++++-
+ src/pkg/runtime/pprof/pprof.go  |  38 +++++++++++++++
+ src/pkg/runtime/proc.c          |  16 ++++---
+ src/pkg/runtime/runtime.h       |   1 +
+ 9 files changed, 198 insertions(+), 75 deletions(-)

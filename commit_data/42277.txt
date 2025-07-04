@@ -1,18 +1,18 @@
-commit 8627b4c9b50138c75cc7730af7f8db692d33451e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue May 5 13:12:01 2020 -0400
+commit 6657395adf3b709b8a196853d87e756288a5d8c8
+Merge: ab0a649d44 0ee22d97ad
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Nov 20 17:16:28 2019 -0500
 
-    cmd/compile: use ReadFull to read fingerprint
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    Don't fail on partial read.
+    Move the import in cipher_suites.go up where it's less likely to ever
+    conflict again, and remove the equivalent import from common.go, again
+    to reduce the likeliness of future conflicts.
     
-    May fix #38849.
-    
-    Change-Id: Icf075d454e1bfe9299b07eea47bbc4d448c3bd5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232317
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib05daba7ba6ce81f665a44185b53a6e083f7c693
 
- src/cmd/compile/internal/gc/iimport.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/crypto/tls/boring.go        |   4 ++
+ src/crypto/tls/cipher_suites.go | 145 +++++++++++++++++++++++++++++++++-------
+ src/crypto/tls/common.go        |   4 +-
+ src/crypto/tls/tls_test.go      |  84 +++++++++++++++++++++++
+ 4 files changed, 209 insertions(+), 28 deletions(-)

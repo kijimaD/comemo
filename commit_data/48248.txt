@@ -1,32 +1,19 @@
-commit bebe9aa42322f951fc3972c263648297bf9e04d4
-Author: chanxuehong <chanxuehong@gmail.com>
-Date:   Mon Feb 21 08:51:05 2022 +0000
+commit 731a015ab8c8f44c7196123fd65b184a63d6835a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 3 18:17:38 2021 -0400
 
-    go/token: slight performance improvement for IsIdentifier
+    internal/syscall/unix: use internal/abi.FuncPC for syscall wrapper
     
-    If name is empty or a keyword, we can skip the loop entirely.
-    Otherwise, we do the same amount of work as before.
+    Following CL 313230, this is for internal/syscall/unix package.
     
-    Here is the benchmark result for go/parser:
+    Updates #45702.
     
-    name          old time/op    new time/op    delta
-    Parse-12        2.53ms ± 2%    2.47ms ± 1%  -2.38%  (p=0.000 n=9+10)
-    ParseOnly-12    1.97ms ± 1%    1.93ms ± 2%  -1.80%  (p=0.000 n=10+10)
-    Resolve-12       560µs ± 1%     558µs ± 1%    ~     (p=0.200 n=9+8)
-    
-    name          old speed      new speed      delta
-    Parse-12      26.1MB/s ± 2%  26.8MB/s ± 1%  +2.44%  (p=0.000 n=9+10)
-    ParseOnly-12  33.6MB/s ± 1%  34.3MB/s ± 2%  +1.82%  (p=0.000 n=10+10)
-    Resolve-12     118MB/s ± 2%   119MB/s ± 1%    ~     (p=0.116 n=10+8)
-    
-    Change-Id: I87ac9c2637a6c0e697382b74245ac88ef523bba7
-    GitHub-Last-Rev: 036bc38d837c095dd5a8d97ece83e1596d875d3e
-    GitHub-Pull-Request: golang/go#48534
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351389
-    Trust: David Chase <drchase@google.com>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ie6d8c1923dfeae56896212393c5c2a6e257648d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316649
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/token/token.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/internal/syscall/unix/getentropy_darwin.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

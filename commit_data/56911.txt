@@ -1,34 +1,17 @@
-commit 7321aa91c6c7f4c7faa59819a2013971712eba84
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Jul 17 20:18:06 2024 +0000
+commit 077194538c7b35d27f8310e57ec4bf4d4a1a21fb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 30 15:36:16 2023 -0700
 
-    cmd: vendor golang.org/x/telemetry@0b706e1
+    doc/go1.21: reading from debug/pe uninitialized section fails
     
-    Update x/telemetry to fix problems caused by the file rotation timer.
+    For #47653
     
-    Commands run:
-      go get golang.org/x/telemetry@0b706e1
-      go mod tidy
-      go mod vendor
-    
-    Fixes golang/go#68497
-    
-    Change-Id: I29861ec89dfaaf260eb051eb23ab9251903b5ea8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598957
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id44c9dba58966f43f188030a53343d890a6ffde7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499419
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 ++--
- src/cmd/vendor/golang.org/x/telemetry/LICENSE      |  4 ++--
- .../golang.org/x/telemetry/counter/counter.go      | 17 +++++++++++--
- .../x/telemetry/counter/countertest/countertest.go |  3 +++
- .../x/telemetry/internal/counter/file.go           | 28 ++++++++++++++++++----
- .../x/telemetry/internal/telemetry/dir.go          |  6 ++---
- .../x/telemetry/internal/telemetry/types.go        |  6 ++---
- .../golang.org/x/telemetry/internal/upload/date.go |  2 +-
- .../x/telemetry/internal/upload/reports.go         |  2 +-
- .../x/telemetry/internal/upload/upload.go          |  6 ++---
- src/cmd/vendor/modules.txt                         |  2 +-
- 12 files changed, 58 insertions(+), 24 deletions(-)
+ doc/go1.21.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

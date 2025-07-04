@@ -1,13 +1,79 @@
-commit e4ac43b7f07379715cbed7355bc3710e709c34ef
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Sep 22 15:06:10 2011 +1000
+commit 35819729b83b8521e9ae1bddca5c368672777de5
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Wed Sep 21 21:38:40 2011 -0700
 
-    weekly.2011-09-21
+    exp/template/html: elide comments in template source.
     
-    R=golang-dev, dsymonds
+    When templates are stored in external files, developers often embed
+    comments to explain&|disable code.
+    
+      <!-- Oblique reference to project code name here -->
+      {{if .C}}...{{else}}<!-- commented out default -->{{end}}
+    
+    This unnecessarily increases the size of shipped HTML and can leak
+    information.
+    
+    This change elides all comments of the following types:
+    1. <!-- ... --> comments found in source.
+    2. /*...*/ and // comments found in <script> elements.
+    3. /*...*/ and // comments found in <style> elements.
+    
+    It does not elide /*...*/ or // comments found in HTML attributes:
+    4. <button onclick="/*...*/">
+    5. <div style="/*...*/">
+    
+    I can find no examples of comments in attributes in Closure Templates
+    code and doing so would require keeping track of character positions
+    post decode in
+    
+      <button onclick="/&#42;...*/">
+    
+    To prevent token joining, /*comments*/ are JS and CSS comments are
+    replaced with a whitespace char.
+    HTML comments are not, but to prevent token joining we could try to
+    detect cases like
+       <<!---->b>
+       </<!---->b>
+    which has a well defined meaning in HTML but will cause a validator
+    to barf.  This is difficult, and this is a very minor case.
+    I have punted for now, but if we need to address this case, the best
+    way would be to normalize '<' in stateText to '&lt;' consistently.
+    
+    The whitespace to replace a JS /*comment*/ with depends on whether
+    there is an embedded line terminator since
+        break/*
+        */foo
+        ...
+    is equivalent to
+        break;
+        foo
+        ...
+    while
+        break/**/foo
+        ...
+    is equivalent to
+        break foo;
+        ...
+    
+    Comment eliding can interfere with IE conditional comments.
+    http://en.wikipedia.org/wiki/Conditional_comment
+    
+    <!--[if IE 6]>
+    <p>You are using Internet Explorer 6.</p>
+    <![endif]-->
+    
+    /*@cc_on
+      document.write("You are using IE4 or higher");
+    @*/
+    
+    I have not encountered these in production template code, and
+    the typed content change in CL 4962067 provides an escape-hatch
+    if conditional comments are needed.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5075050
+    https://golang.org/cl/4999042
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ src/pkg/exp/template/html/escape.go      | 33 +++++++++++++++++++++++++++++++-
+ src/pkg/exp/template/html/escape_test.go | 29 ++++++++++++++--------------
+ 2 files changed, 46 insertions(+), 16 deletions(-)

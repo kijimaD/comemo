@@ -1,16 +1,29 @@
-commit 7722b3c86d4e254ecee4fe290f81a44ba7cc1a42
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 15 20:26:46 2022 +0200
+commit 61536ec03063b4951163bd09609c86d82631fa27
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Oct 14 13:02:01 2021 -0700
 
-    internal/syscall/unix: remove superfluous var declarations in {Unlink,Open}at
+    debug/macho: fail on invalid dynamic symbol table command
     
-    Change-Id: Id58e3aebf325433768675523bf34c0b7e0e34aea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431235
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fail out when loading a file that contains a dynamic symbol table
+    command that indicates a larger number of symbols than exist in the
+    loaded symbol table.
+    
+    Thanks to Burak Çarıkçı - Yunus Yıldırım (CT-Zer0 Crypttech) for
+    reporting this issue.
+    
+    Fixes #48990
+    Fixes CVE-2021-41771
+    
+    Change-Id: Ic3d6e6529241afcc959544b326b21b663262bad5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355990
+    Reviewed-by: Julie Qiu <julie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
 
- src/internal/syscall/unix/at.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/debug/macho/file.go                                          | 9 +++++++++
+ src/debug/macho/file_test.go                                     | 7 +++++++
+ .../macho/testdata/gcc-amd64-darwin-exec-with-bad-dysym.base64   | 1 +
+ 3 files changed, 17 insertions(+)

@@ -1,21 +1,18 @@
-commit 7ac756f74b1a7dfc984152d863b3e3c86f90b2c7
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Mon Jan 29 16:09:11 2018 -0500
+commit 35483c8e2540a4ba731ded6b9f19b2f5244fe4fa
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 6 12:55:20 2017 +1100
 
-    cmd/compile/internal/ssa: use math/bits for register sets
+    misc/cgo/testcshared: delete testp0.exe not testp0 file
     
-    Using bits.TrailingZeroes instead of iterating over each bit is a small
-    but easy win for the common case of only one or two registers being set.
+    Otherwise we end up with testp?.exe files after the tests run.
     
-    I copied in the implementation for use with pre-1.9 bootstraps.
+    Updates #11058
     
-    Change-Id: Ieaa768554d7d5239a5617fbf34f1ee0b32ce1de5
-    Reviewed-on: https://go-review.googlesource.com/92395
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ieccfc42da6192622bdab1f9a411ccd50bb59fd5b
+    Reviewed-on: https://go-review.googlesource.com/68770
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/bits_bootstrap.go | 24 ++++++++
- src/cmd/compile/internal/ssa/bits_go19.go      | 13 ++++
- src/cmd/compile/internal/ssa/debug.go          | 82 +++++++++++++++-----------
- 3 files changed, 85 insertions(+), 34 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

@@ -1,16 +1,18 @@
-commit 722b1abbcf842be5276c0d2ebde6aa076a4f4687
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 27 18:00:24 2019 -0700
+commit 60cf9ac7369ee4e7b12f3272132378cfc78b811d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 15:42:15 2018 -0700
 
-    runtime: fix TestLldbPython test with modules enabled
+    cmd/go: add cmpenv command to testing script language
     
-    Fixes #30751
+    This will be used by later commits in this sequence.
     
-    Change-Id: I1f783578df499d52eaec3690303671661c8bf5fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169725
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #28221
+    
+    Change-Id: I2b22b9f88a0183636cde9509606f03f079eb33f1
+    Reviewed-on: https://go-review.googlesource.com/c/147277
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/runtime-lldb_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/go/script_test.go         | 20 ++++++++++++++++++++
+ src/cmd/go/testdata/script/README |  4 ++++
+ 2 files changed, 24 insertions(+)

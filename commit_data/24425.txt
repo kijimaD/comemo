@@ -1,38 +1,48 @@
-commit dac220b0a9d561744b01196c53dd1775cfb5492c
-Author: Austin Clements <austin@google.com>
-Date:   Sat Sep 26 12:31:59 2015 -0400
+commit 2a5e6c47bc2e56296204aa721dec90804bee1501
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 23 14:35:02 2015 -0700
 
-    runtime: remove in-use page count loop from STW
+    [dev.ssa] cmd/compile/internal/ssa: redo how sign extension is handled
     
-    In order to compute the sweep ratio, the runtime needs to know how
-    many pages belong to spans in state _MSpanInUse. Currently it finds
-    this out by looping over all spans during mark termination. However,
-    this takes ~1ms/heap GB, so multi-gigabyte heaps can quickly push our
-    STW time past 10ms.
+    For integer types less than a machine register, we have to decide
+    what the invariants are for the high bits of the register.  We used
+    to set the high bits to the correct extension (sign or zero, as
+    determined by the type) of the low bits.
     
-    Replace the loop with an actively maintained count of in-use pages.
+    This CL makes the compiler ignore the high bits of the register
+    altogether (they are junk).
     
-    For multi-gigabyte heaps, this reduces max mark termination pause time
-    by 75%–90% relative to tip and by 85%–95% relative to Go 1.5.1. This
-    shifts the longest pause time for large heaps to the sweep termination
-    phase, so it only slightly decreases max pause time, though it roughly
-    halves mean pause time. Here are the results for the garbage
-    benchmark:
+    On this plus side, this means ops that generate subword results don't
+    have to worry about correctly extending them.  On the minus side,
+    ops that consume subword arguments have to deal with the input
+    registers not being correctly extended.
     
-                   ---- max mark termination pause ----
-    Heap   Procs   after change   before change   1.5.1
-    24GB     12        1.9ms          18ms         37ms
-    24GB      4        3.7ms          18ms         37ms
-     4GB      4        920µs         3.8ms        6.9ms
+    For x86, this tradeoff is probably worth it.  Almost all opcodes
+    have versions that use only the correct subword piece of their
+    inputs.  (The one big exception is array indexing.)  Not many opcodes
+    can correctly sign extend on output.
     
-    Fixes #11484.
+    For other architectures, the tradeoff is probably not so clear, as
+    they don't have many subword-safe opcodes (e.g. 16-bit compare,
+    ignoring the high 16/48 bits).  Fortunately we can decide whether
+    we do this per-architecture.
     
-    Change-Id: Ia2d28bb8a1e4f1c3b8ebf79fb203f12b9bf114ac
-    Reviewed-on: https://go-review.googlesource.com/15070
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For the machine-independent opcodes, we pretend that the "register"
+    size is equal to the type width, so sign extension is immaterial.
+    Opcodes that care about the signedness of the input (e.g. compare,
+    right shift) have two different variants.
+    
+    Change-Id: I465484c5734545ee697afe83bc8bf4b53bd9df8d
+    Reviewed-on: https://go-review.googlesource.com/12600
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mgc.go   | 13 ++++---------
- src/runtime/mheap.go |  8 ++++++++
- 2 files changed, 12 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 189 +++++-
+ src/cmd/compile/internal/ssa/config.go         |   5 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   | 107 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   4 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |   2 -
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  50 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 197 +++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 800 ++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  46 --
+ 9 files changed, 707 insertions(+), 693 deletions(-)

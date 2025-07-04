@@ -1,20 +1,18 @@
-commit 0fec65d281af8932ce8da946faa55884f2427cfc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 29 08:40:37 2022 -0400
+commit b2d826c09f0f73cd9dc0022a2b052543e8bf4c06
+Author: emahiro <ema.hiro@gmail.com>
+Date:   Thu Oct 21 18:01:10 2021 +0900
 
-    os/exec: add a GODEBUG setting to diagnose leaked processes
+    internal/cache: document 'go clean -fuzzcache' in README
     
-    Updates #52580.
-    For #50436.
+    Fixes: #48900
     
-    Change-Id: I669f13863f1f85d576c3c94500b118e6989000eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436655
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I9235441886ed7cbdfdcbd283480f52d9216c3ea2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357233
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
 
- src/os/exec/dot_test.go  |  2 +-
- src/os/exec/exec.go      | 42 ++++++++++++++++++++++++++++++++++++++++++
- src/os/exec/exec_test.go | 15 +++++++++++++++
- 3 files changed, 58 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/cache/default.go | 1 +
+ 1 file changed, 1 insertion(+)

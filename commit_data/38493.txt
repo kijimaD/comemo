@@ -1,52 +1,48 @@
-commit 03a79e94ac72f2425a6da0b399dc2f660cf295b6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 11 20:21:27 2019 -0700
+commit 7f9984535995fc90556bd18d73b43b4bad744c99
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue May 29 07:26:17 2018 +0100
 
-    testing: stop rounding b.N
+    crypto/md5: simplify generic implementation
     
-    The original goal of rounding to readable b.N
-    was to make it easier to eyeball times.
-    However, proper analysis requires tooling
-    (such as benchstat) anyway.
+    This change uses library functions such as bits.RotateLeft32 to
+    reduce the amount of code needed in the generic implementation.
+    Since the code is now shorter I've also removed the option to
+    generate a non-unrolled version of the code.
     
-    Instead, take b.N as it comes.
-    This will reduce the impact of external noise
-    such as GC on benchmarks.
+    I've also tried to remove bounds checks where possible to make
+    the new version performant, however that is not the primary goal
+    of this change since most architectures have assembly
+    implementations already.
     
-    This requires reworking our iteration estimates.
-    We used to calculate the estimated ns/op
-    and then divide our target ns by that estimate.
-    However, this order of operations was destructive
-    when the ns/op was very small; rounding could
-    hide almost an order of magnitude of variation.
-    Instead, multiply first, then divide.
-    Also, make n an int64 to avoid overflow.
+    Assembly performance:
     
-    Prior to this change, we attempted to cap b.N at 1e9.
-    Due to rounding up, it was possible to get b.N as high as 2e9.
-    This change consistently enforces the 1e9 cap.
+    name                 old speed      new speed      delta
+    Hash8Bytes           50.3MB/s ± 1%  59.1MB/s ± 0%  +17.63%  (p=0.000 n=9+8)
+    Hash1K                590MB/s ± 0%   597MB/s ± 0%   +1.25%  (p=0.000 n=9+9)
+    Hash8K                636MB/s ± 1%   638MB/s ± 1%     ~     (p=0.072 n=10+10)
+    Hash8BytesUnaligned  50.5MB/s ± 0%  59.1MB/s ± 1%  +17.09%  (p=0.000 n=10+10)
+    Hash1KUnaligned       589MB/s ± 1%   596MB/s ± 1%   +1.23%  (p=0.000 n=9+10)
+    Hash8KUnaligned       638MB/s ± 1%   640MB/s ± 0%   +0.35%  (p=0.002 n=10+10)
     
-    This change also reduces the wall time required to run benchmarks.
+    Pure Go performance:
     
-    Here's the impact of this change on the wall time to run
-    all benchmarks once with benchtime=1s on some std packages:
+    name                 old speed      new speed      delta
+    Hash8Bytes           30.3MB/s ± 1%  42.8MB/s ± 0%  +41.20%  (p=0.000 n=9+9)
+    Hash1K                364MB/s ± 4%   394MB/s ± 1%   +8.27%  (p=0.000 n=10+10)
+    Hash8K                404MB/s ± 1%   420MB/s ± 0%   +4.17%  (p=0.000 n=10+9)
+    Hash8BytesUnaligned  30.3MB/s ± 1%  42.8MB/s ± 1%  +40.92%  (p=0.000 n=9+10)
+    Hash1KUnaligned       368MB/s ± 0%   394MB/s ± 0%   +7.07%  (p=0.000 n=9+9)
+    Hash8KUnaligned       404MB/s ± 1%   411MB/s ± 3%   +1.91%  (p=0.026 n=9+10)
     
-    name           old time/op       new time/op       delta
-    bytes                 306s ± 1%         238s ± 1%  -22.24%  (p=0.000 n=10+10)
-    encoding/json         112s ± 8%          99s ± 7%  -11.64%  (p=0.000 n=10+10)
-    net/http             54.7s ± 7%        44.9s ± 4%  -17.94%  (p=0.000 n=10+9)
-    runtime               957s ± 1%         714s ± 0%  -25.38%  (p=0.000 n=10+9)
-    strings               262s ± 1%         201s ± 1%  -23.27%  (p=0.000 n=10+10)
-    [Geo mean]            216s              172s       -20.23%
-    
-    Updates #24735
-    
-    Change-Id: I7e38efb8e23c804046bf4fc065b3f5f3991d0a15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/112155
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I9a91fb52ea8d62964d5351bdf121e9fbc9282852
+    Reviewed-on: https://go-review.googlesource.com/c/137355
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go         |  4 +--
- src/testing/benchmark.go      | 71 +++++++++++++------------------------------
- src/testing/benchmark_test.go | 51 -------------------------------
- src/testing/export_test.go    |  6 +---
- 4 files changed, 24 insertions(+), 108 deletions(-)
+ src/crypto/md5/gen.go              | 195 +++++++--------------
+ src/crypto/md5/md5.go              | 100 +++++------
+ src/crypto/md5/md5block.go         | 347 +++++++++++--------------------------
+ src/crypto/md5/md5block_decl.go    |   2 +
+ src/crypto/md5/md5block_generic.go |   2 +
+ 5 files changed, 213 insertions(+), 433 deletions(-)

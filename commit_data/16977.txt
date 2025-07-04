@@ -1,13 +1,15 @@
-commit bd0a14fe4090ae2deb5dfe004ff5413ac259dc35
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 1 17:24:24 2013 +0400
+commit ffb62d58a3b5cb560afa3950ccf80f1a5ae2394a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 1 17:36:45 2013 +1000
 
-    testing: say what was the timeout if it fires
-    It looks reasonable here and may be useful.
+    doc: remove jquery.js and style.css
     
-    R=golang-dev, r
+    Somehow missed these. Moved to go.tools/cmd/godoc/template.
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/12252043
+    https://golang.org/cl/12234043
 
- src/pkg/testing/testing.go | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ doc/jquery.js |   2 -
+ doc/style.css | 538 ----------------------------------------------------------
+ 2 files changed, 540 deletions(-)

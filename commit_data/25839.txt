@@ -1,14 +1,50 @@
-commit e34295e64782d61725377e8d0979114bd790b47f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Feb 23 02:14:32 2016 -0800
+commit 937172b247b20ee5d3bbdf345f72748e42b7460d
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Oct 20 01:37:06 2015 -0700
 
-    cmd/compile: use path.Join in importfile
+    regexp: add Copy method to Regexp
     
-    Change-Id: Ib413b0cb16405965455d7764a8c4a22bf431389b
-    Reviewed-on: https://go-review.googlesource.com/19850
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    This helps users who wish to use separate Regexps in each goroutine to
+    avoid lock contention. Previously they had to parse the expression
+    multiple times to achieve this.
+    
+    I used variants of the included benchmark to evaluate this change. I
+    used the arguments -benchtime 20s -cpu 1,2,4,8,16 on a machine with 16
+    hardware cores.
+    
+    Comparing a single shared Regexp vs. copied Regexps, we can see that
+    lock contention causes huge slowdowns at higher levels of parallelism.
+    The copied version shows the expected linear speedup.
+    
+    name              old time/op  new time/op  delta
+    MatchParallel      366ns ± 0%   370ns ± 0%   +1.09%   (p=0.000 n=10+8)
+    MatchParallel-2    324ns ±28%   184ns ± 1%  -43.37%  (p=0.000 n=10+10)
+    MatchParallel-4    352ns ± 5%    93ns ± 1%  -73.70%   (p=0.000 n=9+10)
+    MatchParallel-8    480ns ± 3%    46ns ± 0%  -90.33%    (p=0.000 n=9+8)
+    MatchParallel-16   510ns ± 8%    24ns ± 6%  -95.36%   (p=0.000 n=10+8)
+    
+    I also compared a modified version of Regexp that has no mutex and a
+    single machine (the "RegexpForSingleGoroutine" rsc mentioned in
+    https://github.com/golang/go/issues/8232#issuecomment-66096128).
+    
+    In this next test, I compared using N copied Regexps vs. N separate
+    RegexpForSingleGoroutines. This shows that, even for this relatively
+    simple regex, avoiding the lock entirely would only buy about 10-12%
+    further improvement.
+    
+    name              old time/op  new time/op  delta
+    MatchParallel      370ns ± 0%   322ns ± 0%  -12.97%    (p=0.000 n=8+8)
+    MatchParallel-2    184ns ± 1%   162ns ± 1%  -11.60%  (p=0.000 n=10+10)
+    MatchParallel-4   92.7ns ± 1%  81.1ns ± 2%  -12.43%  (p=0.000 n=10+10)
+    MatchParallel-8   46.4ns ± 0%  41.8ns ±10%   -9.78%   (p=0.000 n=8+10)
+    MatchParallel-16  23.7ns ± 6%  20.6ns ± 1%  -13.14%    (p=0.000 n=8+8)
+    
+    Updates #8232.
+    
+    Change-Id: I15201a080c363d1b44104eafed46d8df5e311902
+    Reviewed-on: https://go-review.googlesource.com/16110
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/regexp/all_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/regexp/regexp.go   | 11 +++++++++++
+ 2 files changed, 53 insertions(+)

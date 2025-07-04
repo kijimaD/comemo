@@ -1,26 +1,19 @@
-commit 94ddb2d6217e3d031cfacb8eed68786df9227bf1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 6 15:40:04 2019 -0500
+commit 32b9e568d8c28e63a8f1d93e69b57794350de159
+Author: Stefan Baebler <sbaebler@outbrain.com>
+Date:   Wed Aug 7 14:16:59 2019 +0000
 
-    cmd/go/internal/modload: revert duplicate path suppression in modload.ImportMissingError
+    net/url: fail TestParseErrors test when getting an unwanted error
     
-    CL 210338 suppressed duplication for import paths mentioned in an
-    ImportMissingError.
+    The TestParseErrors test function was not strict with unwanted errors
+    received from url.Parse(). It was not failing in such cases, now it does.
     
-    Unfortunately, that broke one of the cases in
-    cmd/go/internal/modload.TestImport, and the new error message is still
-    kind of awkward anyway.
-    
-    Let's revert that part of the change — we can try again with more
-    coverage for that case.
-    
-    Updates #35986
-    
-    Change-Id: Ib0858aec4f89a7231e32c35ec876da80d80f2098
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210342
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I18a26a68c1136f5c762989a76e04b47e33dd35f1
+    GitHub-Last-Rev: c33f9842f7908f27012859e25caa79388cc2785a
+    GitHub-Pull-Request: golang/go#32954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185080
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modload/import.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/net/url/url_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

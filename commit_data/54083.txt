@@ -1,25 +1,18 @@
-commit 243c8c0eec20d981d8e76a3aac82f97cca991571
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Jun 22 11:44:55 2023 -0700
+commit 88a6a4d1ba75c01fcc7ab8b2b5c6108c36eb92b9
+Author: Kevin Chen <kevin@chenbc.me>
+Date:   Thu Sep 22 14:45:52 2022 +0000
 
-    encoding: require unique alphabet for base32 and base64
+    cmd/compile/internal/syntax: remove TypeList syntax in comment
     
-    In order for decoding to faithfully reproduce the encoded input,
-    the symbols must be unique (i.e., provide a bijective mapping).
-    Thus, reject duplicate symbols in NewEncoding.
-    
-    As a minor optimization, modify WithPadding to use the decodeMap
-    to quickly check whether the padding character is used in O(1)
-    instead of O(32) or O(64).
-    
-    Change-Id: I5631f6ff9335c35d59d020dc0e307e3520786fbc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520335
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: Ic4df6a8e198b069a9f3a28710fa40f29bd658b06
+    GitHub-Last-Rev: 51040eb5e53f4cf0238cb0b7876d1ee612a924ef
+    GitHub-Pull-Request: golang/go#55345
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432795
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/base32/base32.go | 38 ++++++++++++++++++++++++--------------
- src/encoding/base64/base64.go | 38 ++++++++++++++++++++------------------
- 2 files changed, 44 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

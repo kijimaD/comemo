@@ -1,13 +1,20 @@
-commit 52943bfe4d1a85e64e35a5c1173ce04ae2b98bb6
+commit 814075dffba9c3f906d9ba641e787a35289a2f86
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 22 18:23:29 2011 -0500
+Date:   Tue Feb 22 18:23:14 2011 -0500
 
-    gc: require if condition
+    test: do not depend on implicit if condition
     
-    R=ken2, r2
+    Deleted test/ken/robif.go because test/if.go is
+    the same program modulo formatting.
+    
+    R=golang-dev, gri, r2
     CC=golang-dev
-    https://golang.org/cl/4195045
+    https://golang.org/cl/4186068
 
- src/cmd/gc/go.y   |  9 +++++++--
- test/syntax/if.go | 15 +++++++++++++++
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ test/fixedbugs/bug001.go | 11 ------
+ test/fixedbugs/bug140.go |  4 +-
+ test/fixedbugs/bug219.go | 12 +++---
+ test/if.go               | 12 ------
+ test/if1.go              | 20 ----------
+ test/ken/robif.go        | 97 ------------------------------------------------
+ 6 files changed, 8 insertions(+), 148 deletions(-)

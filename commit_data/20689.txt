@@ -1,13 +1,18 @@
-commit c689abd56c05c34922f6390ac835719c4a48065a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Oct 10 13:12:32 2014 +1100
+commit a6abe22eb6f85f1df9d0f34da82b45ef11759815
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 12:31:18 2014 -0400
 
-    net: link skipped TestReadFromUDP to the issue
+    compress/*: note that NewReader may introduce buffering
     
-    LGTM=minux
-    R=bradfitz, minux
-    CC=golang-codereviews
-    https://golang.org/cl/154220043
+    Fixes #8309.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/147380043
 
- src/net/udp_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/bzip2/bzip2.go   | 2 ++
+ src/compress/flate/inflate.go | 8 +++++---
+ src/compress/gzip/gunzip.go   | 3 ++-
+ src/compress/lzw/reader.go    | 2 ++
+ 4 files changed, 11 insertions(+), 4 deletions(-)

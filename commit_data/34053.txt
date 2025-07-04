@@ -1,20 +1,25 @@
-commit 4c4ce3dc79fcf535045e69068b15142d8b7259cd
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Feb 12 20:13:33 2018 +0000
+commit 6f1724ff415a85b3329806c0c9a3e5e46afac317
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 27 20:14:54 2017 -0700
 
-    all: restore changes from faulty merge/revert
+    reflect: fix method indexing for non-ASCII exported methods
     
-    This reverts commit 3b6abd8a4501d816e80b4d46e6fda4df486ccb66.
+    Currently, methods are sorted by name. This happens to guarantee that
+    exported ASCII methods appear before non-exported ASCII methods, but
+    this breaks down when Unicode method names are considered.
     
-    Change-Id: I8ca100501c1844af78a547989786d14dac6b494a
-    Reviewed-on: https://go-review.googlesource.com/93456
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Type.Method already accounts for this by always indexing into the
+    slice returned by exportedMethods. This CL makes Value.Method do the
+    same.
+    
+    Fixes #22073.
+    
+    Change-Id: I9bfc6bbfb7353e0bd3c439a15d1c3da60d16d209
+    Reviewed-on: https://go-review.googlesource.com/66770
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- .github/PULL_REQUEST_TEMPLATE |  7 -------
- CONTRIBUTING.md               |  5 -----
- README.md                     |  7 +++----
- doc/devel/release.html        | 13 +++++++++++++
- doc/diagnostics.html          |  2 +-
- doc/go1.10.html               |  3 ++-
- src/cmd/fix/cftype.go         |  2 +-
- 7 files changed, 20 insertions(+), 19 deletions(-)
+ src/reflect/all_test.go | 16 ++++++++++++++++
+ src/reflect/value.go    | 12 ++++++------
+ 2 files changed, 22 insertions(+), 6 deletions(-)

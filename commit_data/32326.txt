@@ -1,22 +1,17 @@
-commit 0d65cd6c1c2b9bebb461e34b365e2de8ed375592
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Aug 5 20:03:32 2017 +0900
+commit 1368977a0869c408c8b001bc4142e5b73267f8c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 19 15:15:49 2017 -0700
 
-    cmd/internal/obj/x86: don't apply workaround for solaris to darwin
+    cmd/compile/internal/types: remove Sym.Link field
     
-    Currently, we have a workaround for solaris that enforce aboslute
-    addressing for external symbols. However, We don't want to use the
-    workaround for darwin.
-    This CL also refactors code a little bit, because the original function
-    name is not appropriate now.
+    The dclstack is now a proper stack and thus we can implement it
+    using a slice rather than a linked list.
     
-    Updates #17490
-    
-    Change-Id: Id21f9cdf33dca6a40647226be49010c2c324ee24
-    Reviewed-on: https://go-review.googlesource.com/54871
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I200e85621ff76c111bdeb7eb382fd82da438f3ba
+    Reviewed-on: https://go-review.googlesource.com/41135
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types/scope.go       | 50 ++++++++-------------------
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/sym.go         |  1 -
+ 3 files changed, 16 insertions(+), 37 deletions(-)

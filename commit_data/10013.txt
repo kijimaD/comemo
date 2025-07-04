@@ -1,12 +1,20 @@
-commit 6989b0db60d71d487bab914ef7e0e93d23caaa68
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Oct 18 10:43:22 2011 +1100
+commit df219d5197cb1e6fe3be7383466dfcf5d755b24f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 17 16:35:12 2011 -0700
 
-    doc: document release.r60.3
+    scanner: invalidate scanner.Position when no token is present
     
-    R=golang-dev, dsymonds
+    scanner.Position is the position of the most recently
+    scanned token. Make sure it is invalid if there is no
+    token scanned and update corresponding comment. This
+    is particularly important when reporting errors.
+    
+    Fixes #2371.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5267049
+    https://golang.org/cl/5294041
 
- doc/devel/release.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/scanner/scanner.go      | 18 ++++++++++++++----
+ src/pkg/scanner/scanner_test.go | 15 ++++++---------
+ 2 files changed, 20 insertions(+), 13 deletions(-)

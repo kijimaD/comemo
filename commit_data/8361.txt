@@ -1,19 +1,21 @@
-commit 70798eaad622d3bae5b7637df7f06d90a8a6923a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 11 23:59:36 2011 -0400
+commit 4fca3953210ded1ff08e0c1681c027b620c206b2
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed May 11 23:52:05 2011 -0400
 
-    5l, 8l: add ELF symbol table to binary
+    ld: fix alignment of rodata section on Plan 9
     
-    Should have been added long ago.
-    Thanks to Alex Brainman for noticing.
+    This was causing a panic in the reflect package
+    since type.* pointers with their low bits set are
+    assumed to have certain flags set that disallow
+    the use of reflection.
     
-    R=ken2
+    Thanks to Pavel and Taru for help tracking down
+    this bug.
+    
+    R=rsc, paulzhol, taruti
     CC=golang-dev
-    https://golang.org/cl/4538046
+    https://golang.org/cl/4511041
 
- src/cmd/5l/asm.c | 68 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
- src/cmd/6l/l.h   |  3 ---
- src/cmd/8l/asm.c | 62 ++++++++++++++++++++++++++++++++++++---------------
- src/cmd/ld/elf.h |  4 ++++
- src/cmd/ld/lib.h |  1 +
- 5 files changed, 111 insertions(+), 27 deletions(-)
+ src/cmd/8l/obj.c  | 2 +-
+ src/cmd/ld/data.c | 4 +---
+ 2 files changed, 2 insertions(+), 4 deletions(-)

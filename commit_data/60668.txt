@@ -1,0 +1,22 @@
+commit 6d7760cb4292bd156193fb2a3e377f24637f8795
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Aug 13 13:47:47 2024 +0000
+
+    log/slog: implement encoding.TextAppender for Level and LevelVar
+    
+    For #62384
+    
+    Change-Id: I10df580ef966e497ff8da4efde6dd6ce1ccb17b4
+    GitHub-Last-Rev: 5ad8e2e0473ff509b48e525f6c7328f6281766a3
+    GitHub-Pull-Request: golang/go#68855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605056
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/62384.txt                           |  2 ++
+ doc/next/6-stdlib/99-minor/log/slog/62384.md |  1 +
+ src/log/slog/level.go                        | 20 +++++++++++++++----
+ src/log/slog/level_test.go                   | 30 ++++++++++++++++++++++++++++
+ 4 files changed, 49 insertions(+), 4 deletions(-)

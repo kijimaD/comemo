@@ -1,18 +1,20 @@
-commit 0324a3f828d3a2f48751df2bbd54ad20499e598a
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed Jun 8 16:11:44 2016 +0000
+commit 0c81248bf46f611b56e3ab38b4d83e449b3c8636
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 6 18:43:23 2016 +1000
 
-    runtime/cgo: restore the g pointer correctly in crosscall_s390x
+    runtime: remove unused return value from lfstackUnpack
     
-    R13 needs to be set to g because C code may have clobbered R13.
+    None of the two places that call lfstackUnpack use the second argument.
+    This simplifies a followup CL that merges the lfstack{Pack,Unpack}
+    implementations.
     
-    Fixes #16006.
-    
-    Change-Id: I66311fe28440e85e589a1695fa1c42416583b4c6
-    Reviewed-on: https://go-review.googlesource.com/23910
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3c93f6259da99e113d94f8c8027584da79c1ac2c
+    Reviewed-on: https://go-review.googlesource.com/21595
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgo/gcc_s390x.S | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/lfstack.go       | 4 ++--
+ src/runtime/lfstack_32bit.go | 6 ++----
+ src/runtime/lfstack_64bit.go | 6 ++----
+ src/runtime/lfstack_amd64.go | 6 ++----
+ 4 files changed, 8 insertions(+), 14 deletions(-)

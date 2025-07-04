@@ -1,33 +1,15 @@
-commit a24b3ed7538dd2eb013005fb1e153468f486857a
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Feb 20 22:54:15 2016 -0500
+commit 5b085482ae8792cf751371991488d29e7bd3762f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 18 14:30:12 2015 -0500
 
-    cmd/compile: remove rtype *uncommonType field
+    cmd/go: ignore XML errors after Go <meta> tags
     
-    Instead of a pointer on every rtype, use a bit flag to indicate that
-    the contents of uncommonType directly follows the rtype value when it
-    is needed.
+    Fixes #13683.
     
-    This requires a bit of juggling in the compiler's rtype encoder. The
-    backing arrays for fields in the rtype are presently encoded directly
-    after the slice header. This packing requires separating the encoding
-    of the uncommonType slice headers from their backing arrays.
-    
-    Reduces binary size of godoc by ~180KB (1.5%).
-    No measurable change in all.bash time.
-    For #6853.
-    
-    Change-Id: I60205948ceb5c0abba76fdf619652da9c465a597
-    Reviewed-on: https://go-review.googlesource.com/19790
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I26afb3ac346beb95624f9032d94a29b5bc7853ef
+    Reviewed-on: https://go-review.googlesource.com/18051
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 108 ++++++++++++++++++-----------
- src/cmd/link/internal/ld/decodesym.go  |  35 ++++++----
- src/reflect/type.go                    | 120 ++++++++++++++++++++++++++-------
- src/runtime/heapdump.go                |   4 +-
- src/runtime/iface.go                   |   5 +-
- src/runtime/mfinal.go                  |   2 +-
- src/runtime/type.go                    |  70 ++++++++++++++++++-
- 7 files changed, 260 insertions(+), 84 deletions(-)
+ src/cmd/go/discovery.go | 2 +-
+ src/cmd/go/pkg_test.go  | 9 +++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

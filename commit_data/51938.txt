@@ -1,22 +1,22 @@
-commit 1bd0405b8fc4b2c308927df0803475e83542dd78
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Feb 6 14:27:06 2023 +0700
+commit 3dac99ad4cdc7014343bcbddf01aca2d9e7a4e96
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 23 12:22:50 2022 -0700
 
-    test: add test for issue 58345
+    cmd/compile: simplify fingerprint logic
     
-    CL 458619 fixed the problem un-intentionally, so adding test to prevent
-    regression happening.
+    Historically, we sometimes recorded imports based on either package
+    path ("net/http") or object file path ("net/http.a"). But modern Go
+    build systems always use package path, and the extra ".a" suffix
+    doesn't mean anything anyway.
     
-    Updates #58345
-    
-    Change-Id: I80cf60716ef85e142d769e8621fce19c826be03d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465455
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I6060ef8bafa324168710d152a353f4d8db062133
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395254
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- test/fixedbugs/issue58345.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/compile/internal/noder/import.go | 10 +-----
+ src/cmd/link/internal/ld/ld.go           | 53 ++++++++++----------------------
+ test/fixedbugs/bug369.go                 | 12 +++++---
+ 3 files changed, 24 insertions(+), 51 deletions(-)

@@ -1,21 +1,20 @@
-commit ce9ddd0eeec50d88950f0a51c44a071b3a92d7e9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 14:18:52 2013 -0400
+commit fdaf88ea5b7a3bc937e68875d55b5741ecb2f092
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 11 09:01:47 2013 -0700
 
-    runtime: keep args and frame in struct Func
+    cmd/yacc: replace units example with simpler expr example
     
-    args is useful for printing tracebacks.
+    The units example is nice but is covered by the Lucent
+    license, which may be a concern for some people making a
+    commercial source code distribution of Go.
     
-    frame is not necessary anymore, but we might some day
-    get back to functions where the frame size does not vary
-    by program counter, and if so we'll need it. Avoid needing
-    to introduce a new struct format later by keeping it now.
-    
-    Fixes #5907.
-    
-    R=golang-dev, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13632051
+    https://golang.org/cl/13283045
 
- src/pkg/runtime/runtime.h | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/yacc/Makefile  |   8 +-
+ src/cmd/yacc/doc.go    |   6 +-
+ src/cmd/yacc/expr.y    | 205 +++++++++++++
+ src/cmd/yacc/units.txt | 576 -------------------------------------
+ src/cmd/yacc/units.y   | 768 -------------------------------------------------
+ 5 files changed, 211 insertions(+), 1352 deletions(-)

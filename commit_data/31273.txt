@@ -1,17 +1,17 @@
-commit e516227554a355ed3bb66e433057cab84e92085c
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 21 15:42:53 2017 -0400
+commit 06637fb3146cd7fd19efc7463cd9d2c0006bff67
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 27 14:14:05 2017 -0500
 
-    runtime/debug: increase threshold on TestSetGCPercent
+    text/template: fix method lookup on addressable nil pointer
     
-    Currently TestSetGCPercent checks that NextGC is within 10 MB of the
-    expected value. For some reason it's much noisier on some of the
-    builders. To get these passing again, raise the threshold to 20 MB.
+    Fixes #18816.
     
-    Change-Id: I14e64025660d782d81ff0421c1eb898f416e11fe
-    Reviewed-on: https://go-review.googlesource.com/41374
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I4f8f1cac2680dbde492c56d3a5a038577605e7c1
+    Reviewed-on: https://go-review.googlesource.com/36542
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/debug/garbage_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/text/template/exec.go      | 2 +-
+ src/text/template/exec_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

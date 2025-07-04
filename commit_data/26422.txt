@@ -1,43 +1,14 @@
-commit 060a6915d4e3277e8b7d4345c5677a0c02799f5a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Mar 19 18:17:58 2016 -0700
+commit 445c6855fc65d144d32330c130fde91c774368ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 21 16:36:36 2016 -0800
 
-    cmd/compile: remove most of the Lookupf users and garbage
+    cmd/compile: remove unused (dead) fields
     
-    Introduce garbage-free LookupN to replace most users of Lookupf.
-    
-    Also, remove the string interning from LookupBytes which was hurting
-    more than helping.
-    
-    name       old alloc/op    new alloc/op    delta
-    Template      63.0MB ± 0%     62.7MB ± 0%  -0.48%         (p=0.000 n=10+9)
-    Unicode       43.0MB ± 0%     43.0MB ± 0%  -0.17%         (p=0.000 n=10+7)
-    GoTypes        219MB ± 0%      218MB ± 0%  -0.14%        (p=0.000 n=10+10)
-    Compiler       992MB ± 0%      991MB ± 0%  -0.12%        (p=0.000 n=10+10)
-    
-    name       old allocs/op   new allocs/op   delta
-    Template        683k ± 0%       681k ± 0%  -0.38%         (p=0.000 n=10+8)
-    Unicode         541k ± 0%       541k ± 0%  -0.11%        (p=0.000 n=10+10)
-    GoTypes        2.09M ± 0%      2.08M ± 0%  -0.40%        (p=0.000 n=10+10)
-    Compiler       9.28M ± 0%      9.24M ± 0%  -0.36%        (p=0.000 n=10+10)
-    
-    Size of $GOROOT/pkg/darwin_amd64 drops from 40124 KB to 40100 KB too,
-    removing the zero padding as suggested by josharian.
-    
-    Updates #6853
-    
-    Change-Id: I3c557266e9325fe29c459cef8e5b8954913e7abb
-    Reviewed-on: https://go-review.googlesource.com/20931
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4816a788e7b89b76dc70d05f4b176e99684d0680
+    Reviewed-on: https://go-review.googlesource.com/18830
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/closure.go |  4 ++--
- src/cmd/compile/internal/gc/dcl.go     |  4 ++--
- src/cmd/compile/internal/gc/gen.go     |  2 +-
- src/cmd/compile/internal/gc/init.go    |  4 ++--
- src/cmd/compile/internal/gc/inl.go     |  6 +++---
- src/cmd/compile/internal/gc/pgen.go    | 10 +++++-----
- src/cmd/compile/internal/gc/sinit.go   |  2 +-
- src/cmd/compile/internal/gc/subr.go    | 10 ++++++++++
- 8 files changed, 26 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

@@ -1,15 +1,14 @@
-commit b47927cc2657ca1e3a1b898632b577cacb3b440c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jul 13 17:24:05 2018 -0400
+commit f113a629b2bf6ca31ebd3acd7afc7352a0186342
+Author: Dhruvdutt Jadhav <dhruvdutt.jadhav@gmail.com>
+Date:   Tue Apr 3 17:08:45 2018 +0000
 
-    cmd/go/internal/list: do not examine TestmainGo if the test fails to load
+    README: update number of contributors
     
-    Fixes #25980.
-    
-    Change-Id: I33c8e72871ffbb1cd1babbcd5dabc8cac0bbcaed
-    Reviewed-on: https://go-review.googlesource.com/123758
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5a1c7ed83a430a509d8f61f4aba8772d5d16ad48
+    GitHub-Last-Rev: fed86d88691c8a62bafac18a4e5c0944a4e59050
+    GitHub-Pull-Request: golang/go#24664
+    Reviewed-on: https://go-review.googlesource.com/104515
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/list/list.go           | 17 +++++++++--------
- src/cmd/go/testdata/script/list_test_e.txt |  9 +++++++++
- 2 files changed, 18 insertions(+), 8 deletions(-)
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

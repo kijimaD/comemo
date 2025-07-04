@@ -1,16 +1,26 @@
-commit e0789d734d4d8072f3a30a516b2f445cf05633ca
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Aug 11 08:36:13 2017 -0700
+commit c253ea47e1310d3bb7d9e3e5e23717b934a7db7f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 12 15:37:00 2017 -0400
 
-    runtime: remove indentation in mapiternext
+    cmd/dist: require _ before GOOS and GOARCH when building bootstrap
     
-    Invert the condition and continue, to remove indentation.
+    Currently, dist allows GOOS and GOARCH to appear as *any* substring in
+    a file name when selecting source files to go into go_bootstrap. This
+    was necessary prior to Go 1.4, where it needed to match names like
+    "windows.c", but now it's gratuitously different from go/build. This
+    led to a bug chase to figure out why "stubs_nonlinux.go" was not being
+    built on non-Linux OSes.
     
-    Change-Id: Id62a5d9abc9a4df1193bcf15f95f70f2c2e2abac
-    Reviewed-on: https://go-review.googlesource.com/55091
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change shouldbuild to require an "_" before the GOOS and GOARCH in a
+    file name. This is still less strict than go/build, but the behavior
+    is much closer.
+    
+    Change-Id: I580e9344a3c40d57c0721d345e911e8b4f141f5d
+    Reviewed-on: https://go-review.googlesource.com/40435
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/hashmap.go | 145 +++++++++++++++++++++++++------------------------
- 1 file changed, 73 insertions(+), 72 deletions(-)
+ src/cmd/dist/build.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

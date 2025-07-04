@@ -1,0 +1,27 @@
+commit c2098929056481d0dc09f5f42b8959f4db8878f2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 27 10:19:17 2024 -0700
+
+    cmd/cgo: correct padding required by alignment
+    
+    If the aligned offset isn't sufficient for the field offset,
+    we were padding based on the aligned offset. We need to pad
+    based on the original offset instead.
+    
+    Also set the Go alignment correctly for int128. We were defaulting
+    to the maximum alignment, but since we translate int128 into an
+    array of uint8 the correct Go alignment is 1.
+    
+    Fixes #69086
+    
+    Change-Id: I23ce583335c81beac2ac51f7f9336ac97ccebf09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608815
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go                    | 23 ++++++++++++++++-------
+ src/cmd/cgo/internal/test/cgo_test.go |  1 +
+ src/cmd/cgo/internal/test/test.go     | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 7 deletions(-)

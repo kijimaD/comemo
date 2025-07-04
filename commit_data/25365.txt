@@ -1,19 +1,12 @@
-commit 57337da16995e7dc31da724d0789f2801aa8c959
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 18 11:24:55 2015 -0500
+commit 3319ea98cd04789e4c16d8b96bf3ca59175c4841
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 10:04:23 2015 -0700
 
-    testing: use debug.SetTraceback("all") to show all goroutines at test timeout
+    cmd/compile/internal/gc: fixed comments (cosmetic change)
     
-    Fixes #13681.
-    
-    Change-Id: I308930f4d9200fbe0f09cd08c38392ca1bb0db67
-    Reviewed-on: https://go-review.googlesource.com/18044
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I9cbbfcf55ce3cccb6f14b9ffe6777567dcdad9c9
+    Reviewed-on: https://go-review.googlesource.com/16179
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/go/build/deps_test.go          | 2 +-
- src/runtime/debug/garbage_test.go  | 3 ++-
- src/runtime/debug/heapdump_test.go | 3 ++-
- src/runtime/debug/stack_test.go    | 9 +++++----
- src/testing/testing.go             | 2 ++
- 5 files changed, 12 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,22 +1,28 @@
-commit b146d7626f869901f9dd841b9253e89a227c6465
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Feb 13 14:35:34 2023 -0800
+commit a7e76b8e809ccbd1ceef207a83f8303edb707867
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 29 19:38:00 2022 -0700
 
-    Revert "io: detect Writers that access io.Copy's buffer after returning"
+    cmd/compile/internal/syntax: remove code dealing with multiple method names
     
-    This reverts CL 466865.
+    When parsing method declarations in an interface, the parser has
+    for historic reasons gracefully handled a list of method names with
+    a single (common) signature, and then reported an error. For example
     
-    Reason for revert: Causing trybot flakiness due to net/http race,
-    roll back until net/http is fixed.
+            interface {
+                    m1, m2, m3 (x int)
+            }
     
-    For #58168
+    This code originally came from the very first parser for Go which
+    initially permitted such declarations (or at least assumed that
+    people would write such declarations). Nobody is doing this at this
+    point, so there's no need for being extra careful here. Remove the
+    respective code and adjust the corresponding test.
     
-    Change-Id: I3129deb996abe6466eccf933fe93cbbaf72ae217
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467895
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: If6f9b398bbc9e425dcd4328a80d8bf77c37fe8b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396654
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/io/io.go | 9 ---------
- 1 file changed, 9 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go | 14 --------------
+ test/fixedbugs/bug121.go                  |  2 +-
+ 2 files changed, 1 insertion(+), 15 deletions(-)

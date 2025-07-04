@@ -1,12 +1,13 @@
-commit 1c99bdc8e5dc7d2ab9333b508d137bec63a2d7fe
-Author: Ken Thompson <ken@golang.org>
-Date:   Tue Jan 11 17:30:25 2011 -0800
+commit 09d4bcf0f7eb9ae25cba401184c4da0f30b5e291
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 12 11:59:33 2011 +1100
 
-    turn off peep half of optimizer for release
+    json: do not Marshal unexported struct fields
     
-    R=r
+    R=r, cw, niemeyer, rsc
     CC=golang-dev
-    https://golang.org/cl/3919043
+    https://golang.org/cl/3952041
 
- src/cmd/5g/reg.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/json/decode_test.go |  2 ++
+ src/pkg/json/encode.go      | 11 +++++++++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)

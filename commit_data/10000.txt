@@ -1,14 +1,18 @@
-commit 64471ae76204b116ab28c13f7008e90ae826a379
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Oct 17 15:54:36 2011 +1100
+commit edd1c9111d9e7d140f186124a89d9c47239e27b1
+Author: Esko Luontola <esko.luontola@gmail.com>
+Date:   Mon Oct 17 14:19:02 2011 +1100
 
-    http: fix panic when recovering from hijacked connection panic
+    gotest: avoid conflicts with the name of the tested package
     
-    Fixes #2375.
+    Uses a generic solution of renaming the tested package, instead of
+    using cryptic names for all other imports, variables and methods
+    in the generated _testmain.go file.
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/5279049
+    Fixes #2346.
+    
+    R=golang-dev, r, adg
+    CC=golang-dev, rsc
+    https://golang.org/cl/5254061
 
- src/pkg/http/server.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/gotest/gotest.go | 49 +++++++++++++++++++++++++++---------------------
+ 1 file changed, 28 insertions(+), 21 deletions(-)

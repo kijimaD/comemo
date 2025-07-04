@@ -1,20 +1,30 @@
-commit 5124371c1c7d6e2f5c8ebf821fdd07ea71d564c7
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Tue May 23 12:35:48 2023 +0200
+commit 44ff9bff0cd02642c37cce0223d25dc57230c8d2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 20 17:44:45 2022 -0400
 
-    runtime/metrics: add /gc/scan/total:bytes
+    runtime: clean up panic and deadlock lock ranks
     
-    For #56857
+    I'm not entirely sure why these locks are currently ranked "deadlock <
+    panic" since we drop panic before acquiring deadlock, and we actually
+    want deadlock to be below panic because panic is implicitly below
+    everything else and we want deadlock to be, too. My best guess is that
+    we had this edge because we intentionally acquire deadlock twice to
+    deadlock, and that causes the lock rank checking to panic on the
+    second acquire.
     
-    Change-Id: I10dbc5db506c95b7578c2b6baf051a351f68bb2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497576
+    Fix this in a more sensible way by capturing that deadlock can be
+    acquired in a self-cycle and flipping the rank to "panic < deadlock"
+    to express that deadlock needs to be under all other locks, just like
+    panic.
+    
+    For #53789.
+    
+    Change-Id: I8809e5d102ce473bd3ace0ba07bf2200ef60263f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418719
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/runtime/metrics.go             | 6 ++++++
- src/runtime/metrics/description.go | 5 +++++
- src/runtime/metrics/doc.go         | 4 ++++
- 3 files changed, 15 insertions(+)
+ src/runtime/lockrank.go   | 8 ++++----
+ src/runtime/mklockrank.go | 8 ++++++--
+ 2 files changed, 10 insertions(+), 6 deletions(-)

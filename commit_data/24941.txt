@@ -1,20 +1,14 @@
-commit 4d4a266780822acfdf58eaf9c0ba914024ff8bfa
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Nov 16 20:26:24 2015 -0800
+commit 1153737e86e1d08a02cd7d255eef308b3044dbc7
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 07:19:08 2015 -0400
 
-    net: fix IPv4 address selection
+    cmd/go: skip part of TestNoteReading for mips64{,le}
     
-    Only apply RFC 6724's CommonPrefixLen rule for IPv4 source/destination
-    pairs that are members of the same IPv4 special purpose block.
+    Because external linking is not supported for now.
     
-    Fixes #13283.
-    
-    Change-Id: I2f7c26b408dd4675dfc5c1959e22d05b43bb8241
-    Reviewed-on: https://go-review.googlesource.com/16995
+    Change-Id: Icdd8f3cb3bfb781a990e529fce9129d91e98a9ec
+    Reviewed-on: https://go-review.googlesource.com/14457
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/addrselect.go      |  43 +++++++++++++++++
- src/net/addrselect_test.go | 115 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 158 insertions(+)
+ src/cmd/go/note_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

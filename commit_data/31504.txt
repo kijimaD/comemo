@@ -1,24 +1,24 @@
-commit 4b2f7b4b51180424c4e84b50d99e1fba5b6f3e89
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri Apr 28 10:55:41 2017 +0000
+commit e18adbf88d35bc200d2b1c07ccb8f55f551942a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 24 17:50:53 2017 -0800
 
-    cmd/asm: fix operand order of ARM's MULA instruction
+    math/bits: faster Reverse8/16 functions using table lookups
     
-    As discussion in issue #19141, the addend should be the third
-    argument of MULA. This patch fixes it in both the front end
-    and the back end of the assembler. And also tests are added to
-    the encoding test.
+    Measured on 2.3 GHz Intel Core i7, running macOS 10.12.3:
     
-    Fixes #19141
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkReverse8-8      1.70          0.99          -41.76%
+    BenchmarkReverse16-8     2.24          1.32          -41.07%
     
-    Change-Id: Idbc6f338b8fdfcad97a135f27a98c5b375b27d43
-    Reviewed-on: https://go-review.googlesource.com/42028
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Fixes #19279.
+    
+    Change-Id: I398cf8a3513b7fa63c130efc7846a7c5353999d4
+    Reviewed-on: https://go-review.googlesource.com/37459
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/asm.go         |  8 ++++----
- src/cmd/asm/internal/asm/testdata/arm.s |  2 ++
- src/cmd/internal/obj/arm/asm5.go        | 10 ++++------
- src/cmd/internal/obj/util.go            |  2 +-
- 4 files changed, 11 insertions(+), 11 deletions(-)
+ src/math/bits/bits.go        | 13 +++------
+ src/math/bits/bits_tables.go | 26 +++++++++++++++++
+ src/math/bits/make_tables.go | 66 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 96 insertions(+), 9 deletions(-)

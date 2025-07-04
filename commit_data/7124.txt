@@ -1,17 +1,16 @@
-commit 5adfe9375238421f3143c781996540acfcc77adc
+commit b97005c1d3220c5687a0c750c54d9c7868493429
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 14 10:52:08 2011 -0800
+Date:   Fri Jan 14 10:51:47 2011 -0800
 
-    cgo: In _cgo_main.c define all provided symbols as functions.
+    runtime/cgo: Don't define crosscall2 in dummy _cgo_main.c.
     
-    This defines crosscall2 in a way that matches that real
-    definition, and also defines _cgo_allocate and _cgo_panic to
-    indicate that they are available to be called by code compiled
-    with gcc.
+    In this specific package crosscall2 is already defined in a .S
+    file anyhow.  This avoids a warning about mismatched
+    alignment.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4026041
+    https://golang.org/cl/4000043
 
- src/cmd/cgo/out.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/runtime/cgo/Makefile | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,12 +1,27 @@
-commit 2f46dfb271414581b048ee54f728c55dbdd85bf0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 2 20:17:21 2018 +0000
+commit b3a854c733257c5249c3435ffcee194f8439676a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 10 22:56:14 2018 +0000
 
-    encoding/xml: remove some primordial semicolons
+    runtime: use fixed TLS offsets on darwin/amd64 and darwin/386
     
-    Change-Id: I23e5d87648a4091fb4f6616bf80aa6c800974900
-    Reviewed-on: https://go-review.googlesource.com/127662
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #23617
+    
+    Note that this CL does not affect darwin/arm and darwin/arm64,
+    still TBD what, if anything, needs to be done for those.
+    
+    This is a fix of CL 105975 which was reverted in CL 106155.
+    Needed to use movl instead of movq for 386.
+    
+    Change-Id: I0db7f8087173869e60cc22c6c3124fa0a0739b46
+    Reviewed-on: https://go-review.googlesource.com/106156
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/xml/xml.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/sym.go    | 20 ++++++---
+ src/runtime/cgo/gcc_darwin_386.c   | 92 ++------------------------------------
+ src/runtime/cgo/gcc_darwin_amd64.c | 63 ++------------------------
+ src/runtime/sys_darwin_386.s       | 11 +++--
+ src/runtime/sys_darwin_amd64.s     |  9 ++--
+ 5 files changed, 28 insertions(+), 167 deletions(-)

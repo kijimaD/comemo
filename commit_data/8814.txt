@@ -1,24 +1,82 @@
-commit f2e94de6d62be39044b28ca61b8659cd295253c2
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jun 21 21:00:49 2011 -0400
+commit 10b5519d3a15e9489c998a720fe19989af89da11
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Jun 21 12:14:32 2011 -0400
 
-    crypto/openpgp: add ElGamal support.
+    8l: more fixes for Plan 9
     
-    R=bradfitz, r
+    Once these changes are effected, it is possible to construct
+    "8l" native on a (386?) Plan 9 system, albeit with assistance
+    from modules such as mkfiles that are not (yet) included in any
+    public patches.
+    
+    8l/asm.c:
+    . Corrected some format qualifiers.
+    
+    8l/list.c:
+    . Cast a print() argument to (int) to match the given format.
+      It may be possible to change the format (%R), but I have not
+      looked into it.
+    
+    8l/obj.c:
+    . Removed some unused code.
+    
+    8l/span.c:
+    . Removed unnecessary incrementation on "bp".
+    . Corrected some format qualifiers.
+    
+    ld/data.c:
+    . Corrected some format qualifiers.
+    . Cast print argument to (int): used as field size.
+    . Use braces to suppress warning about empty if() statements.
+    
+    ld/dwarf.c:
+    . Trivial spelling mistake in comment.
+    
+    ld/ldelf.c:
+    . Added USED() statements to silence warnings.
+    . Dropped redundant address (&) operators.
+    . corrected some format qualifiers.
+    . Cast to (int) for switch selection variable.
+    
+    ld/macho.c:
+    . Added USED() statements to silence warnings.
+    
+    ld/ldpe.c:
+    . Added USED() statements to silence warnings.
+    . More careful use of "sect" variable.
+    . Corrected some format qualifiers.
+    . Removed redundant assignments.
+    . Minor fix dropped as it was submitted separately.
+    
+    ld/pe.c:
+    . Dropped <time.h> which is now in <u.h>.
+    . Dropped redundant address (&) operators.
+    . Added a missing variable initialisation.
+    
+    ld/symtab.c:
+    . Added USED() statements to silence warnings.
+    . Removed redundant incrementation.
+    . Corrected some format qualifiers.
+    
+    All the above have been tested against a (very) recent release
+    and do not seem to trigger any regressions.
+    
+    All review suggestions have been incorporated.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4639049
+    https://golang.org/cl/4633043
 
- src/pkg/Makefile                                   |   1 +
- src/pkg/crypto/openpgp/elgamal/Makefile            |  11 ++
- src/pkg/crypto/openpgp/elgamal/elgamal.go          | 122 ++++++++++++++++
- src/pkg/crypto/openpgp/elgamal/elgamal_test.go     |  49 +++++++
- src/pkg/crypto/openpgp/packet/encrypted_key.go     |  71 ++++++++--
- .../crypto/openpgp/packet/encrypted_key_test.go    |  17 ++-
- src/pkg/crypto/openpgp/packet/packet.go            |   4 +-
- src/pkg/crypto/openpgp/packet/private_key.go       |  22 +++
- src/pkg/crypto/openpgp/packet/private_key_test.go  |  64 ++++++---
- src/pkg/crypto/openpgp/packet/public_key.go        |  43 +++++-
- src/pkg/crypto/openpgp/read.go                     |   8 +-
- src/pkg/crypto/openpgp/read_test.go                |  96 ++++++++-----
- src/pkg/crypto/openpgp/write_test.go               | 156 +++++++++++++--------
- 13 files changed, 524 insertions(+), 140 deletions(-)
+ src/cmd/8l/asm.c     |  2 +-
+ src/cmd/8l/list.c    |  2 +-
+ src/cmd/8l/obj.c     |  2 --
+ src/cmd/8l/pass.c    |  1 -
+ src/cmd/8l/span.c    |  4 ++--
+ src/cmd/ld/data.c    | 20 ++++++++++----------
+ src/cmd/ld/dwarf.c   |  2 +-
+ src/cmd/ld/ldelf.c   |  7 ++++---
+ src/cmd/ld/ldmacho.c |  1 +
+ src/cmd/ld/ldpe.c    | 10 +++++++---
+ src/cmd/ld/pe.c      |  6 ++----
+ src/cmd/ld/symtab.c  | 11 ++++++++---
+ 12 files changed, 37 insertions(+), 31 deletions(-)

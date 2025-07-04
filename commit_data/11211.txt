@@ -1,14 +1,14 @@
-commit f4ad8c1c5b8ec6c271a206a3ec74d57b03b7e0e6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 17 13:14:27 2012 -0800
+commit 3495f39fc49ff7608d52d05a6a15d6d7d183fc56
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 17 13:13:50 2012 -0800
 
-    net/http/cgi: increase a flaky test timeout
+    cmd/go: remove mentions of 'gotest' from the documentation
+    go test runs the tests itself; it does not run the gotest command,
+    so these mentions are confusing.
     
-    Fixes 2450, probably.
-    
-    R=golang-dev, gri
+    R=golang-dev, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5540074
+    https://golang.org/cl/5551043
 
- src/pkg/net/http/cgi/host_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

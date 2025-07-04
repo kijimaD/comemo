@@ -1,19 +1,24 @@
-commit 736ff448ded5b2b4aefffb91390bc554593613da
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Mar 9 01:31:09 2012 +0800
+commit dc57ed8cafe7c6e8940231c46cdcf3633e6c5eaa
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Thu Mar 8 12:13:41 2012 -0500
 
-    doc: various update to command documents
-            1. consistent usage section (go tool xxx)
-            2. reformat cmd/ld document with minor correction
-               document which -H flags are valid on which ld
-               document -d flag can't be used on Windows.
-               document -Hwindowsgui
+    misc/cgo: re-enable testso
     
-    R=golang-dev, r, rsc
+    The test.bash file generates .so file using gcc, builds the executable
+    using the go tool and then run it with the $LD_LIBRARY_PATH variable
+    pointing to the directory where the .so file lives.
+    
+    Fixes #2982.
+    
+    R=rsc, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/5782043
+    https://golang.org/cl/5788043
 
- src/cmd/gc/doc.go |  2 +-
- src/cmd/ld/doc.go | 71 ++++++++++++++++++++++++++++++-------------------------
- src/cmd/nm/doc.go |  3 ++-
- 3 files changed, 42 insertions(+), 34 deletions(-)
+ .hgignore                 |  1 +
+ misc/cgo/testso/Makefile  | 22 ----------------------
+ misc/cgo/testso/cgoso.go  |  5 ++++-
+ misc/cgo/testso/cgoso_c.c |  2 ++
+ misc/cgo/testso/main.go   |  4 +++-
+ misc/cgo/testso/test.bash |  7 ++++---
+ src/run.bash              |  2 --
+ 7 files changed, 14 insertions(+), 29 deletions(-)

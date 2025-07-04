@@ -1,19 +1,15 @@
-commit e91019d2536cd067da5f8f22e03efc4492561a99
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 25 16:08:32 2015 -0800
+commit c07ec392ac8bfa92923c01ec4b2319de2e0e6a2b
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Sun Aug 23 19:51:26 2015 -0700
 
-    net/http: add test that automatic gzip works for HTTP2's Transport
+    go/printer: avoid stomping on err before checking it
     
-    And updates h2_bundle.go with the fix from x/net/http2.
-    
-    Fixes #13298
-    Updates #6891
-    
-    Change-Id: Ia25f22fa10e2a64b9d59211269882681aa18c101
-    Reviewed-on: https://go-review.googlesource.com/17241
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I97ba31e758d3396842ad99a08af696e49a5f1a7d
+    Reviewed-on: https://go-review.googlesource.com/13954
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/clientserver_test.go | 50 +++++++++++++++++++--------
- src/net/http/h2_bundle.go         | 73 +++++++++++++++++++++++++++++++++++----
- 2 files changed, 101 insertions(+), 22 deletions(-)
+ src/go/printer/printer.go      |  4 +++-
+ src/go/printer/printer_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)

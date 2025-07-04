@@ -1,18 +1,16 @@
-commit eed061f89cad583c3dfa6b4e13c9a79f897920bf
-Author: David Chase <drchase@google.com>
-Date:   Tue Sep 13 16:51:42 2016 -0400
+commit d52022676da939cb183083da4ee0b614f86ac3b0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 5 13:25:19 2016 -0700
 
-    cmd/compile: enable SSA for PowerPC 64 Big-endian
+    html/template: mention risks of the CSS, HTML, JS, etc. types
     
-    It passed tests once, if anything's wrong, better to fail
-    sooner than later.
+    Fixes #15399
     
-    Change-Id: Ibb1c5db3f4c5535a4ff4681fd157db77082c5041
-    Reviewed-on: https://go-review.googlesource.com/28982
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5b9645cb9ddede6981ce0a005e0c6fdd8a751c6f
+    Reviewed-on: https://go-review.googlesource.com/22824
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go     | 2 +-
- src/cmd/compile/internal/ssa/config.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/html/template/content.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

@@ -1,21 +1,22 @@
-commit 6563d8623ddd3eb4e92563e8e76fc8f4829e6cfc
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Wed Jan 30 10:02:01 2013 -0800
+commit ad341843a7661e4883c8a66b12433e55db1dfc7e
+Author: Michael Teichgräber <mteichgraeber@gmx.de>
+Date:   Wed Jan 30 09:25:16 2013 -0800
 
-    syscall: handle empty address in ReadFrom better
+    net: SplitHostPort: adjust error message for missing port in IPv6 addresses
     
-    Handle return values from recvfrom correctly when the
-    kernel decides to not return an address.
+    An hostport of "[::1]" now results in the same error message
+    "missing port in address" as the hostport value "127.0.0.1",
+    so SplitHostPort won't complain about "too many colons
+    in address" anymore for an IPv6 address missing a port.
     
-    Fixes #4636.
-    Fixes #4352.
+    Added tests checking the error values.
     
-    R=rsc, mikioh.mikioh, dave
+    Fixes #4526.
+    
+    R=dave, rsc, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/7058062
+    https://golang.org/cl/7038045
 
- src/pkg/net/unix_test.go         | 123 +++++++++++++++++++++++++++++++++++++++
- src/pkg/net/unixsock_posix.go    |  14 +++--
- src/pkg/syscall/syscall_bsd.go   |   4 +-
- src/pkg/syscall/syscall_linux.go |   4 +-
- 4 files changed, 138 insertions(+), 7 deletions(-)
+ src/pkg/net/ip_test.go | 32 ++++++++++++++++++++++++++++
+ src/pkg/net/ipsock.go  | 57 ++++++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 80 insertions(+), 9 deletions(-)

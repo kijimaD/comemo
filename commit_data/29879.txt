@@ -1,22 +1,23 @@
-commit c8f1436948ca267dc904cf04c67bab7367503107
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Fri Dec 23 03:23:10 2016 -0800
+commit 991a85c88944e9cb92c4860c173f49d549a92845
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 11 11:47:14 2016 -0400
 
-    test: lock in test for _ assignment evaluation/zerodivide panic
+    runtime: make mSpanList more go:notinheap-friendly
     
-    Fixes #5790.
-    Fixes #18421.
+    Currently mspan links to its previous mspan using a **mspan field that
+    points to the previous span's next field. This simplifies some of the
+    list manipulation code, but is going to make it very hard to convince
+    the compiler that mspan list manipulations don't need write barriers.
     
-    * Lock in _ = x1/x2 divide by zero runtime panics since
-    it is actually evaluated and not discarded as in previous
-    versions before Go1.8.
-    * Update a test that was skipping over zerodivide tests
-    that expected runtime panics, enabling us to check for
-    the expected panics.
+    Fix this by using a more traditional ("boring") linked list that uses
+    a simple *mspan pointer to the previous mspan. This complicates some
+    of the list manipulation slightly, but it will let us eliminate all
+    write barriers from the mspan list manipulation code by marking mspan
+    go:notinheap.
     
-    Change-Id: I0af0a6ecc19345fa9763ab2e35b275fb2d9d0194
-    Reviewed-on: https://go-review.googlesource.com/34712
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0d0b212db5f20002435d2a0ed2efc8aa0364b905
+    Reviewed-on: https://go-review.googlesource.com/30940
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- test/zerodivide.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/runtime/mheap.go | 44 ++++++++++++++++++++++++++------------------
+ 1 file changed, 26 insertions(+), 18 deletions(-)

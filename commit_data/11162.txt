@@ -1,12 +1,19 @@
-commit 066551e49bc223b3b73704e47cc1e489e4c3292d
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Fri Jan 13 16:45:30 2012 -0800
+commit bf734d62d8210b3030757522c3e9ff581457daa4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 13 15:45:05 2012 -0800
 
-    pkg/go/doc: fix undefined: doc.NewPackageDoc in headscan.go
+    exp/sql: add time.Time support
     
-    R=golang-dev, bradfitz, gri
+    Fixes #2694
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5539059
+    https://golang.org/cl/5541057
 
- src/pkg/go/doc/headscan.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/sql/convert_test.go      | 13 +++++++++++++
+ src/pkg/exp/sql/driver/driver.go     |  1 +
+ src/pkg/exp/sql/driver/types.go      |  7 +++++--
+ src/pkg/exp/sql/driver/types_test.go |  4 ++++
+ src/pkg/exp/sql/fakedb_test.go       |  5 ++++-
+ src/pkg/exp/sql/sql_test.go          | 13 +++++++++++--
+ 6 files changed, 38 insertions(+), 5 deletions(-)

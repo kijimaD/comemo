@@ -1,29 +1,17 @@
-commit 1076d4ef73a3fd802432b8c54d166d5c562b7d2d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 14 09:13:12 2012 -0800
+commit 6fbe80572e96745fc360c74f2f1c6e878afe436b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 15 01:59:18 2012 +0900
 
-    go/doc: treat predeclared error interface like an exported type
+    net: prefer an IPv4 listen if no address given
     
-    Also added -files flag to provide regexp for test files for
-    selective testing.
-    
-    Fixes #2956.
+    This CL avoids net.Listen("tcp", ":80"), http.ListenAdnServe(":80")
+    prefer an IPv6 listen.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5657045
+    https://golang.org/cl/5669043
 
- src/pkg/go/doc/doc_test.go              | 20 +++++++++++---
- src/pkg/go/doc/exports.go               | 47 ++++++++++++++++++++++++++++-----
- src/pkg/go/doc/reader.go                | 34 ++++++++++++++++++------
- src/pkg/go/doc/testdata/e.go            |  2 +-
- src/pkg/go/doc/testdata/error1.0.golden | 30 +++++++++++++++++++++
- src/pkg/go/doc/testdata/error1.1.golden | 32 ++++++++++++++++++++++
- src/pkg/go/doc/testdata/error1.2.golden | 30 +++++++++++++++++++++
- src/pkg/go/doc/testdata/error1.go       | 24 +++++++++++++++++
- src/pkg/go/doc/testdata/error2.0.golden | 27 +++++++++++++++++++
- src/pkg/go/doc/testdata/error2.1.golden | 37 ++++++++++++++++++++++++++
- src/pkg/go/doc/testdata/error2.2.golden | 27 +++++++++++++++++++
- src/pkg/go/doc/testdata/error2.go       | 29 ++++++++++++++++++++
- src/pkg/go/doc/testdata/f.go            |  2 +-
- 13 files changed, 322 insertions(+), 19 deletions(-)
+ src/pkg/net/dial.go         |  2 +-
+ src/pkg/net/ipsock_posix.go | 15 +++++++++------
+ src/pkg/net/server_test.go  |  5 +----
+ 3 files changed, 11 insertions(+), 11 deletions(-)

@@ -1,18 +1,19 @@
-commit 977e8d145bca078936176f73f884bb4b7da037b7
+commit c210ddfe2c881835a283346e8fa498a777ea8af7
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 15 11:06:16 2012 +1100
+Date:   Wed Feb 15 11:05:51 2012 +1100
 
-    bytes: add Reader
+    net/http: make strace test more robust
     
-    copy of strings/reader{,_test}.go with
-    a few s/string/[]byte/
+    Apparently some distros don't let you ptrace attach
+    to your own existing processes.
     
-    Fixes #2861
+    Run strace on the child directly, instead, which
+    reportedly is more often allowed, and makes the
+    code simpler too.
     
-    R=adg, rsc, r
+    R=golang-dev, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5666044
+    https://golang.org/cl/5675050
 
- src/pkg/bytes/reader.go      | 110 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/bytes/reader_test.go |  58 +++++++++++++++++++++++
- 2 files changed, 168 insertions(+)
+ src/pkg/net/http/fs_test.go | 21 +++++----------------
+ 1 file changed, 5 insertions(+), 16 deletions(-)

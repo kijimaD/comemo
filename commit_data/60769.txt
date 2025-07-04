@@ -1,0 +1,39 @@
+commit a7689a013432244b0e7e99606cdf89c2722351e0
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Aug 5 16:10:14 2024 -0400
+
+    cmd/go: avoid making some paths relative in go work use
+    
+    filepath.Rel can sometimes return the a relative path that doesn't work.
+    If the basepath contains a symlink as a path component, and the targpath
+    does not exist with the directory pointed to by the innermost symlink,
+    the relative path can "cross" the symlink. The issue is that for the
+    return value for filepath.Rel to be correct, the ".." components of the
+    relative path would need to be collapsed before the symlinks are
+    expanded, but it was verified by doing local testing that the opposite
+    is true.
+    
+    go work use (and cmd/go/internal/modload.ReadModFile) both try to
+    shorten absolute path arguments to relative paths from the working
+    directory (for better error messages, for instance). Avoid doing so when
+    the relative path could be wrong using a more conservative rule than the
+    above: if expanding the symlinks in the current directory produces a
+    different result, and the relative path we'd return starts with ".." and
+    then the path separator.
+    
+    Fixes #68383
+    
+    Change-Id: I0a6202be672484d4000fc753c69f2165615f3f72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603136
+    TryBot-Bypass: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/base/path.go                   | 38 +++++++++++++++++++++-
+ src/cmd/go/internal/modload/load.go                |  2 +-
+ src/cmd/go/internal/modload/modfile.go             |  5 ++-
+ src/cmd/go/internal/workcmd/use.go                 | 13 ++++----
+ .../script/work_use_symlink_issue68383.txt         | 23 +++++++++++++
+ 5 files changed, 72 insertions(+), 9 deletions(-)

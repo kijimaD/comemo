@@ -1,15 +1,17 @@
-commit aabbcda8163d4a2bceaf8e25156968cb0e88de75
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 6 09:07:00 2012 -0800
+commit eb2163ffbb9ce586ff01332c41549c8bb28462af
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Mar 6 09:33:35 2012 -0500
 
-    runtime: remove unused runtime·signame and runtime·newError
+    cmd/go: honour buildflags in go run
     
-    R=golang-dev
+    Either documentation or implementation
+    of go run's flags is wrong currently.
+    This change assumes the documentation
+    to be right.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5756044
+    https://golang.org/cl/5752054
 
- src/pkg/runtime/runtime.h          |  2 --
- src/pkg/runtime/signal_plan9_386.c |  6 ------
- src/pkg/runtime/signal_unix.c      |  8 --------
- src/pkg/runtime/thread_windows.c   | 15 ---------------
- 4 files changed, 31 deletions(-)
+ src/cmd/go/run.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

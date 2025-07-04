@@ -1,18 +1,24 @@
-commit 0e89b67ed22f8130f53dea41d73d7b254c0402bc
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Tue Mar 5 02:38:41 2024 +0000
+commit f4315391d79948f465eaf57ba65dd4b769adbf40
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 16 22:05:06 2023 +0100
 
-    database/sql: remove useless error check
+    cmd/go/internal/lockedfile/internal/filelock: use errors.ErrUnsupported
     
-    Change-Id: Id2d45a4b43b05deba4e2c31f7c03008c2f2c18a2
-    GitHub-Last-Rev: 587bed9a64da08d5b476d87333aed72649dad470
-    GitHub-Pull-Request: golang/go#66110
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569075
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    All platform specific errors are now covered by errors.ErrUnsupported.
+    
+    Updates #41198
+    
+    Change-Id: Ia9c0cad7c493305835bd5a1f349446cec409f686
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476917
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/database/sql/sql_test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ .../lockedfile/internal/filelock/filelock.go         | 20 ++------------------
+ .../lockedfile/internal/filelock/filelock_fcntl.go   |  4 ----
+ .../lockedfile/internal/filelock/filelock_other.go   | 13 ++++++-------
+ .../lockedfile/internal/filelock/filelock_unix.go    |  4 ----
+ .../lockedfile/internal/filelock/filelock_windows.go |  9 ---------
+ 5 files changed, 8 insertions(+), 42 deletions(-)

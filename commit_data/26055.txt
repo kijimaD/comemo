@@ -1,23 +1,20 @@
-commit 7f13fbf76656790187c53c05d1b3d00c68d844a6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 4 07:55:39 2016 -0800
+commit ff5c94538292ca66543603fc78c02a96c823c6aa
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 14 15:07:40 2015 -0500
 
-    cmd/compile: small cleanup to syslook calls
+    runtime: reset sweep stats before starting the world
     
-    Passing copy==1 to syslook is only necessary to support subsequent
-    calls to substArgTypes.  typ2Itab and concatstring* don't have "any"
-    parameters, so no point in deep copying their function signatures at
-    every call site.
+    Currently we reset the sweep stats just after gcMarkTermination starts
+    the world and releases worldsema. However, background sweeping can
+    start the moment we start the world and, in fact, pause sweeping can
+    start the moment we release worldsema (because another GC cycle can
+    start up), so these need to be cleared before starting the world.
     
-    For a couple other syslook calls (makemap and conv[IET]2[IET]), move
-    them closer to their corresponding substArgTypes calls so it's easier
-    to see that all syslook(fn, 1) calls are necessary.
-    
-    Change-Id: I4a0588ab2b8b5b8ce7a0a44b24c8cf8fda489af6
-    Reviewed-on: https://go-review.googlesource.com/20215
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I95701e3de6af76bb3fbf2ee65719985bf57d20b2
+    Reviewed-on: https://go-review.googlesource.com/17811
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+ src/runtime/mgc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

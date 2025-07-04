@@ -1,27 +1,24 @@
-commit 99482f2f9e7710206386ff45869cb76a53e0ac76
+commit 13aff7831d32c80b98ede611f1ffb0476f16ec51
 Author: Rick Hudson <rlh@golang.org>
-Date:   Thu Feb 19 18:11:24 2015 -0500
+Date:   Mon Jan 26 13:51:39 2015 -0500
 
-    runtime: Add prefetch to allocation code
+    runtime: avoid redundant scans
     
-    The routine mallocgc retrieves objects from freelists. Prefetch
-    the object that will be returned in the next call to mallocgc.
-    Experiments indicate that this produces a 1% improvement when using
-    prefetchnta and less when using prefetcht0, prefetcht1, or prefetcht2.
+    During a concurrent GC stacks are scanned in
+    an initial scan phase informing the GC of all
+    pointers on the stack. The GC only needs to rescan
+    the stack if it potentially changes which can only
+    happen if the goroutine runs.
+    This CL tracks whether the Goroutine has run
+    since it was last scanned and thus may have changed
+    its stack. If necessary the stack is rescanned.
     
-    Benchmark numbers indicate a 1% improvement over no
-    prefetch, much less over prefetcht0, prefetcht1, and prefetcht2.
-    These numbers were for the garbage benchmark with MAXPROCS=4
-    no prefetch                          >> 5.96 / 5.77 / 5.89
-    prefetcht0(uintptr(v.ptr().next))    >> 5.88 / 6.17 / 5.84
-    prefetcht1(uintptr(v.ptr().next))    >> 5.88 / 5.89 / 5.91
-    prefetcht2(uintptr(v.ptr().next))    >> 5.87 / 6.47 / 5.92
-    prefetchnta(uintptr(v.ptr().next))   >> 5.72 / 5.84 / 5.85
-    
-    Change-Id: I54e07172081cccb097d5b5ce8789d74daa055ed9
-    Reviewed-on: https://go-review.googlesource.com/5350
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I5fb1c4338d42e3f61ab56c9beb63b7b2da25f4f1
+    Reviewed-on: https://go-review.googlesource.com/3275
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/malloc.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go   |  8 ++++++++
+ src/runtime/mgc.go      | 13 +++++++++++--
+ src/runtime/proc1.go    | 13 ++++++++++++-
+ src/runtime/runtime2.go |  1 +
+ 4 files changed, 32 insertions(+), 3 deletions(-)

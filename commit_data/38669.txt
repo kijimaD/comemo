@@ -1,64 +1,160 @@
-commit 2dcbf8b3691e72d1b04e9376488cef3b6f93b286
-Author: Austin Clements <austin@google.com>
-Date:   Sat Mar 2 15:16:29 2019 -0500
+commit af07f7734b53540ca8c06b1b3cef59020a24d752
+Merge: 13bf5b80e8 4c8b09e918
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Nov 13 13:58:50 2018 -0500
 
-    sync: smooth out Pool behavior over GC with a victim cache
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    Currently, every Pool is cleared completely at the start of each GC.
-    This is a problem for heavy users of Pool because it causes an
-    allocation spike immediately after Pools are clear, which impacts both
-    throughput and latency.
-    
-    This CL fixes this by introducing a victim cache mechanism. Instead of
-    clearing Pools, the victim cache is dropped and the primary cache is
-    moved to the victim cache. As a result, in steady-state, there are
-    (roughly) no new allocations, but if Pool usage drops, objects will
-    still be collected within two GCs (as opposed to one).
-    
-    This victim cache approach also improves Pool's impact on GC dynamics.
-    The current approach causes all objects in Pools to be short lived.
-    However, if an application is in steady state and is just going to
-    repopulate its Pools, then these objects impact the live heap size *as
-    if* they were long lived. Since Pooled objects count as short lived
-    when computing the GC trigger and goal, but act as long lived objects
-    in the live heap, this causes GC to trigger too frequently. If Pooled
-    objects are a non-trivial portion of an application's heap, this
-    increases the CPU overhead of GC. The victim cache lets Pooled objects
-    affect the GC trigger and goal as long-lived objects.
-    
-    This has no impact on Get/Put performance, but substantially reduces
-    the impact to the Pool user when a GC happens. PoolExpensiveNew
-    demonstrates this in the substantially reduction in the rate at which
-    the "New" function is called.
-    
-    name                 old time/op     new time/op     delta
-    Pool-12                 2.21ns ±36%     2.00ns ± 0%     ~     (p=0.070 n=19+16)
-    PoolOverflow-12          587ns ± 1%      583ns ± 1%   -0.77%  (p=0.000 n=18+18)
-    PoolSTW-12              5.57µs ± 3%     4.52µs ± 4%  -18.82%  (p=0.000 n=20+19)
-    PoolExpensiveNew-12     3.69ms ± 7%     1.25ms ± 5%  -66.25%  (p=0.000 n=20+19)
-    
-    name                 old p50-ns/STW  new p50-ns/STW  delta
-    PoolSTW-12               5.48k ± 2%      4.53k ± 2%  -17.32%  (p=0.000 n=20+20)
-    
-    name                 old p95-ns/STW  new p95-ns/STW  delta
-    PoolSTW-12               6.69k ± 4%      5.13k ± 3%  -23.31%  (p=0.000 n=19+18)
-    
-    name                 old GCs/op      new GCs/op      delta
-    PoolExpensiveNew-12       0.39 ± 1%       0.32 ± 2%  -17.95%  (p=0.000 n=18+20)
-    
-    name                 old New/op      new New/op      delta
-    PoolExpensiveNew-12       40.0 ± 6%       12.4 ± 6%  -68.91%  (p=0.000 n=20+19)
-    
-    (https://perf.golang.org/search?q=upload:20190311.2)
-    
-    Fixes #22950.
-    
-    Change-Id: If2e183d948c650417283076aacc20739682cdd70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166961
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ice4172e2058a45b1a24da561fd420244ab2a97bd
 
- src/sync/pool.go      | 60 +++++++++++++++++++++++++++++++++++++++++++++------
- src/sync/pool_test.go | 15 ++++++++++---
- 2 files changed, 66 insertions(+), 9 deletions(-)
+ misc/ios/detect.go                                |    6 +-
+ misc/wasm/wasm_exec.js                            |   20 +-
+ src/cmd/asm/internal/asm/testdata/s390x.s         |    3 +
+ src/cmd/cgo/main.go                               |    2 +
+ src/cmd/cgo/out.go                                |  111 +-
+ src/cmd/compile/internal/amd64/ssa.go             |   45 +
+ src/cmd/compile/internal/gc/dcl.go                |    5 +-
+ src/cmd/compile/internal/gc/esc.go                |   17 +-
+ src/cmd/compile/internal/gc/fmt.go                |    6 +-
+ src/cmd/compile/internal/gc/iexport.go            |    2 +-
+ src/cmd/compile/internal/gc/iimport.go            |    4 +-
+ src/cmd/compile/internal/gc/inl.go                |   10 +-
+ src/cmd/compile/internal/gc/main.go               |   14 +-
+ src/cmd/compile/internal/gc/noder.go              |   15 +-
+ src/cmd/compile/internal/gc/pgen.go               |    5 +-
+ src/cmd/compile/internal/gc/ssa.go                |   27 +-
+ src/cmd/compile/internal/gc/subr.go               |   44 +-
+ src/cmd/compile/internal/gc/swt.go                |    9 +-
+ src/cmd/compile/internal/gc/syntax.go             |   10 +-
+ src/cmd/compile/internal/gc/typecheck.go          |   12 +-
+ src/cmd/compile/internal/gc/walk.go               |   16 +-
+ src/cmd/compile/internal/ssa/gen/386.rules        |   12 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |   34 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go      |   40 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules      |   66 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go    |    3 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go       |    2 +
+ src/cmd/compile/internal/ssa/html.go              |   10 +-
+ src/cmd/compile/internal/ssa/opGen.go             |  167 +++
+ src/cmd/compile/internal/ssa/rewrite.go           |   34 +-
+ src/cmd/compile/internal/ssa/rewrite386.go        |  162 +--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      |  516 ++++++--
+ src/cmd/compile/internal/ssa/rewriteARM.go        |    2 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go      |    2 +
+ src/cmd/compile/internal/ssa/rewriteMIPS.go       |    2 +
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go     |    2 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go      |    2 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go      |  254 ++--
+ src/cmd/compile/internal/ssa/rewriteWasm.go       |    2 +
+ src/cmd/compile/internal/ssa/rewritedec.go        |    2 +
+ src/cmd/compile/internal/ssa/rewritedec64.go      |    2 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go    |    2 +
+ src/cmd/compile/internal/ssa/schedule.go          |    9 +-
+ src/cmd/compile/internal/ssa/stmtlines_test.go    |    5 +
+ src/cmd/go/alldocs.go                             |    2 +-
+ src/cmd/go/internal/cache/default.go              |   60 +-
+ src/cmd/go/internal/modcmd/vendor.go              |   16 +-
+ src/cmd/go/internal/modget/get.go                 |    2 +-
+ src/cmd/go/internal/modload/build.go              |   54 +-
+ src/cmd/go/internal/mvs/mvs.go                    |    1 +
+ src/cmd/go/internal/work/exec.go                  |   27 +-
+ src/cmd/go/testdata/script/mod_replace.txt        |   28 +-
+ src/cmd/go/testdata/script/mod_tidy_replace.txt   |   71 ++
+ src/cmd/go/testdata/script/mod_vendor.txt         |   48 +
+ src/cmd/go/testdata/script/mod_vendor_replace.txt |   39 +
+ src/cmd/internal/dwarf/dwarf.go                   |    6 +-
+ src/cmd/internal/obj/objfile.go                   |   11 +-
+ src/cmd/internal/obj/s390x/a.out.go               |    3 +
+ src/cmd/internal/obj/s390x/anames.go              |    3 +
+ src/cmd/internal/obj/s390x/asmz.go                |    3 +
+ src/cmd/internal/obj/s390x/vector.go              |    8 +-
+ src/cmd/link/internal/ld/data.go                  |   25 +
+ src/cmd/link/internal/ld/dwarf.go                 |  131 ++-
+ src/cmd/link/internal/ld/go.go                    |    7 +-
+ src/cmd/link/internal/ld/lib.go                   |   34 +-
+ src/cmd/link/internal/ld/main.go                  |    4 +
+ src/cmd/link/internal/ld/sym.go                   |    2 +-
+ src/cmd/link/internal/ld/xcoff.go                 | 1232 ++++++++++++++++++++
+ src/cmd/link/internal/ppc64/asm.go                |   29 +
+ src/cmd/link/internal/ppc64/obj.go                |    4 +
+ src/container/list/list.go                        |   25 +-
+ src/crypto/tls/boring_test.go                     |    3 +
+ src/crypto/tls/conn.go                            |   29 +-
+ src/crypto/tls/handshake_client.go                |    6 +-
+ src/crypto/tls/handshake_client_test.go           |    4 +-
+ src/crypto/tls/handshake_messages.go              | 1293 +++++++--------------
+ src/crypto/tls/handshake_messages_test.go         |   55 +-
+ src/crypto/tls/handshake_server.go                |    2 +-
+ src/crypto/tls/handshake_server_test.go           |   28 +-
+ src/crypto/tls/ticket.go                          |   25 -
+ src/database/sql/sql.go                           |   28 +-
+ src/encoding/json/example_test.go                 |    9 +
+ src/go/build/deps_test.go                         |    3 +-
+ src/go/types/expr.go                              |    6 +-
+ src/go/types/stdlib_test.go                       |   34 +-
+ src/go/types/testdata/shifts.src                  |   12 +
+ src/hash/crc64/crc64_test.go                      |    6 +-
+ src/internal/cpu/cpu_arm64_test.go                |   26 -
+ src/internal/cpu/cpu_ppc64x.go                    |    1 +
+ src/internal/cpu/cpu_ppc64x_test.go               |   33 -
+ src/internal/cpu/cpu_test.go                      |   17 +
+ src/internal/cpu/cpu_x86_test.go                  |   10 -
+ src/internal/syscall/unix/getrandom_freebsd.go    |    3 -
+ src/internal/syscall/unix/getrandom_linux.go      |    3 -
+ src/internal/traceparser/parser_test.go           |    4 +
+ src/log/log.go                                    |    7 +
+ src/math/big/arith.go                             |    2 +-
+ src/math/bits/bits_test.go                        |   32 +-
+ src/net/cgo_stub.go                               |    2 +-
+ src/net/cgo_unix.go                               |   37 +-
+ src/net/cgo_unix_test.go                          |    4 +-
+ src/net/dial_test.go                              |    4 +-
+ src/net/dnsclient_unix.go                         |    1 -
+ src/net/error_test.go                             |    6 +-
+ src/net/hook.go                                   |    5 +-
+ src/net/http/serve_test.go                        |   26 +
+ src/net/http/server.go                            |   18 +
+ src/net/http/transport_test.go                    |   10 +-
+ src/net/ipsock.go                                 |    2 +-
+ src/net/lookup.go                                 |   30 +-
+ src/net/lookup_fake.go                            |    2 +-
+ src/net/lookup_plan9.go                           |    2 +-
+ src/net/lookup_test.go                            |   30 +-
+ src/net/lookup_unix.go                            |    4 +-
+ src/net/lookup_windows.go                         |   14 +-
+ src/net/netgo_unix_test.go                        |    2 +-
+ src/os/exec_windows.go                            |    5 -
+ src/os/executable_test.go                         |    4 +-
+ src/os/file_posix.go                              |    5 +
+ src/os/os_test.go                                 |   47 +-
+ src/os/sticky_bsd.go                              |    2 +-
+ src/os/sticky_notbsd.go                           |    1 +
+ src/path/filepath/example_unix_test.go            |   15 +
+ src/runtime/asm_ppc64x.s                          |    3 -
+ src/runtime/proc.go                               |    3 +-
+ src/syscall/exec_libc.go                          |    4 +-
+ src/syscall/export_freebsd_test.go                |   12 +
+ src/syscall/js/callback.go                        |    2 +
+ src/syscall/js/js.go                              |   39 +-
+ src/syscall/js/js_test.go                         |   54 +
+ src/syscall/js/typedarray.go                      |    2 +
+ src/syscall/syscall_aix.go                        |    6 +-
+ src/syscall/syscall_freebsd.go                    |   29 +-
+ src/syscall/syscall_freebsd_test.go               |   54 +
+ src/syscall/types_aix.go                          |    2 +-
+ src/syscall/types_solaris.go                      |    2 +
+ src/syscall/zsyscall_aix_ppc64.go                 |    4 +-
+ src/syscall/ztypes_aix_ppc64.go                   |    2 +-
+ src/syscall/ztypes_solaris_amd64.go               |    2 +
+ src/text/template/parse/parse.go                  |   66 +-
+ src/text/template/parse/parse_test.go             |   35 +-
+ src/time/zoneinfo_js.go                           |   66 ++
+ src/time/zoneinfo_unix.go                         |    2 +-
+ test/codegen/mathbits.go                          |  120 ++
+ test/codegen/memops.go                            |    9 +
+ test/fixedbugs/issue27938.go                      |   23 +
+ test/fixedbugs/issue28268.go                      |   30 +
+ test/fixedbugs/issue28390.go                      |   39 +
+ test/fixedbugs/issue28390.out                     |    2 +
+ test/fixedbugs/issue28430.go                      |   17 +
+ 150 files changed, 4359 insertions(+), 1819 deletions(-)

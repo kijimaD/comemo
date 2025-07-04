@@ -1,22 +1,26 @@
-commit da1802f1df178b0e06366a0589237d924b7c6c4e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 4 12:34:43 2016 -0800
+commit 40ac3690efe420ff7665c6fe1eec0933c41d1413
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Dec 15 19:07:47 2015 -0500
 
-    cmd/compile: use OffPtr when possible
+    crypto/rsa: check CRT result.
     
-    OffPtr allocates less and is easier to optimize.
+    This change adds a check after computing an RSA signature that the
+    signature is correct. This prevents an error in the CRT computation from
+    leaking the private key. See references in the linked bug.
     
-    With this change, the OffPtr collapsing opt
-    rule matches increase from 160k to 263k,
-    and the Load-after-Store opt rule matches
-    increase from 217 to 853.
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkRSA2048Sign-3     5713305       6225215       +8.96%
     
-    Change-Id: I763426a3196900f22a367f7f6d8e8047b279653d
-    Reviewed-on: https://go-review.googlesource.com/20273
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Todd Neal <todd@tneal.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #12453
+    
+    Change-Id: I1f24e0b542f7c9a3f7e7ad4e971db3dc440ed3c1
+    Reviewed-on: https://go-review.googlesource.com/17862
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 17 ++++++++++-------
- 1 file changed, 10 insertions(+), 7 deletions(-)
+ src/crypto/rsa/pkcs1v15.go |  2 +-
+ src/crypto/rsa/pss.go      |  2 +-
+ src/crypto/rsa/rsa.go      | 15 +++++++++++++++
+ src/crypto/rsa/rsa_test.go | 27 ++++++++++++++++++++++-----
+ 4 files changed, 39 insertions(+), 7 deletions(-)

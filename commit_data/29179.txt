@@ -1,28 +1,15 @@
-commit d70b0fe6c4d1b1369b742ea5b7d4e6f0c50ffdcb
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 28 11:14:07 2016 -0400
+commit 6a982c390138fb2af49f85c4aeea2bce3222eb20
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 11:33:18 2016 -0700
 
-    runtime: fix preemption of root marking jobs
+    cmd/compile: remove unused Type.Printed field
     
-    The current logic in gcDrain conflates non-blocking with preemptible
-    draining for root jobs. As a result, if you do a non-blocking (but
-    *not* preemptible) drain, like dedicated workers do, the root job
-    drain will stop if preempted and fall through to heap marking jobs,
-    which won't stop until it fails to get a heap marking job.
-    
-    This commit fixes the condition on root marking jobs so they only stop
-    when preempted if the drain is preemptible.
-    
-    Coincidentally, this also fixes a nil pointer dereference if we call
-    gcDrain with gcDrainNoBlock and without a user G, since it tries to
-    get the preempt flag from the nil user G. This combination never
-    happens right now, but will in the future.
-    
-    Change-Id: Ia910ec20a9b46237f7926969144a33b1b4a7b2f9
-    Reviewed-on: https://go-review.googlesource.com/32291
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Iff2b1507dce08ef7c27085c8e0f45d0e3e88c476
+    Reviewed-on: https://go-review.googlesource.com/28152
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgcmark.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/type.go      | 1 -
+ src/cmd/compile/internal/gc/typecheck.go | 1 -
+ 2 files changed, 2 deletions(-)

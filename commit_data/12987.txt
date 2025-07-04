@@ -1,13 +1,13 @@
-commit 6d1face5bad19dc101d4b05ed0cd3b1116952186
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 27 15:46:27 2012 -0700
+commit fe252584f5bae7d1ce3b729b83d968c0e3b77139
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Apr 27 23:16:54 2012 +1000
 
-    A+C: add Brian Dellisanti (individual CLA)
+    misc/dashboard/codereview: simplify parallel operations for front page, and capture timing info.
     
-    R=golang-dev, bsiegert, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6127056
+    https://golang.org/cl/6128044
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ misc/dashboard/codereview/dashboard/front.go | 66 ++++++++++++++++------------
+ misc/dashboard/codereview/dashboard/gc.go    |  2 +-
+ 2 files changed, 38 insertions(+), 30 deletions(-)

@@ -1,15 +1,16 @@
-commit bc3f14fd2afda8af73854104ac6a1cf42cef1519
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Oct 27 16:40:30 2015 +1300
+commit d9dc2f22302d1e0b6cfc01522939a37dd2d8a4e6
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 18 10:28:58 2015 -0700
 
-    runtime: invoke vsyscall helper via TCB when dynamic linking on linux/386
+    [dev.ssa] cmd/compile: fix string store rewrite
     
-    The dynamic linker on linux/386 stores the address of the vsyscall helper at a
-    fixed offset from the %gs register on linux/386 for easy access from PIC code.
+    Store ops now need their size in the auxint field.  I missed this one.
     
-    Change-Id: I635305cfecceef2289985d62e676e16810ed6b94
-    Reviewed-on: https://go-review.googlesource.com/16346
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I050fd6b5b00579883731702c426edafa3a5f7561
+    Reviewed-on: https://go-review.googlesource.com/13682
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/sys_linux_386.s | 72 ++++++++++++++++++++++++---------------------
- 1 file changed, 39 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 15 ++++++++++-----
+ 3 files changed, 12 insertions(+), 7 deletions(-)

@@ -1,17 +1,26 @@
-commit 3970667d958eadbe591400ac9a53051a39f40ea2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat May 25 18:47:22 2019 +0000
+commit 257f30433b66c0ec992fe36ccd5403580a7cbced
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 29 16:00:45 2019 -0800
 
-    net/http: fix TestTransportServerClosingUnexpectedly flake
+    go/types: add tests for new Go 2 number literals
     
-    Fixes #32119
+    This CL ensures that go/types can now handle the new
+    Go 2 number literals. The relevant changes enabling
+    them in go/types were made in go/constant in the CL
+    https://golang.org/cl/160239.
     
-    Change-Id: I8cf2e2e69737e2485568af91ab75149f3cf66781
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178918
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    R=Go1.13
+    
+    Updates #12711.
+    Updates #19308.
+    Updates #28493.
+    Updates #29008.
+    
+    Change-Id: I45c1387198fac94769ac59c5301d86b4e1a1ff98
+    Reviewed-on: https://go-review.googlesource.com/c/160240
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/export_test.go    | 15 +++++++++++++++
- src/net/http/transport_test.go | 17 ++++++++++-------
- 2 files changed, 25 insertions(+), 7 deletions(-)
+ src/go/types/check_test.go         |   1 +
+ src/go/types/stdlib_test.go        |   1 -
+ src/go/types/testdata/literals.src | 111 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 112 insertions(+), 1 deletion(-)

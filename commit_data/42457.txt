@@ -1,14 +1,17 @@
-commit cb5fad79d068420409686f435385a8d62f26c56f
-Author: Julie Qiu <julie@golang.org>
-Date:   Tue Jun 2 13:46:34 2020 -0400
+commit ca90d3de9f643dd068e81259ba5fa3d2c1c4c678
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Dec 13 13:45:15 2019 -0500
 
-    doc/go1.15: add release notes for strconv
+    [dev.link] cmd/link: move new decodesym utility routines to a separate file
     
-    Updates #37419
+    Relocate the various new functions for decoding type.* symbol payloads
+    (using new loader interfaces) to a new file, as opposed to having them
+    tacked onto the end of deadcode2.go.
     
-    Change-Id: Ic72bf0da914fa8a56570750b8fd4b4d09d2ed075
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236157
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I830a8d1b63d70d5bcbc213f2388d00e12f009a77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211305
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.15.html | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/deadcode2.go  | 45 ++-------------------------
+ src/cmd/link/internal/ld/decodesym2.go | 57 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 43 deletions(-)

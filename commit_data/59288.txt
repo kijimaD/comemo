@@ -1,76 +1,21 @@
-commit 13b7c7d8d21765886697c952ffbb7fb853a2bf9a
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Mar 19 16:17:56 2025 +0800
+commit 288615ddb57a79fa78c6f13b829bd8daeeff8fa1
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Nov 27 17:05:56 2023 -0600
 
-    runtime: optimize the function memmove using SIMD on loong64
+    cmd/internal/obj/ppc64: generate smaller machine code for OR/XOR of uint32 values
     
-    goos: linux
-    goarch: loong64
-    pkg: runtime
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                                     |  bench.old   |            bench.new                |
-                                     |    sec/op    |   sec/op     vs base                |
-    Memmove/256                        10.215n ± 0%   6.407n ± 0%  -37.28% (p=0.000 n=10)
-    Memmove/512                        16.940n ± 0%   8.694n ± 0%  -48.68% (p=0.000 n=10)
-    Memmove/1024                        29.64n ± 0%   15.22n ± 0%  -48.65% (p=0.000 n=10)
-    Memmove/2048                        55.42n ± 0%   28.03n ± 0%  -49.43% (p=0.000 n=10)
-    Memmove/4096                       106.55n ± 0%   53.65n ± 0%  -49.65% (p=0.000 n=10)
-    MemmoveOverlap/256                  11.01n ± 0%   10.84n ± 0%   -1.54% (p=0.000 n=10)
-    MemmoveOverlap/512                  17.41n ± 0%   15.09n ± 0%  -13.35% (p=0.000 n=10)
-    MemmoveOverlap/1024                 30.23n ± 0%   28.70n ± 0%   -5.08% (p=0.000 n=10)
-    MemmoveOverlap/2048                 55.87n ± 0%   42.84n ± 0%  -23.32% (p=0.000 n=10)
-    MemmoveOverlap/4096                107.10n ± 0%   87.90n ± 0%  -17.93% (p=0.000 n=10)
-    MemmoveUnalignedDst/256            16.665n ± 1%   9.611n ± 0%  -42.33% (p=0.000 n=10)
-    MemmoveUnalignedDst/512             24.75n ± 0%   11.81n ± 0%  -52.29% (p=0.000 n=10)
-    MemmoveUnalignedDst/1024            43.25n ± 0%   20.46n ± 1%  -52.68% (p=0.000 n=10)
-    MemmoveUnalignedDst/2048            75.68n ± 0%   39.64n ± 0%  -47.61% (p=0.000 n=10)
-    MemmoveUnalignedDst/4096           152.75n ± 0%   80.08n ± 0%  -47.57% (p=0.000 n=10)
-    MemmoveUnalignedDstOverlap/256      11.88n ± 1%   10.95n ± 0%   -7.83% (p=0.000 n=10)
-    MemmoveUnalignedDstOverlap/512      19.71n ± 0%   16.20n ± 0%  -17.83% (p=0.000 n=10)
-    MemmoveUnalignedDstOverlap/1024     39.84n ± 0%   28.74n ± 0%  -27.86% (p=0.000 n=10)
-    MemmoveUnalignedDstOverlap/2048     81.12n ± 0%   40.11n ± 0%  -50.56% (p=0.000 n=10)
-    MemmoveUnalignedDstOverlap/4096    166.20n ± 0%   85.11n ± 0%  -48.79% (p=0.000 n=10)
-    MemmoveUnalignedSrc/256            10.945n ± 1%   6.807n ± 0%  -37.81% (p=0.000 n=10)
-    MemmoveUnalignedSrc/512             19.33n ± 4%   11.01n ± 1%  -43.02% (p=0.000 n=10)
-    MemmoveUnalignedSrc/1024            34.74n ± 0%   19.69n ± 0%  -43.32% (p=0.000 n=10)
-    MemmoveUnalignedSrc/2048            65.98n ± 0%   39.79n ± 0%  -39.69% (p=0.000 n=10)
-    MemmoveUnalignedSrc/4096           126.00n ± 0%   81.31n ± 0%  -35.47% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_256_0     13.610n ± 0%   7.608n ± 0%  -44.10% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_256_0      12.81n ± 0%   10.94n ± 0%  -14.60% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_256_1      17.17n ± 0%   10.01n ± 0%  -41.70% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_256_1      17.62n ± 0%   11.21n ± 0%  -36.38% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_256_4      16.22n ± 0%   10.01n ± 0%  -38.29% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_256_4      16.42n ± 0%   11.21n ± 0%  -31.73% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_256_7      14.09n ± 0%   10.79n ± 0%  -23.39% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_256_7      14.82n ± 0%   11.21n ± 0%  -24.36% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_4096_0    109.80n ± 0%   75.07n ± 0%  -31.63% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_4096_0    108.90n ± 0%   78.48n ± 0%  -27.93% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_4096_1    113.60n ± 0%   78.88n ± 0%  -30.56% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_4096_1    113.80n ± 0%   80.56n ± 0%  -29.20% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_4096_4    112.30n ± 0%   80.35n ± 0%  -28.45% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_4096_4    113.80n ± 1%   80.58n ± 0%  -29.19% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_4096_7    110.70n ± 0%   79.68n ± 0%  -28.02% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_4096_7    111.10n ± 0%   80.58n ± 0%  -27.47% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_65536_0    4.669µ ± 0%   2.680µ ± 0%  -42.60% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_65536_0    5.083µ ± 0%   2.672µ ± 0%  -47.43% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_65536_1    4.716µ ± 0%   2.677µ ± 0%  -43.24% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_65536_1    4.611µ ± 0%   2.672µ ± 0%  -42.05% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_65536_4    4.718µ ± 0%   2.678µ ± 0%  -43.24% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_65536_4    4.610µ ± 0%   2.673µ ± 0%  -42.01% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/f_65536_7    4.724µ ± 0%   2.678µ ± 0%  -43.31% (p=0.000 n=10)
-    MemmoveUnalignedSrcDst/b_65536_7    4.611µ ± 0%   2.673µ ± 0%  -42.03% (p=0.000 n=10)
-    MemmoveUnalignedSrcOverlap/256      13.62n ± 0%   11.97n ± 0%  -12.11% (p=0.000 n=10)
-    MemmoveUnalignedSrcOverlap/512      23.96n ± 0%   16.20n ± 0%  -32.39% (p=0.000 n=10)
-    MemmoveUnalignedSrcOverlap/1024     43.95n ± 0%   30.25n ± 0%  -31.18% (p=0.000 n=10)
-    MemmoveUnalignedSrcOverlap/2048     84.29n ± 0%   42.27n ± 0%  -49.85% (p=0.000 n=10)
-    MemmoveUnalignedSrcOverlap/4096    170.50n ± 0%   85.47n ± 0%  -49.87% (p=0.000 n=10)
+    These binary operations can be done in two sequential instructions instead of loading a
+    constant into REGTMP and doing the binary op.
     
-    Change-Id: Id1c3fbfed049d9a665f05f7c1af84e9fbd45fddf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663395
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie0ab863f9e81afad140b92b265bca4d3f0fe90b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565215
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- src/runtime/memmove_loong64.s | 465 +++++++++++++++++++++++++++++++++---------
- 1 file changed, 366 insertions(+), 99 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 10 +++++-----
+ src/cmd/internal/obj/ppc64/asm9.go        | 21 +++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 5 deletions(-)

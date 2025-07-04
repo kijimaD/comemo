@@ -1,21 +1,33 @@
-commit 7135710e01ab86468f23ac412e7f03f49235d5bb
-Author: James Yang <26634873@qq.com>
-Date:   Fri Jan 6 08:44:28 2023 +0000
+commit bd77d6e24048e5a8b7b07d2d0b7cf552d21905f5
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Tue Feb 8 14:51:41 2022 -0800
 
-    archive: error check when parse archive
+    runtime/pprof: check if PC is reused for inlining
     
-    Add error check when call `r.parseObject` in `parseArchive`.
+    When describing call stacks that include inlined function calls, the
+    runtime uses "fake" PCs to represent the frames that inlining removed.
+    Those PCs correspond to real NOP instructions that the compiler inserts
+    for this purpose.
     
-    Change-Id: Ib1739f25941262593cf63837e272b6ee896d8613
-    GitHub-Last-Rev: 5a17f9aa2c7406e191a518fdac6cb519a425fd09
-    GitHub-Pull-Request: golang/go#57624
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460755
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Describing the call stack in a protobuf-formatted profile requires the
+    runtime/pprof package to collapse any sequences of fake call sites back
+    into single PCs, removing the NOPs but retaining their line info.
+    
+    But because the NOP instructions are part of the function, they can
+    appear as leaf nodes in a CPU profile. That results in an address that
+    should sometimes be ignored (when it appears as a call site) and that
+    sometimes should be present in the profile (when it is observed
+    consuming CPU time).
+    
+    When processing a PC address, consider it first as a fake PC to add to
+    the current inlining deck, and then as a previously-seen (real) PC.
+    
+    Fixes #50996
+    
+    Change-Id: I80802369978bd7ac9969839ecfc9995ea4f84ab4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384239
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/internal/archive/archive.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/pprof/proto.go | 50 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 49 insertions(+), 1 deletion(-)

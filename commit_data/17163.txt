@@ -1,19 +1,17 @@
-commit fa4628346b78f8847f11166d52d250abb6cb50df
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 12 21:48:19 2013 +0400
+commit a07218385ce652f55547dc06e664eaab6a47be43
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 12 13:42:23 2013 -0400
 
-    runtime: remove unused m->racepc
-    The original plan was to collect allocation stacks
-    for all memory blocks. But it was never implemented
-    and it's not in near plans and it's unclear how to do it at all.
+    cmd/5g: factor out prog information
     
-    R=golang-dev, dave, bradfitz
+    Like CL 12637051, but for 5g instead of 6g.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/12724044
+    https://golang.org/cl/12779043
 
- src/pkg/runtime/malloc.goc | 8 ++------
- src/pkg/runtime/race.c     | 4 ++--
- src/pkg/runtime/race.h     | 2 +-
- src/pkg/runtime/race0.c    | 3 +--
- src/pkg/runtime/runtime.h  | 1 -
- 5 files changed, 6 insertions(+), 12 deletions(-)
+ src/cmd/5g/opt.h  |  52 ++++++++++++++++++
+ src/cmd/5g/peep.c |  84 ++++++++--------------------
+ src/cmd/5g/prog.c | 135 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5g/reg.c  | 160 ++++++++----------------------------------------------
+ 4 files changed, 231 insertions(+), 200 deletions(-)

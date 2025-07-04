@@ -1,17 +1,26 @@
-commit fc13da1648b513fb6d9f1ec1521a0065727a19b4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 13 10:57:07 2017 -0800
+commit f4dcc9b29b052b99b97d0e445cda589f08bfc798
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 18 17:29:37 2016 -0400
 
-    internal/poll: only export FD.eofError for testing on posix systems
+    runtime: make _MSpanDead be the zero state
     
-    Fixes build on plan9.
+    Currently the zero value of an mspan is in the "in use" state. This
+    seems like a bad idea in general. But it's going to wreak havoc when
+    we make fixalloc zero allocations: even "freed" mspan objects are
+    still on the allspans list and still get looked at by the garbage
+    collector. Hence, if we leave the mspan states the way they are,
+    allocating a span that reuses old memory will temporarily pass that
+    span (which is visible to GC!) through the "in use" state, which can
+    cause "unswept span" panics.
     
-    Change-Id: Idbb1e6887c24a873de77c92095198847ed953278
-    Reviewed-on: https://go-review.googlesource.com/36915
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fix all of this by making the zero state "dead".
+    
+    Updates #17503.
+    
+    Change-Id: I77c7ac06e297af4b9e6258bc091c37abe102acc3
+    Reviewed-on: https://go-review.googlesource.com/31367
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/internal/poll/export_posix_test.go | 15 +++++++++++++++
- src/internal/poll/export_test.go       |  4 ----
- 2 files changed, 15 insertions(+), 4 deletions(-)
+ src/runtime/mheap.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

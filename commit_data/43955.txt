@@ -1,17 +1,18 @@
-commit 3b2a578166bdedd94110698c971ba8990771eb89
-Author: Ikko Ashimine <eltociear@gmail.com>
-Date:   Sat Dec 5 14:43:53 2020 +0000
+commit 1d9801223eb0693af64d2bc8c23c910ce7f18b16
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Wed Apr 29 16:09:12 2020 -0700
 
-    internal/cpu: fix typo in cpu_arm64.go
+    cmd/compile: adopt strong aux typing for some s390x rules
     
-    auxillary -> auxiliary
+    Convert the remaining lowering rules to strongly-typed versions.
     
-    Change-Id: I7c29c4a63d236c3688b8e4f5af70650d43cd89c0
-    GitHub-Last-Rev: d4a18c71a15cf0803bd847225ed5bf898c52e0f3
-    GitHub-Pull-Request: golang/go#43024
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275592
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Keith Randall <khr@golang.org>
+    Passes toolstash-check.
+    Change-Id: I583786806d55376f5463addab8fec32cb59fa7a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230939
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/cpu/cpu_arm64.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  42 ++--
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 343 ++++++++++++++++++++++-----
+ 2 files changed, 300 insertions(+), 85 deletions(-)

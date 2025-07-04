@@ -1,23 +1,37 @@
-commit 6c7e199e500d3f81bda4ce383839e7f0336ed63c
-Author: Ben Hoyt <benhoyt@gmail.com>
-Date:   Sat Aug 11 12:02:52 2018 +0200
+commit 744ccbb852f18241c637b2c6314b35fce7359916
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Mon Feb 5 17:11:27 2018 +0200
 
-    text/scanner: don't allow Float exponents with no mantissa
+    runtime: fast clock_gettime call on FreeBSD
     
-    Previously Scanner would allow float literals like "1.5e" and "1e+"
-    that weren't actually valid Go float literals, and also not valid
-    when passed to ParseFloat. This commit fixes that behaviour to match
-    the documentation ("recognizes all literals as defined by the Go
-    language specification"), and Scanner emits an error in these cases.
+    Use AT_TIMEKEEP ELF aux entry to access a kernel mapped ring of timehands structs.
+    The timehands are updated by the kernel periodically, but for accurate measure the
+    timecounter still needs to be queried.
+    Currently the fast path is used only when kern.timecounter.hardware==TSC-low
+    or kern.timecounter.hardware=='ARM MPCore Timecounter',
+    other timecounters revert back to regular system call.
     
-    Fixes #26374
+    TODO: add support for HPET timecounter on 386/amd64.
     
-    Change-Id: I6855402ea43febb448c6dff105b9578e31803c01
-    Reviewed-on: https://go-review.googlesource.com/129095
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I321ca4e92be63ba21a2574b758ef5c1e729086ad
+    Reviewed-on: https://go-review.googlesource.com/93156
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/scanner/scanner.go      |  3 +++
- src/text/scanner/scanner_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ src/runtime/defs_freebsd.go       |  13 +++++
+ src/runtime/defs_freebsd_386.go   |  32 +++++++++++
+ src/runtime/defs_freebsd_amd64.go |  33 ++++++++++++
+ src/runtime/defs_freebsd_arm.go   |  32 +++++++++++
+ src/runtime/os_freebsd.go         |   9 ++--
+ src/runtime/stubs2.go             |   1 -
+ src/runtime/stubs3.go             |  13 +++++
+ src/runtime/sys_freebsd_386.s     |  11 ++--
+ src/runtime/sys_freebsd_amd64.s   |  10 ++--
+ src/runtime/sys_freebsd_arm.s     |  34 +++++++++---
+ src/runtime/timestub.go           |   2 -
+ src/runtime/timestub2.go          |  11 ++++
+ src/runtime/vdso_freebsd.go       | 111 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/vdso_freebsd_arm.go   |  21 ++++++++
+ src/runtime/vdso_freebsd_x86.go   |  31 +++++++++++
+ 15 files changed, 338 insertions(+), 26 deletions(-)

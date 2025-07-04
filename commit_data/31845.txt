@@ -1,19 +1,23 @@
-commit 8d2b3bb7b1a96c8373f9493ccb41860d07b48efc
+commit ea8c7dae4fe2fa9cc5ef258582086941aec751ae
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jun 15 10:47:57 2017 -0700
+Date:   Fri Mar 10 16:03:56 2017 -0800
 
-    Revert "cmd/compile: skip reexporting types in reexportdep"
+    cmd/compile: sort CFG blocks in PC order during liveness
     
-    This reverts commit edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc.
+    This CL changes the order that liveness analysis visits CFG blocks to
+    PC order, rather than RPO. This doesn't meaningfully change anything
+    except that the PCDATA_StackMapIndex values will be assigned in PC
+    order too.
     
-    Fixes #20682.
+    However, this does have the benefit that the subsequent CL to port
+    liveness analysis to the SSA CFG (which has blocks in PC order) will
+    now pass toolstash-check.
     
-    Change-Id: If998c8b4bf177d5da9e26f75579bd5497ec86d38
-    Reviewed-on: https://go-review.googlesource.com/45911
+    Change-Id: I1de5a2eecb8027723a6e422d46186d0c63d48c8d
+    Reviewed-on: https://go-review.googlesource.com/38086
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/bexport.go |  9 ++++-
- src/cmd/compile/internal/gc/export.go  | 73 ++++++++++++++++++++++++++++++++++
- 2 files changed, 81 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/plive.go | 41 +++++++++++-------------------------
+ 1 file changed, 12 insertions(+), 29 deletions(-)

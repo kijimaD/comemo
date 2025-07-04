@@ -1,18 +1,16 @@
-commit f3b064ae0180461411add0aa98156dbf26f37de2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 16 10:57:07 2015 -0800
+commit 143f3fd0ee71e6b015029b6792bc873b1013a8d4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 1 17:51:39 2015 +1000
 
-    cmd/compile: add 386 special case for testing first field of struct variable
+    encoding/json: spell "marshaling" and "unmarshaling" consistently
     
-    This is the 386 version of the amd64-specific https://golang.org/cl/16933.
+    Fixes #12431
     
-    Update #12416.
-    
-    Change-Id: Ibc3a99dcc753d6281839d8b61016d6c21dbd9649
-    Reviewed-on: https://go-review.googlesource.com/16970
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I67c42bf2cd9285f471387248fd9c22a16b158349
+    Reviewed-on: https://go-review.googlesource.com/14150
+    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/x86/gsubr.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/encoding/json/decode.go      | 2 +-
+ src/encoding/json/decode_test.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

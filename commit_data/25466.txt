@@ -1,28 +1,26 @@
-commit a7cad52e04dd1890420452b38563997930edb2ca
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 23 18:38:18 2015 -0800
+commit d2fa937a2188fdfcf1b81857eb297ba53b3a7867
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 2 07:46:44 2015 -0800
 
-    runtime: preserve signal stack when calling Go on C thread
+    test: update tinyfin test
     
-    When calling a Go function on a C thread, if the C thread already has an
-    alternate signal stack, use that signal stack instead of installing a
-    new one.
+    * use new(int32) to be pedantic about documented SetFinalizer rules:
+      "The argument x must be a pointer to an object allocated by calling
+      new or by taking the address of a composite literal"
     
-    Update #9896.
+    * remove the amd64-only restriction. The GC is fully precise everywhere
+      now, even on 32-bit. (keep the gccgo restriction, though)
     
-    Change-Id: I62aa3a6a4a1dc4040fca050757299c8e6736987c
-    Reviewed-on: https://go-review.googlesource.com/18108
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    * remove a data race (perhaps the actual bug) and use atomic.LoadInt32
+      for the final check. The race detector is now happy, too.
+    
+    Updates #13100
+    
+    Change-Id: I8d05c0ac4f046af9ba05701ad709c57984b34893
+    Reviewed-on: https://go-review.googlesource.com/16535
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcarchive/main4.c              | 194 +++++++++++++++++++++++++++++
- misc/cgo/testcarchive/src/libgo4/libgo4.go |  52 ++++++++
- misc/cgo/testcarchive/test.bash            |   8 ++
- src/runtime/os1_darwin.go                  |  21 +++-
- src/runtime/os1_dragonfly.go               |  20 ++-
- src/runtime/os1_freebsd.go                 |  20 ++-
- src/runtime/os1_linux.go                   |  21 +++-
- src/runtime/os1_netbsd.go                  |  20 ++-
- src/runtime/os1_openbsd.go                 |  20 ++-
- src/runtime/os3_solaris.go                 |  20 ++-
- src/runtime/runtime2.go                    |   1 +
- 11 files changed, 383 insertions(+), 14 deletions(-)
+ test/tinyfin.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

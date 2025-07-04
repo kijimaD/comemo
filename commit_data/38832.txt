@@ -1,27 +1,36 @@
-commit 14b5b4a2a13c3148fdfeb4852436661791a13e2e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 19 12:27:25 2019 -0400
+commit 2140975ebde164ea1eaa70fc72775c03567f2bc9
+Author: Keith Randall <khr@google.com>
+Date:   Tue Nov 27 12:40:16 2018 -0800
 
-    cmd/go/internal/modload: fix boundary conditions in matchPackages
+    cmd/compile: eliminate write barriers when writing non-heap ptrs
     
-    This makes the boundary logic of matchPackages consistent with
-    modload.dirInModule.
+    We don't need a write barrier if:
+    1) The location we're writing to doesn't hold a heap pointer, and
+    2) The value we're writing isn't a heap pointer.
     
-    Previously, matchPackages always stopped at go.mod file, even within
-    the vendor tree. However, we do not guarantee that the vendor tree is
-    free of such files in general.
+    The freshly returned value from runtime.newobject satisfies (1).
+    Pointers to globals, and the contents of the read-only data section satisfy (2).
     
-    matchPackages also issued needless stat operations for modules in the
-    module cach, which we already know to be free of nested modules. On
-    systems with slow filesystems (such as macOS), those extra calls could
-    potentially slow package matching considerably.
+    This is particularly helpful for code like:
+    p := []string{"abc", "def", "ghi"}
     
-    Change-Id: I71979ab752e1d3971b370b37085d30502690413b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172985
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Where the compiler generates:
+       a := new([3]string)
+       move(a, statictmp_)  // eliminates write barriers here
+       p := a[:]
+    
+    For big slice literals, this makes the code a smaller and faster to
+    compile.
+    
+    Update #13554. Reduces the compile time by ~10% and RSS by ~30%.
+    
+    Change-Id: Icab81db7591c8777f68e5d528abd48c7e44c87eb
+    Reviewed-on: https://go-review.googlesource.com/c/151498
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modload/search.go              | 36 ++++++++++++++++------
- src/cmd/go/testdata/script/mod_patterns_vendor.txt | 28 +++++++++++++++++
- 2 files changed, 54 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/writebarrier.go | 57 +++++++++++++++++++++++++++-
+ test/writebarrier.go                         | 11 ++++++
+ 2 files changed, 66 insertions(+), 2 deletions(-)

@@ -1,20 +1,21 @@
-commit 07c3f65d53df7bb9f84bdbd2ab64c0ae12337e3e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Aug 6 15:44:27 2020 +0000
+commit 782fcb44b96753e6e763be91a72bcbfc3dff7ab9
+Author: Sylvain Zimmer <sylvain@sylvainzimmer.com>
+Date:   Mon Jul 29 03:15:36 2019 +0200
 
-    runtime,runtime/metrics: add heap object count metric
+    regexp: add (*Regexp).SubexpIndex
     
-    For #37112.
+    SubexpIndex returns the index of the first subexpression with the given name,
+    or -1 if there is no subexpression with that name.
     
-    Change-Id: Idd3dd5c84215ddd1ab05c2e76e848aa0a4d40fb0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247043
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Fixes #32420
+    
+    Change-Id: Ie1f9d22d50fb84e18added80a9d9a9f6dca8ffc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187919
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/metrics.go             | 18 ++++++++++++++++--
- src/runtime/metrics/description.go |  5 +++++
- src/runtime/metrics/doc.go         |  3 +++
- src/runtime/metrics_test.go        |  2 ++
- 4 files changed, 26 insertions(+), 2 deletions(-)
+ src/regexp/all_test.go     | 42 ++++++++++++++++++++++++++++--------------
+ src/regexp/example_test.go | 13 +++++++++++++
+ src/regexp/regexp.go       | 18 ++++++++++++++++++
+ 3 files changed, 59 insertions(+), 14 deletions(-)

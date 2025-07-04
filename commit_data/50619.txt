@@ -1,19 +1,15 @@
-commit d9d2ef991caabb3d2d0d419b652e7894cd2f4546
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Sep 24 13:13:14 2022 +0800
+commit fa19146038e0e94480c93d43e2a8306c419d5119
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Nov 3 16:18:36 2021 +0100
 
-    net/http: fix the potential leak of textproto.Reader from pool
+    net/netip: fix various typos in comments
     
-    Fixes #55835
-    
-    Change-Id: I6109bab2941b859e8cfef22f65a6a3a5f977a8d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/433835
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I67998f70969ac6e6ff1b52a56e49a61ef167ed50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361055
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/request.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/netip/netip.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

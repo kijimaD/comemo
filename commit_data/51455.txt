@@ -1,16 +1,16 @@
-commit fd22b0bf89e83aabce915ae86a677c10513de20f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Nov 28 14:22:10 2022 +0100
+commit a42bbf47d6b0d6f67ad843252cb2e8f56a9d32b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 1 09:07:49 2022 -0800
 
-    net: gofmt after CL 382996
+    doc/go1.18: explain changes to compiler error messages
     
-    Change-Id: Ic1302eb02f4369bf6758be9fb91379fd9a992e48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453575
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    For #47694.
+    For #50954.
+    
+    Change-Id: I3789e145d64025fe2bf787fa5d01a21832903586
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381968
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/hosts.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.18.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

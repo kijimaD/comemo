@@ -1,22 +1,22 @@
-commit b1a20253fe8a1f099a23735c9a613b433df67261
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Sep 4 11:25:06 2019 -0400
+commit d0cbf9bf53ceb989f79addf4b91346840b3b8a57
+Author: erifan01 <eric.fang@arm.com>
+Date:   Thu Mar 21 03:24:47 2019 +0000
 
-    cmd/link: memoize/cache whether plugin.Open symbol available
+    cmd/compile: follow up intrinsifying math/bits.Add64 for arm64
     
-    Perform a single lookup of "plugin.Open" at the point where we set the
-    loaded flag for the context, then cache whether the result is nil, so
-    that we can consult this cached value later on (instead of having to
-    look up the symbol each time). This helps speed up the DynLinkingGo()
-    context method, which is called from within some very hot loops in the
-    linker (when linking 'hyperkube' from kubernetes, reduces total calls
-    to "sym.(*Symbols).ROLookup" from 6.5M to 4.3M)
+    This CL deals with the additional comments of CL 159017.
     
-    Change-Id: I92a2ea2b21d24f67aec0a7afeef4acc77c095adf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193260
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I4ad3c60c834646d58dc0c544c741b92bfe83fb8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168857
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go  | 10 ++++++++--
- src/cmd/link/internal/ld/link.go |  1 +
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  4 ++-
+ src/cmd/compile/internal/ssa/opGen.go        | 47 +++++++++++++++++++---------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 33 +++++++++++++++++++
+ src/math/bits/bits_test.go                   |  4 +--
+ test/codegen/mathbits.go                     |  4 +--
+ 7 files changed, 77 insertions(+), 23 deletions(-)

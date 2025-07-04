@@ -1,30 +1,22 @@
-commit 4f2269edbd1b3e09484001c9cc7897b49c828b45
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 31 11:35:29 2017 -0400
+commit 135ce43c8731506d541329a1dfea2c737c6dd0b1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 10 10:04:42 2017 -0800
 
-    cmd/link: add -importcfg to specify import resolution
+    cmd/go: when expanding "cmd", skip vendored main packages
     
-    Adds the ability to specify the file location of each imported package,
-    like in the -importcfg added to cmd/compile in a related CL.
-    In effect, -importcfg is a generalization of and supersedes -installsuffix
-    and -L. Of course, those flags will continue to be supported, for
-    compatibility with other tools.
+    We are vendoring pprof from github.com/google/pprof, which comes with
+    a main package. If we don't explicitly skip that main package, then
+    `go install cmd` will install the compiled program in $GOROOT/bin.
     
-    Having this flag in Go 1.9 will let us try some experiments involving
-    package management without needing guinea pigs to build a custom
-    Go toolchain.
+    Fixes #19441.
     
-    This flag also helps with #14271 at some later point.
-    
-    For #20579.
-    
-    Change-Id: Ie4c171bcd3aa2faa446ac340e36516f2f9853882
-    Reviewed-on: https://go-review.googlesource.com/44851
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib268ffd16d4be65f7d80e4f8d9dc6e71523a94de
+    Reviewed-on: https://go-review.googlesource.com/38007
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Raul Silvera <rsilvera@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/ld.go   | 83 +++++++++++++++++++++++++++++++++-------
- src/cmd/link/internal/ld/lib.go  | 13 +++++++
- src/cmd/link/internal/ld/link.go |  3 ++
- src/cmd/link/internal/ld/main.go |  1 +
- 4 files changed, 87 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/load/search.go | 11 ++++++++++-
+ src/make.bash                      | 13 +++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

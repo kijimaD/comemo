@@ -1,20 +1,21 @@
-commit ac90d9ab473adcb2dc209d168c5b038583bed566
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 6 17:52:24 2015 -0800
+commit 083e04c3d963832116deb0d11e1fab5d7d57132a
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Mon Jan 5 11:27:40 2015 +0000
 
-    build: fix race.bat flags
+    crypto/x509: Correction of incrorrect default version number in TBSCertificateList and Certificate.CreateCRL
     
-    The old C-based dist accepted merged flags (-wp) but the Go-based dist
-    requires -w -p
+    RFC5280 states:
     
-    This should get the Windows race builder running properly, along with
-    https://go-review.googlesource.com/#/c/4132/
+    "This optional field describes the version of the encoded CRL.  When
+     extensions are used, as required by this profile, this field MUST be
+     present and MUST specify version 2 (the integer value is 1)."
     
-    Update #8640
+    This CL has been discussed at: http://golang.org/cl/172560043
     
-    Change-Id: Ic17bbe9ea6c8b3d3e9b29f94e234d014f2926439
-    Reviewed-on: https://go-review.googlesource.com/4133
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8a72d7593d5ca6714abe9abd6a37437c3b69ab0f
+    Reviewed-on: https://go-review.googlesource.com/2259
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/race.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/pkix/pkix.go | 2 +-
+ src/crypto/x509/x509.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

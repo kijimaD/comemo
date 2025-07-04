@@ -1,14 +1,17 @@
-commit 3828316b9fc138e0da5257c8779b197ccb2ebd5e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 23 20:30:42 2013 +0900
+commit 05e8db985aa1d8959d9ca1fedb148470fdcf0bb0
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 22 16:28:42 2013 -0700
 
-    net: fix protocol number for IPv6 test
+    lib/time: update to IANA 2013c
+    This should do it for the release.
+    There was a new data set pushed out a couple of days ago.
     
-    The protocol number of ICMP for IPv6 is 58, not 1.
+    Fixes #4553.
     
-    R=golang-dev, iant, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8663048
+    https://golang.org/cl/8621044
 
- src/pkg/net/ipraw_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 374065 -> 374530 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

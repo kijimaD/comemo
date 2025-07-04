@@ -1,17 +1,24 @@
-commit 954bd8203bfe3033b9794ad4ec2c82cfd6be1414
+commit 567ef8bd8e76bdbc00df6b1903976b89b34a84d8
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun Apr 11 14:53:18 2021 +0200
+Date:   Tue Sep 29 15:13:17 2020 +0200
 
-    cmd/cgo: use tabs to indent _cgoPREFIX_Cfunc__CMalloc function body
+    runtime: correct arguments to pipe2 syscall in pipe on netbsd/arm64
     
-    All other _cgoPREFIX_Cfunc_* functions are indented using tabs.
+    Follow the implementation of pipe2 to pass arguments and handle return
+    values.
     
-    Change-Id: Ic5cfccd3000d34d0bbe08d035f18640af5e05473
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308993
+    With this fix the runtime tests pass on netbsd/arm64 (tested using
+    gomote on the netbsd-arm64-bsiegert builder).
+    
+    Update #30824
+    
+    Change-Id: I346db68fc9dde8dc7f11351af05c1ad3105f4a32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258000
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cgo/out.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/sys_netbsd_arm64.s | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

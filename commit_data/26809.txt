@@ -1,17 +1,21 @@
-commit c31fdd4ee9fccd24a274cebd82dcc7123ad43d0e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 9 22:54:26 2016 +0000
+commit 52d9479e3be6cc94256f3ad07a0bd71df2aa4f60
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 26 13:33:48 2016 -0800
 
-    cmd/go: fix typo in comment
+    cmd/compile: convert Func.Cvars from *NodeList to *[]*Node
     
-    Thanks to deafgoat.
+    Passes toolstash -cmp.
     
-    Fixes #15215
+    Update #14473.
     
-    Change-Id: I9fababc7ecd201ce86020a438e4faee95e7623a8
-    Reviewed-on: https://go-review.googlesource.com/21792
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I7285175b1992a29033fdc9e81d6f30545e5cc30d
+    Reviewed-on: https://go-review.googlesource.com/19967
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/pkg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/closure.go | 28 ++++++++--------------------
+ src/cmd/compile/internal/gc/dcl.go     |  2 +-
+ src/cmd/compile/internal/gc/esc.go     |  4 +---
+ src/cmd/compile/internal/gc/order.go   |  2 +-
+ src/cmd/compile/internal/gc/sinit.go   |  2 +-
+ src/cmd/compile/internal/gc/syntax.go  | 27 ++++++++++++++++++++++++---
+ 6 files changed, 36 insertions(+), 29 deletions(-)

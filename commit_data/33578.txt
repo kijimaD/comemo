@@ -1,18 +1,23 @@
-commit 3a181dc7bc8fd0c61d6090a85f87c934f1874802
+commit 991652dcf02a1f9766f24dc2409b1417547866f1
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 15 11:47:31 2017 -0500
+Date:   Tue Aug 22 22:50:27 2017 -0400
 
-    archive/zip: fix handling of replacement rune in UTF8 check
+    [dev.boringcrypto] cmd/link: work around DWARF symbol bug
     
-    The replacement rune is a valid rune and can appear as itself in valid UTF8
-    (it encodes as three bytes). To check for invalid UTF8 it is necessary to
-    look for utf8.DecodeRune returning the replacement rune and size==1.
+    The DWARF code is mishandling the case when the host object files
+    define multiple (distinct) symbols with the same name. They are mapped
+    to the same DWARF debug symbol, which then appears on the dwarfp
+    list multiple times, which then breaks the code that processes the list.
+    Detect duplicates and skip them, because that's trivial, instead of fixing
+    the underlying problem.
     
-    Change-Id: I169be8d1fe61605c921ac13cc2fde94f80f3463c
-    Reviewed-on: https://go-review.googlesource.com/78126
+    See #21566.
+    
+    Change-Id: Ib5a34c891d7c15f4c7bb6239d8f31a1ec767b8bc
+    Reviewed-on: https://go-review.googlesource.com/57943
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/zip/writer.go      |  6 ++++--
- src/archive/zip/writer_test.go | 26 +++++++++++++++-----------
- 2 files changed, 19 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/ld/data.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,28 +1,52 @@
-commit e3661d5f0820820d8d5e5e357244c95f788820e2
+commit adedf54288e826bd93ccf22ad104f768d42289d4
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu May 12 15:46:20 2022 -0700
+Date:   Wed Jul 28 12:59:14 2021 -0700
 
-    cmd/compile/internal/typecheck: remove iexport assumption of LocalPkg.Path == ""
+    [dev.typeparams] test: rename blank functions
     
-    The indexed export data format encodes the local package's path as "",
-    because that's historically how we've represented it within
-    cmd/compile. The format also requires the local package to be first in
-    the exported list of packages, and was implicitly relying on ""
-    sorting before other, non-empty package paths.
+    This CL renames blank functions in the test/ directory so that they
+    don't rely on the compiler doing anything more than typechecking them.
     
-    We can't change the format without breaking existing importers (e.g.,
-    go/internal/gcimporter), but we can at least remove the dependency on
-    LocalPkg.Path being "".
+    In particular, I ran this search to find files that used blank
+    functions and methods:
     
-    Prep refactoring for CL 393715.
+    $ git grep -l '^func.*\b_(' | xargs grep -n '^' | grep '\.go:1:' | grep -v '// errorcheck$'
     
-    Updates #51734.
+    I then skipped updating a few files:
     
-    Change-Id: I6dd4eafd2d538f4e81376948ef9e92fc44a5462a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406057
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    * blank.go
+    * fixedbugs/issue11699.go
+    * fixedbugs/issue29870.go
+    
+      These tests specifically check that blank functions/methods work.
+    
+    * interface/fail.go
+    
+      Not sure the motivation for the blank method here, but it's empty
+      anyway.
+    
+    * typeparam/tparam1.go
+    
+      Type-checking test, but uses "-G" (to use types2 instead of typecheck).
+    
+    Updates #47446.
+    
+    Change-Id: I9ec1714f499808768bd0dcd7ae6016fb2b078e5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338094
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/typecheck/iexport.go | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ test/escape5.go              |  4 ++--
+ test/escape_goto.go          |  6 +++---
+ test/fixedbugs/bug267.go     |  2 +-
+ test/fixedbugs/issue22076.go |  4 ++--
+ test/fixedbugs/issue27557.go |  6 +++---
+ test/fixedbugs/issue45258.go |  2 +-
+ test/fixedbugs/issue8042.go  |  6 +++---
+ test/fixedbugs/issue8761.go  |  6 +++---
+ test/inline.go               |  4 ++--
+ test/typeparam/issue45547.go |  2 +-
+ test/typeparam/typelist.go   | 14 +++++++-------
+ 11 files changed, 28 insertions(+), 28 deletions(-)

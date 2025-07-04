@@ -1,19 +1,22 @@
-commit ea3054aecc3d66409fcf1b404b58bc4767599dfa
+commit 7e0a1d340ffd71f239bddbd4686392a5a2c5906b
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 28 10:20:25 2022 +0700
+Date:   Tue Mar 22 20:25:37 2022 +0700
 
-    cmd/compile: factor out code to generate equal func
+    cmd/compile: remove reportTypeLoop
     
-    So next CL can use it for generating equal func during walk compare.
+    reportTypeLoop used to be used to report invalid recursive types in old
+    typechecker.
     
-    Passes toolstash-check.
+    However, types2 now reports this error, so this can be removed.
     
-    Change-Id: I76545c1d471eb496be352908db1b05feae83fc33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436435
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Updates #51691
+    
+    Change-Id: I5e73369dadafb0cc56e682668b32cbd1e1210f2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394554
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/reflectdata/alg.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types/size.go | 94 +---------------------------------
+ 1 file changed, 2 insertions(+), 92 deletions(-)

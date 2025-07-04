@@ -1,0 +1,15 @@
+commit b16c04f43993436f24b1e4155a4652193eb1b90c
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Feb 13 00:41:13 2025 +0800
+
+    cmd/dist: use slices.Index
+    
+    Change-Id: Ifcab176faa2ac55e60576cf6acd96a18d0e860ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648859
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/dist/build.go | 17 ++++-------------
+ 1 file changed, 4 insertions(+), 13 deletions(-)

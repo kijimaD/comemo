@@ -1,23 +1,14 @@
-commit d40b0a1494cc3b717207ce822d01d0f180627a3f
-Author: Steven Hartland <steven.hartland@multiplay.co.uk>
-Date:   Fri May 8 12:09:00 2020 +0000
+commit 7d1d94462684e14cd46ff27f75e0d3ba51034222
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 4 17:04:02 2019 +0000
 
-    cmd/link: fix mode parameter to fallocate on Linux
+    math/rand: update comment to avoid use of ^ for exponentiation
     
-    Fix the mode parameter to fallocate on Linux which is the operation mode
-    and not the file mode as with os.OpenFile.
+    Fixes #35920
     
-    Also handle syscall.EINTR.
-    
-    Fixes #38950
-    
-    Change-Id: Ieed20d9ab5c8a49be51c9f9a42b7263f394a5261
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232805
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I1a4d26c5f7f3fbd4de13fc337de482667d83c47f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209758
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/link/internal/ld/outbuf_linux.go | 2 +-
- src/cmd/link/internal/ld/outbuf_mmap.go  | 8 ++++++--
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/math/rand/rand.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

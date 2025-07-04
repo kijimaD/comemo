@@ -1,15 +1,12 @@
-commit d9832987ba95f8feb016fc5d22d77793659b94ef
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 6 11:14:45 2012 +1100
+commit 46031400d0c0745ef8e764a4872f5aaaa143d199
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 5 15:51:58 2012 -0800
 
-    unicode/utf8: remove dependence on unicode.
-    The dependency was there only to pull in two constants.
-    Now we define them locally and verify equality in the test.
+    reflect: fix comment spacing
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5754046
+    https://golang.org/cl/5757043
 
- src/pkg/unicode/utf8/utf8.go      | 13 ++++++++-----
- src/pkg/unicode/utf8/utf8_test.go | 11 +++++++++++
- 2 files changed, 19 insertions(+), 5 deletions(-)
+ src/pkg/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

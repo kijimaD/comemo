@@ -1,0 +1,21 @@
+commit 0ab2253ce1e9183c2cb94f3a594448320cb65962
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 17 17:39:11 2025 -0500
+
+    math/big: move multiplication to natmul.go
+    
+    No code changes.
+    
+    This CL moves the multiplication (and squaring) code into natmul.go,
+    in preparation for cleaning up Karatsuba and then adding Toom-Cook
+    and FFT-based multiplication.
+    
+    Change-Id: I7f84328284cc4e1ca4da0ebb9f666a5535e8d7f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/nat.go    | 359 ------------------------------------------------
+ src/math/big/natmul.go | 366 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 366 insertions(+), 359 deletions(-)

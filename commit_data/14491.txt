@@ -1,20 +1,24 @@
-commit 2a982e8e25f35735268711d21c77aaaee75f8366
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 26 13:14:04 2012 -0800
+commit 2e73453acabd5827383ae97cdcafff814ce09a64
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Nov 26 21:51:48 2012 +0100
 
-    go/printer: Permit declaration and statement lists as input.
+    cmd/6l, cmd/8l: emit no-ops to separate zero-stack funcs from nosplits.
     
-    Also: Can set base indentation in printer.Config: all code
-    is going to be indented by at least that amount (except for
-    raw string literals spanning multiple lines, since their
-    values must not change).
+    The stack overflow checker in the linker uses the spadj field
+    to determine whether stack space will be large enough or not.
+    When spadj=0, the checker treats the function as a nosplit
+    and emits an error although the program is correct.
     
-    R=golang-dev, rsc
+    Also enable the stack checker in 8l.
+    
+    Fixes #4316.
+    
+    R=rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/6847086
+    https://golang.org/cl/6855088
 
- src/pkg/go/printer/nodes.go            | 46 ++++++++++-------
- src/pkg/go/printer/performance_test.go |  2 +-
- src/pkg/go/printer/printer.go          | 32 ++++++++----
- src/pkg/go/printer/printer_test.go     | 92 ++++++++++++++++++++++++++++++++++
- 4 files changed, 142 insertions(+), 30 deletions(-)
+ src/cmd/6l/pass.c           | 10 +++++++
+ src/cmd/8l/obj.c            |  1 +
+ src/cmd/8l/pass.c           | 10 +++++++
+ test/fixedbugs/issue4316.go | 64 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 85 insertions(+)

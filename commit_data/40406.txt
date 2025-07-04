@@ -1,16 +1,13 @@
-commit f922cc64463939d5561abf5f6e30291b4c034892
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 24 11:29:33 2019 -0400
+commit a4f5c9c40de3fcf4396037ba63dc547225e00375
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 09:51:17 2019 -0400
 
-    cmd/go: correct GoMod field in 'go list' for replacements that lack an explicit go.mod file
+    runtime: fix vet complaints for js/wasm
     
-    Change-Id: I241a3bbaf9c4b779b74146232d2f144bb46a0dc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203178
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ifc8a731a2efd94fdc4fc6f26ca6e16f0c0292211
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176178
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/modload/build.go               |  3 +-
- .../testdata/mod/not-rsc.io_quote_v0.1.0-nomod.txt | 59 ++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_replace.txt         |  7 +++
- 3 files changed, 68 insertions(+), 1 deletion(-)
+ src/cmd/vet/all/whitelist/wasm.txt | 11 -----------
+ src/runtime/asm_wasm.s             |  3 ++-
+ 2 files changed, 2 insertions(+), 12 deletions(-)

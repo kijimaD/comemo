@@ -1,29 +1,18 @@
-commit ad7db1f90fb66f00f5b020360aabd9f27d1c764f
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Thu Oct 14 16:50:41 2021 +0900
+commit 3b7277d3651b5c5856c5b0879ba3fb7a5f279508
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 4 10:59:17 2021 -0500
 
-    sync: avoid a dynamic check in WaitGroup on 64-bit architectures
+    cmd/go: add a script test for artifacts resulting from 'go get -u'
     
-    uint64 is guaranteed by the compiler to be aligned on 64-bit archs.
-    By using uint64+uint32 instead of [3]uint32 we can make use of the
-    guaranteed alignment to avoid the run-time alignment check.
+    For #36460
     
-    On linux/amd64:
-    
-    name                     old time/op    new time/op    delta
-    WaitGroupUncontended-4     8.84ns ± 3%    7.62ns ± 4%  -13.72%  (p=0.000 n=17+18)
-    WaitGroupAddDone-4         66.8ns ± 3%    45.9ns ± 2%  -31.31%  (p=0.000 n=20+18)
-    WaitGroupAddDoneWork-4     79.2ns ± 1%    56.6ns ± 1%  -28.54%  (p=0.000 n=17+20)
-    WaitGroupWait-4            2.83ns ± 2%    2.58ns ± 2%   -9.05%  (p=0.000 n=18+20)
-    WaitGroupWaitWork-4        16.8ns ± 6%    16.5ns ± 6%     ~     (p=0.072 n=20+18)
-    WaitGroupActuallyWait-4     263ns ± 2%     261ns ± 5%     ~     (p=0.063 n=18+20)
-    
-    Change-Id: I314340f2ed8a47d8b9c15f8a3b07e41f252f4831
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189837
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I4f8bf0fb8dfa508b346acb3868302452409ee9da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289696
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/sync/waitgroup.go | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ .../go/testdata/script/mod_get_downup_artifact.txt | 165 +++++++++++++++++++++
+ 1 file changed, 165 insertions(+)

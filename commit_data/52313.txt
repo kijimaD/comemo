@@ -1,35 +1,19 @@
-commit 8377f2014d868f60065b9244c4a84cf78c80f415
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Mon Mar 6 03:17:47 2023 -0600
+commit 94f25ec94920beee5fb2dd4c0cbf4cbff28f14e6
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 25 11:22:10 2022 -0400
 
-    runtime: improve equal on ppc64x/power10
+    debug/pe: fix off by one error in valid symbol index test
     
-    Rewrite equal asm function to use the new power10 instruction lxvl
-    and stxvl- load and store with variable length which can simplify
-    the tail end bytes comparison process. Cleaned up code on CR
-    register usage.
+    Fix an off-by-one error in COFFSymbolReadSectionDefAux, specifically
+    the code that tests whether a symbol index is valid.
     
-    On power9 and power8 the code remains unchanged. The performance
-    for multiple sizes<=16 improve on power10 with the change.
+    Fixes #52525.
     
-    name      old time/op    new time/op    delta
-    Equal/1     5.28ns ± 0%    4.19ns ± 9%  -20.80%
-    Equal/2     5.30ns ± 0%    4.29ns ± 6%  -19.06%
-    Equal/3     5.10ns ± 5%    4.20ns ± 6%  -17.73%
-    Equal/4     5.05ns ± 0%    4.42ns ± 4%  -12.50%
-    Equal/5     5.27ns ± 1%    4.44ns ± 4%  -15.69%
-    Equal/6     5.30ns ± 0%    4.38ns ±12%  -17.44%
-    Equal/7     5.02ns ± 6%    4.48ns ± 2%  -10.64%
-    Equal/9     4.53ns ± 0%    4.34ns ± 7%   -4.21%
-    Equal/16    4.52ns ± 0%    4.29ns ± 6%   -5.16%
-    
-    Change-Id: Ie124906e3a5012dfe634bfe09af06be42f1b178b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473536
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1b6e5dacfd99249c694bef5ae606e90fdb2ef521
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402156
+    Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/bytealg/equal_ppc64x.s | 42 +++++++++++++++++++------------------
- 1 file changed, 22 insertions(+), 20 deletions(-)
+ src/debug/pe/symbol.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

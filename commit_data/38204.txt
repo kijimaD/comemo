@@ -1,31 +1,47 @@
-commit e0ff4e6dc013ac18728743a43b6faa812737bdb2
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Dec 31 19:48:21 2018 +0100
+commit ceb0c371d9a535826497289ac7d0b206a59526e6
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 8 17:46:45 2018 -0700
 
-    encoding/pem: skip whitespace work on most inputs
+    cmd/compile: make []byte("...") more efficient
     
-    encoding/base64 already skips \r and \n when decoding, so this package
-    must only deal with spaces and tabs. Those aren't nearly as common, so
-    we can add a fast path with bytes.ContainsAny to skip the costly alloc
-    and filtering code.
+    Do []byte(string) conversions more efficiently when the string
+    is a constant. Instead of calling stringtobyteslice, allocate
+    just the space we need and encode the initialization directly.
     
-    name      old time/op    new time/op    delta
-    Decode-8     279µs ± 0%     259µs ± 1%   -7.07%  (p=0.002 n=6+6)
+    []byte("foo") rewrites to the following pseudocode:
     
-    name      old speed      new speed      delta
-    Decode-8   319MB/s ± 0%   343MB/s ± 1%   +7.61%  (p=0.002 n=6+6)
+    var s [3]byte // on heap or stack, depending on whether b escapes
+    s = *(*[3]byte)(&"foo"[0]) // initialize s from the string
+    b = s[:]
     
-    name      old alloc/op   new alloc/op   delta
-    Decode-8     164kB ± 0%      74kB ± 0%  -54.90%  (p=0.002 n=6+6)
+    which generates this assembly:
     
-    name      old allocs/op  new allocs/op  delta
-    Decode-8      12.0 ± 0%      11.0 ± 0%   -8.33%  (p=0.002 n=6+6)
+            0x001d 00029 (tmp1.go:9)        LEAQ    type.[3]uint8(SB), AX
+            0x0024 00036 (tmp1.go:9)        MOVQ    AX, (SP)
+            0x0028 00040 (tmp1.go:9)        CALL    runtime.newobject(SB)
+            0x002d 00045 (tmp1.go:9)        MOVQ    8(SP), AX
+            0x0032 00050 (tmp1.go:9)        MOVBLZX go.string."foo"+2(SB), CX
+            0x0039 00057 (tmp1.go:9)        MOVWLZX go.string."foo"(SB), DX
+            0x0040 00064 (tmp1.go:9)        MOVW    DX, (AX)
+            0x0043 00067 (tmp1.go:9)        MOVB    CL, 2(AX)
+    // Then the slice is b = {AX, 3, 3}
     
-    Change-Id: Idfca8700c52f46eb70a4a7e0d2db3bf0124e4699
-    Reviewed-on: https://go-review.googlesource.com/c/155964
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    The generated code is still not optimal, as it still does load/store
+    from read-only memory instead of constant stores.  Next CL...
+    
+    Update #26498
+    Fixes #10170
+    
+    Change-Id: I4b990b19f9a308f60c8f4f148934acffefe0a5bd
+    Reviewed-on: https://go-review.googlesource.com/c/140698
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/pem/pem.go | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/esc.go             |  3 +--
+ src/cmd/compile/internal/gc/go.go              | 12 ++++++++-
+ src/cmd/compile/internal/gc/walk.go            | 37 +++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 14 +++++-----
+ test/codegen/strings.go                        |  7 +++++
+ 6 files changed, 61 insertions(+), 14 deletions(-)

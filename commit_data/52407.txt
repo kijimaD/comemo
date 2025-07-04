@@ -1,27 +1,23 @@
-commit bd7b19356f3827c36ef584bfd8e88aa6cee00710
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 21 17:21:17 2023 -0700
+commit 0feebe6eb594e28c29022c65ffcd2ae0e8bebac7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Feb 15 00:22:20 2022 +0000
 
-    go/types, types2: adjust Checker.recordCommaOkTypes signature
+    runtime: add byte count parser for GOMEMLIMIT
     
-    By changing the signature to accept a slice rather than an
-    array, we can avoid creating the array in the first place.
+    This change adds a parser for the GOMEMLIMIT environment variable's
+    input. This environment variable accepts a number followed by an
+    optional prefix expressing the unit. Acceptable units include
+    B, KiB, MiB, GiB, TiB, where *iB is a power-of-two byte unit.
     
-    Functionally, we now also record comma-ok types if the
-    corresponding assignment was incorrect. But this change
-    provides more (not less) information through the API and
-    only so if the program is incorrect in the first place.
+    For #48409.
     
-    Change-Id: I0d629441f2f890a37912171fb26ef0e75827ce23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478218
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I6a3b4c02b175bfcf9c4debee6118cf5dda93bb6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393400
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/assignments.go | 16 ++++++----------
- src/cmd/compile/internal/types2/check.go       | 19 ++++++++++++-------
- src/go/types/assignments.go                    | 16 ++++++----------
- src/go/types/check.go                          | 14 +++++++++-----
- 4 files changed, 33 insertions(+), 32 deletions(-)
+ src/runtime/export_test.go |   1 +
+ src/runtime/string.go      | 117 +++++++++++++++++++++++++++++++++++++-----
+ src/runtime/string_test.go | 123 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 229 insertions(+), 12 deletions(-)

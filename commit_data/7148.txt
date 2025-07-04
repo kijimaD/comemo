@@ -1,12 +1,14 @@
-commit 43582bad33f18ea3f88252574810aee849380590
-Author: Corey Thomasson <cthom.lists@gmail.com>
-Date:   Wed Jan 19 09:55:46 2011 -0500
+commit 4a7cdc794452ce31432b881af99ec994887d07ee
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Jan 18 23:00:19 2011 -0800
 
-    net: avoid nil dereference if /etc/services can't be opened
+    syscall: fix build. WUNTRACED isn't defined for win32.
+    For Windows, the options for syscall.Wait4() aren't used.
+    Then this will be dummy value like WNOHANG, WSTOPPED.
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4081041
+    https://golang.org/cl/4075041
 
- src/pkg/net/port.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/syscall/syscall_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

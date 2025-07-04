@@ -1,26 +1,25 @@
-commit 3504da456591acf1b1ab479d4a5b2c91345a7f22
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Apr 9 03:09:34 2024 +0000
+commit 4bd20ec884876816e8f011aea931f7b6846c3a4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 13 13:22:34 2023 -0400
 
-    internal/trace/v2: halve the memory footprint of TestGCStress
+    cmd/go: make go line declare minimum required Go version
     
-    This test has been OOMing on 32-bit platforms for a bit. I suspect the
-    very high allocation rate is causing the program to outrun the GC in
-    some corner-case scenarios, especially on 32-bit Windows.
+    For #57001, enforce the go line as declaring the minimum required
+    version of Go that can compile a module.
     
-    I don't have a strong grasp of what's going on yet, but lowering the
-    memory footprint should help with the flakiness. This shouldn't
-    represent a loss in test coverage, since we're still allocating and
-    assisting plenty (tracing the latter is a strong reason this test
-    exists).
+    Modules that maintain compatibility with old versions of Go
+    but want to make use of new features in //go:build-constrained files
+    will be able to do so: the //go:build constraint will be interpreted
+    as changing the minimum Go version for that file and will unlock
+    the Go features allowed in that version.
     
-    For #66624.
-    
-    Change-Id: Idd832cfc5cde04701386919df4490f201c71130a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577475
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ibeeb7c93ce7ea2e5187d78af0757cbfac19484a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476279
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/internal/trace/v2/testdata/testprog/gc-stress.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/work/exec.go              | 11 ++--
+ src/cmd/go/testdata/script/mod_go_version.txt | 95 ++-------------------------
+ 2 files changed, 10 insertions(+), 96 deletions(-)

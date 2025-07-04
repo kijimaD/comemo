@@ -1,17 +1,21 @@
-commit c4b771348c3e5c5372bd00254f2e796b627c13dc
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 22 12:56:33 2021 -0500
+commit 9ca2474fd274d7bce8da454d1a7da074e40944ad
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Jun 15 13:04:05 2020 -0400
 
-    runtime: fix windows/arm signal handling assembly
+    cmd/go: fix mod_gomodcache and generate_env TestScripts on Plan 9
     
-    Bug introduced in CL 288799: R12 is used but not set.
+    Adjust these two tests for Plan 9,
+    which uses $path instead of $PATH,
+    and $home instead of $HOME.
     
-    Fixes windows/arm builder.
+    Fixes #39599
     
-    Change-Id: I015a5a83cfa3bdd23da1ffb73713623764f2f817
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295109
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Idba95e07d307e76f0f61acd904905b417c52d43a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237941
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/sys_windows_arm.s | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/testdata/script/generate_env.txt   | 3 ++-
+ src/cmd/go/testdata/script/mod_gomodcache.txt | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

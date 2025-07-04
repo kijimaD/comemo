@@ -1,18 +1,18 @@
-commit 3378adc517f362793acec5adc6cc17f9a1841a4c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 9 09:21:56 2023 -0700
+commit 244127e4b40f3170317ebdb93fa8a92143a54c18
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 9 10:34:58 2022 +0200
 
-    cmd/compile/internal/coverage: merge Fixup{Vars,Init} into Fixup
+    all: move //go:build lines below copyright notice
     
-    There's no need for separate fixups phases anymore.
-    
-    Change-Id: Ie30a75bda4d326aa9811db3b3bd1dade0b242706
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517858
+    Change-Id: Ib6196f01b1927ea8a84c095f445320f03a514dd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429796
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/coverage/cover.go | 31 +++++++++++++++---------------
- src/cmd/compile/internal/gc/main.go        | 13 ++-----------
- 2 files changed, 17 insertions(+), 27 deletions(-)
+ src/cmd/link/internal/ld/elf_test.go | 6 +++---
+ src/crypto/sha1/issue15617_test.go   | 4 ++--
+ src/syscall/flock.go                 | 4 ++--
+ 3 files changed, 7 insertions(+), 7 deletions(-)

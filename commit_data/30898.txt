@@ -1,17 +1,12 @@
-commit f0a3018b00bb535259e7d46f0f1503048130f51c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 29 12:12:02 2017 -0400
+commit 94e0f06fbcd5b39840bf0d8fa4519ac818ca2c3e
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Dec 12 19:32:58 2016 -0800
 
-    cmd/go: fix bug in test of go get ./path needing to download path
+    doc/help: tweak descriptions, make official channels clearer
     
-    rsc.io/toolstash is gone; use rsc.io/pprof_mac_fix.
-    
-    This fixes a bug in the test. It turns out the code being tested here
-    is also broken, so the test still doesn't pass after this CL (filed #19769).
-    
-    Change-Id: Ieb725c321d7fab600708e133ae28f531e55521ad
-    Reviewed-on: https://go-review.googlesource.com/38743
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I5c8df05a25421489ec5122de85dbda756483c536
+    Reviewed-on: https://go-review.googlesource.com/34289
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/help.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

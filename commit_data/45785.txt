@@ -1,27 +1,33 @@
-commit df35ade067f22ef1f3aad3c2f3576997ff9646b4
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Tue Jun 8 20:34:16 2021 -0400
+commit b194b5151fdac0c33da0b7359c97f92781ab3b5e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Nov 17 19:10:51 2020 -0500
 
-    doc/go1.17: document //go:build lines
+    cmd/link: recompute heapPos after copyHeap
     
-    In 1.17, //go:build lines are fully supported. This entails changes to
-    the go command, vet, and gofmt. Document all of them.
+    Immediately after a forward Seek, the offset we're writing to is
+    beyond len(buf)+len(heap):
     
-    I'm not Russ, but this is a significant change, it slipped under the
-    radar, and we're trying to get the release out. So here's what I got.
+    |<--- buf --->|<--- heap --->|
+                                        ^
+                                        off
     
-    I wasn't sure where to put the go command change. On the one hand,
-    it's pretty significant. On the other, it certainly affects fewer
-    people than lazy loading. So it probably shouldn't be first, but I also
-    didn't want to bury it the middle of all the other module changes. Open
-    to suggestions.
+    If we do a copyHeap at this point, the new heapPos should not be
+    0:
     
-    Change-Id: Ia1a96bcfb1977973c5b0b0a6b18a9242a745af12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326209
-    Trust: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    |<---------- buf ----------->|<-heap->|
+                                        ^
+                                        off
+    
+    Recompute it.
+    
+    For #42082.
+    
+    Change-Id: Icb3e4e1c7bf7d1fd3d76a2e0d7dfcb319c661534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270941
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.17.html | 49 +++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 47 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/outbuf.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

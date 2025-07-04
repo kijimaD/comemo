@@ -1,14 +1,19 @@
-commit c7d864c4d004799ad8c59da311913966c93ac98c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Apr 17 23:16:11 2014 -0400
+commit c45392bae0332e1407c4468ee35a5176651b03fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 17 13:28:40 2014 -0700
 
-    cmd/go: support -ccflags in 'go test'
-    Fixes #7810.
+    net: fix probabilities in DNS SRV shuffleByWeight
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    Patch from msolo. Just moving it to a CL.
+    The test fails before and passes with the fix.
+    
+    Fixes #7098
+    
+    LGTM=msolo, rsc
+    R=rsc, iant, msolo
     CC=golang-codereviews
-    https://golang.org/cl/89050043
+    https://golang.org/cl/88900044
 
- src/cmd/go/testflag.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/dnsclient.go      |  4 +--
+ src/pkg/net/dnsclient_test.go | 69 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 2 deletions(-)

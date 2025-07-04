@@ -1,16 +1,33 @@
-commit 966baedfea6b09fa203b0cf0e6388830cc9f9fa7
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 26 11:05:01 2016 -0400
+commit 5dd129bcff20e7b7337bd536935fab3b7214db15
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 31 15:18:39 2016 -0700
 
-    runtime: record Python stack on TestGdbPython failure
+    cmd/compile: add Type.SetNumElem
     
-    For #15599.
+    This removes all access to Type.Bound
+    from outside type.go.
     
-    Change-Id: Icc2e58a3f314b7a098d78fe164ba36f5b2897de6
-    Reviewed-on: https://go-review.googlesource.com/23481
-    Run-TryBot: Austin Clements <austin@google.com>
+    Update sinit to make a new type rather than
+    copy and mutate.
+    
+    Update bimport to create a new slice type
+    instead of mutating TDDDFIELD.
+    These are rare, so the extra allocs are nominal.
+    
+    I’m not happy about having a setter,
+    but it appears the most practical route
+    forward at the moment, and it only has a few uses.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I174f07c8f336afc656904bde4bdbde4f3ef0db96
+    Reviewed-on: https://go-review.googlesource.com/21423
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime-gdb_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/bimport.go   | 11 +++++------
+ src/cmd/compile/internal/gc/sinit.go     |  8 ++------
+ src/cmd/compile/internal/gc/type.go      |  9 +++++++++
+ src/cmd/compile/internal/gc/typecheck.go |  4 ++--
+ 4 files changed, 18 insertions(+), 14 deletions(-)

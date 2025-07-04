@@ -1,14 +1,14 @@
-commit b73046407fc284a9cf8dcd4b68ffedce16234e4c
-Author: Rob Pike <r@golang.org>
-Date:   Sat Mar 24 09:29:08 2012 +1100
+commit 2dfcbd0a3b216a793f3a450889e51781c142539b
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Sat Mar 24 08:16:57 2012 +1100
 
-    doc/reference-cmd.html: new introduction
-    Compare and explain go, go cmd, and go tool cmd.
-    The situation is not concisely explained elsewhere in the main docs.
+    os: add missing byte to FileMode buffer
     
-    R=golang-dev, bradfitz
+    32 bytes is enough for all FileMode bits.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5906043
+    https://golang.org/cl/5853044
 
- doc/reference-cmd.html | 42 ++++++++++++++++++++++++++++++++++++------
- 1 file changed, 36 insertions(+), 6 deletions(-)
+ src/pkg/os/types.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

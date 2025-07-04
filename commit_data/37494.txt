@@ -1,19 +1,18 @@
-commit 5680874e0c633e368b40ccc9534e5125375d89cb
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Mon Nov 26 16:11:18 2018 +0100
+commit a9dcbab0fd4b5adfb40cb924f14ee2af9c8938eb
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Jul 31 15:12:57 2018 +0200
 
-    test: fix nilptr5 for AIX
+    syscall/js: extend ValueOf to support arrays and objects
     
-    This commit fixes a mistake made in CL 144538.
-    This nilcheck can be removed because OpPPC64LoweredMove will fault if
-    arg0 is nil, as it's used to store. Further information can be found in
-    cmd/compile/internal/ssa/nilcheck.go.
+    This commits adds []interface{} and map[string]interface{} as quick
+    ways to create JavaScript arrays and objects. They correspond to the
+    JavaScript notations [...] and {...}. A type alias can be used for
+    a concise notation.
     
-    Change-Id: Ifec0080c00eb1f94a8c02f8bf60b93308e71b119
-    Reviewed-on: https://go-review.googlesource.com/c/151298
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I98bb08dbef1e0f3bd3d65c732d6b09e1520026ba
+    Reviewed-on: https://go-review.googlesource.com/126855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/nilptr5_aix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/js/js.go      | 35 ++++++++++++++++++++++++++---------
+ src/syscall/js/js_test.go | 15 +++++++++++++++
+ 2 files changed, 41 insertions(+), 9 deletions(-)

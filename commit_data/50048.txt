@@ -1,19 +1,25 @@
-commit db3e915af2f5053c96ad1f33502a752768965676
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Aug 22 07:59:49 2022 -0400
+commit 587b3c1192397393afb0ec5acd608e3dfe9f2116
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Sep 28 16:20:29 2021 -0400
 
-    internal/xcoff: better handling of malformed symbol tables
+    cmd/link: access pcdata via aux symbols
     
-    Check for malformed data when reading the number of aux
-    symbols associated with a symbol table entry.
+    Pcdata are now separate aux symbols. Read them from aux, instead
+    of using funcinfo.
     
-    Fixes #54584.
+    Now we can remove pcdata fields from funcinfo.
     
-    Change-Id: Ic2a8d4d6a1d481d585a065b8182de86294c3d3d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425049
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ie65e3962edecc0f39127a5f6963dc59d1f141e67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352893
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/internal/xcoff/file.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/internal/goobj/funcinfo.go     |  55 +-------------
+ src/cmd/internal/obj/objfile.go        |   8 --
+ src/cmd/link/internal/ld/dwarf.go      |   2 +-
+ src/cmd/link/internal/ld/lib.go        |   2 +-
+ src/cmd/link/internal/ld/pcln.go       |  32 ++++----
+ src/cmd/link/internal/loader/loader.go | 129 ++++++++++++++++-----------------
+ 6 files changed, 86 insertions(+), 142 deletions(-)

@@ -1,20 +1,22 @@
-commit f6efcf1fbb8e86b235a9398660593b7c83b69aff
+commit 2fc7697da43f24e19d2a9efb79dd7bb9a4e16556
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 17:39:01 2022 +0700
+Date:   Fri Sep 24 00:15:49 2021 +0700
 
-    runtime: convert m.cgoCallersUse to atomic type
+    Revert "cmd/go: insert goroot to the hash of build cache when the packages include C files"
     
-    Updates #53821
+    This reverts commit abbfec2829b001cf758a058eba4ccdc940e029f4.
     
-    Change-Id: I99b01f8e91b798e73275635c8a63fcdc4a8df9f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423888
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reason to revert: breaks darwin builders.
+    
+    Updates #48319
+    
+    Change-Id: I50c957a6a3f46ffcdaf972bdbb0574867ddc9486
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351851
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/proc.go      | 2 +-
- src/runtime/runtime2.go  | 8 ++++----
- src/runtime/traceback.go | 5 ++---
- 3 files changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/work/exec.go                |  34 ++----
+ src/cmd/go/testdata/script/build_issue48319.txt | 153 ------------------------
+ 2 files changed, 10 insertions(+), 177 deletions(-)

@@ -1,50 +1,16 @@
-commit f2ee3414689add84c6e6d2d3f44dacde5129b18d
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed May 18 18:48:56 2022 -0400
+commit dbd3cf884986c88f5b3350709c0f51fa02330805
+Author: Keiichi Hirobe <chalenge.akane@gmail.com>
+Date:   Sun Aug 29 02:38:38 2021 +0900
 
-    cmd{cover,covdata,go}: better coverage for tests that build tools
+    net/http: fix comment of writeRequest
     
-    Some of the unit tests in Go's "cmd" tree wind up building a separate
-    copy of the tool being tested, then exercise the freshly built tool as
-    a way of doing regression tests. The intent is to make sure that "go
-    test" is testing the current state of the source code, as opposed to
-    whatever happened to be current when "go install <tool>" was last run.
-    
-    Doing things this way is unfriendly for coverage testing. If I run "go
-    test -cover cmd/mumble", and the cmd/mumble test harness builds a
-    fresh copy of mumble.exe, any runs of that new executable won't
-    generate coverage data.
-    
-    This patch updates the test harnesses to use the unit test executable
-    as a stand-in for the tool itself, so that if "go test -cover" is in
-    effect, we get the effect of building the tool executable for coverage
-    as well. Doing this brings up the overall test coverage number for
-    cmd/cover quite dramatically:
-    
-    before change:
-    
-      $ go test -cover .
-      ok    cmd/cover       1.100s  coverage: 1.5% of statements
-    
-    after change:
-    
-      $ go test -cover .
-      ok    cmd/cover       1.299s  coverage: 84.2% of statements
-    
-    Getting this to work requires a small change in the Go command as
-    well, to set GOCOVERDIR prior to executing a test binary.
-    
-    Updates #51430.
-    
-    Change-Id: Ifcf0ea85773b80fcda794aae3702403ec8e0b733
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404299
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I5ebfc6a89323cc086ea0e0b619370dc45da1f3a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345437
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/covdata/export_test.go     |   7 +
- src/cmd/covdata/tool_test.go       |  67 +++++++++-
- src/cmd/cover/cfg_test.go          |   6 +-
- src/cmd/cover/cover_test.go        | 259 ++++++++++++++++++-------------------
- src/cmd/cover/export_test.go       |   7 +
- src/cmd/cover/testdata/toolexec.go |  33 -----
- src/cmd/go/internal/test/test.go   |   9 ++
- 7 files changed, 215 insertions(+), 173 deletions(-)
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,22 +1,14 @@
-commit 0bc18811b54b782a56b171eb0f8974f47f8638c0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 6 23:27:11 2012 -0500
+commit 8f61631c74a46d148690cc84c21f0a0366895eed
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 7 14:10:49 2012 +1100
 
-    fmt, log: stop using unicode
+    go/build: delete Makefile
+    We can write syslist.go by hand.
     
-    $ go list -f '{{.ImportPath}} {{.Deps}}' fmt log
-    fmt [errors io math os reflect runtime strconv sync sync/atomic syscall time unicode/utf8 unsafe]
-    log [errors fmt io math os reflect runtime strconv sync sync/atomic syscall time unicode/utf8 unsafe]
-    
-    R=bradfitz, rogpeppe, r, r, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5753055
+    https://golang.org/cl/5757057
 
- src/pkg/fmt/export_test.go    |   7 ++
- src/pkg/fmt/fmt_test.go       |  11 ++
- src/pkg/fmt/format.go         |  19 ++-
- src/pkg/fmt/print.go          |  58 +++++++--
- src/pkg/fmt/scan.go           | 113 +++++++++++++-----
- src/pkg/go/build/deps_test.go | 267 ++++++++++++++++++++++--------------------
- src/pkg/log/log.go            |  54 ++++-----
- 7 files changed, 313 insertions(+), 216 deletions(-)
+ src/pkg/go/build/Makefile   | 11 -----------
+ src/pkg/go/build/syslist.go |  4 +++-
+ 2 files changed, 3 insertions(+), 12 deletions(-)

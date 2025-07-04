@@ -1,17 +1,16 @@
-commit 20bf6a495eabad79b7b275d46fc3e11c620b8212
-Author: Kyle Shannon <kyle@pobox.com>
-Date:   Mon Nov 25 13:51:02 2019 -0700
+commit 3928915ec74029269f8dacb46c627cbdbd295c2b
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Sat Aug 10 13:11:26 2019 +0000
 
-    lib/time: update tz data to 2019c
+    doc/go1.13: mention faster sync.Mutex/RWMutex/Once
     
-    Updates #22487
+    Mention faster sync.Mutex/RWMutex/Once in the 1.13 release notes.
     
-    Change-Id: I32dcd604af84e2000196d64bf69c67f81535290a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208797
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I29d8a5004a0af42542e8db82a8c9e2e06a15dbb0
+    GitHub-Last-Rev: 2995401dab563ea5af98c0f5351f51a6116f105e
+    GitHub-Pull-Request: golang/go#33404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188479
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 781554 -> 781791 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.13.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

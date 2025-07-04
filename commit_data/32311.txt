@@ -1,21 +1,74 @@
-commit b26ad605a92af65deef30eb196ff2173566ee60f
-Author: griesemer <gri@golang.org>
-Date:   Tue Aug 15 14:44:26 2017 +0200
+commit 94e44a9c8edb64f514b6f3b7f7001db0cfeb2d70
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 18 15:23:24 2017 -0700
 
-    go/importer: make source importer more tolerant in presence of errors
+    runtime: preallocate some overflow buckets
     
-    If the source importer only encounters "soft" type checking errors
-    it can safely return the type-checked package because it will be
-    completely set up. This makes the source importer slightly more
-    robust in the presence of errors.
+    When allocating a non-small array of buckets for a map,
+    also preallocate some overflow buckets.
     
-    Fixes #20855.
+    The estimate of the number of overflow buckets
+    is based on a simulation of putting mid=(low+high)/2 elements
+    into a map, where low is the minimum number of elements
+    needed to reach this value of b (according to overLoadFactor),
+    and high is the maximum number of elements possible
+    to put in this value of b (according to overLoadFactor).
+    This estimate is surprisingly reliable and accurate.
     
-    Change-Id: I5af9ccdb30eee6bca7a0fab872f6057bde521bf3
-    Reviewed-on: https://go-review.googlesource.com/55730
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    The number of overflow buckets needed is quadratic,
+    for a fixed value of b.
+    Using this mid estimate means that we will overallocate a few
+    too many overflow buckets when the actual number of elements is near low,
+    and underallocate significantly too few overflow buckets
+    when the actual number of elements is near high.
+    
+    The mechanism introduced in this CL can be re-used for
+    other overflow bucket optimizations.
+    
+    For example, given an initial size hint,
+    we could estimate quite precisely the number of overflow buckets.
+    This is #19931.
+    
+    We could also change from "non-nil means end-of-list"
+    to "pointer-to-hmap.buckets means end-of-list",
+    and then create a linked list of reusable overflow buckets
+    when they are freed by map growth.
+    That is #19992.
+    
+    We could also use a similar mechanism to do bulk allocation
+    of overflow buckets.
+    All these uses can co-exist with only the one additional pointer
+    in mapextra, given a little care.
+    
+    name                  old time/op    new time/op    delta
+    MapPopulate/1-8         60.1ns ± 2%    60.3ns ± 2%     ~     (p=0.278 n=19+20)
+    MapPopulate/10-8         577ns ± 1%     578ns ± 1%     ~     (p=0.140 n=20+20)
+    MapPopulate/100-8       8.06µs ± 1%    8.19µs ± 1%   +1.67%  (p=0.000 n=20+20)
+    MapPopulate/1000-8       104µs ± 1%     104µs ± 1%     ~     (p=0.317 n=20+20)
+    MapPopulate/10000-8      891µs ± 1%     888µs ± 1%     ~     (p=0.101 n=19+20)
+    MapPopulate/100000-8    8.61ms ± 1%    8.58ms ± 0%   -0.34%  (p=0.009 n=20+17)
+    
+    name                  old alloc/op   new alloc/op   delta
+    MapPopulate/1-8          0.00B          0.00B          ~     (all equal)
+    MapPopulate/10-8          179B ± 0%      179B ± 0%     ~     (all equal)
+    MapPopulate/100-8       3.33kB ± 0%    3.38kB ± 0%   +1.48%  (p=0.000 n=20+16)
+    MapPopulate/1000-8      55.5kB ± 0%    53.4kB ± 0%   -3.84%  (p=0.000 n=19+20)
+    MapPopulate/10000-8      432kB ± 0%     428kB ± 0%   -1.06%  (p=0.000 n=19+20)
+    MapPopulate/100000-8    3.65MB ± 0%    3.62MB ± 0%   -0.70%  (p=0.000 n=20+20)
+    
+    name                  old allocs/op  new allocs/op  delta
+    MapPopulate/1-8           0.00           0.00          ~     (all equal)
+    MapPopulate/10-8          1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    MapPopulate/100-8         18.0 ± 0%      17.0 ± 0%   -5.56%  (p=0.000 n=20+20)
+    MapPopulate/1000-8        96.0 ± 0%      72.6 ± 1%  -24.38%  (p=0.000 n=20+20)
+    MapPopulate/10000-8        625 ± 0%       319 ± 0%  -48.86%  (p=0.000 n=20+20)
+    MapPopulate/100000-8     6.23k ± 0%     4.00k ± 0%  -35.79%  (p=0.000 n=20+20)
+    
+    Change-Id: I01f41cb1374bdb99ccedbc00d04fb9ae43daa204
+    Reviewed-on: https://go-review.googlesource.com/40979
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/internal/srcimporter/srcimporter.go         | 28 ++++++++++++++++------
- src/go/internal/srcimporter/srcimporter_test.go    | 14 +++++++++++
- .../srcimporter/testdata/issue20855/issue20855.go  |  7 ++++++
- 3 files changed, 42 insertions(+), 7 deletions(-)
+ src/runtime/hashmap.go | 71 +++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 67 insertions(+), 4 deletions(-)

@@ -1,15 +1,19 @@
-commit 3fab2a97e4ae677e74a4569e924ddd0d56cf4a78
-Author: Michael Chaten <mchaten@gmail.com>
-Date:   Thu May 3 17:35:44 2012 -0400
+commit 61060acdc12ef0e0b9ff2250efdf8da10d53c5a2
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Thu May 3 17:33:19 2012 -0400
 
-    encoding/json: Fix panic when trying to unmarshal the empty string into an integer
+    syscall: add Termios support on darwin
     
-    Fixes #3450.
+    Update #3316.
     
-    R=rsc, bradfitz
+    R=dave, kevlar, devon.odell, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6035050
+    https://golang.org/cl/6063053
 
- src/pkg/encoding/json/decode.go      |  5 +++++
- src/pkg/encoding/json/decode_test.go | 19 +++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/pkg/syscall/mkerrors.sh             | 15 ++++++
+ src/pkg/syscall/types_darwin.go         |  3 ++
+ src/pkg/syscall/zerrors_darwin_386.go   | 93 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_darwin_amd64.go | 93 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_darwin_386.go    | 10 ++++
+ src/pkg/syscall/ztypes_darwin_amd64.go  | 11 ++++
+ 6 files changed, 225 insertions(+)

@@ -1,20 +1,30 @@
-commit c50e7ded1f058ff934dd6eec463a00e735b31c82
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat Nov 11 01:33:17 2023 +0000
+commit 185e1a7b27767f1c429fdde19a71ad57909a7924
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Dec 5 13:02:22 2022 -0500
 
-    log/slog: make hex a const
+    runtime: prioritize VDSO and libcall unwinding in profiler
     
-    hex is in fact immutable, declare it as a const to avoid accidental
-    modification, also for consistency with other packages.
+    In the profiler, when unwinding the stack, we have special
+    handling for VDSO calls. Currently, the special handling is only
+    used when the normal unwinding fails. If the signal lands in the
+    function that makes the VDSO call (e.g. nanotime1) and after the
+    stack switch, the normal unwinding doesn't fail but gets a stack
+    trace with exactly one frame (the nanotime1 frame). The stack
+    trace stops because of the stack switch. This 1-frame stack trace
+    is not as helpful. Instead, if vdsoSP is set, we know we are in
+    VDSO call or right before or after it, so use vdsoPC and vdsoSP
+    for unwinding. Do the same for libcall.
     
-    Change-Id: I88a6fed34d27ac57a0332dc7a27d3bf2ba0d6272
-    GitHub-Last-Rev: 08712be2d4e3951e87b4a4f410ba424d12a320e3
-    GitHub-Pull-Request: golang/go#64069
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541518
+    Also remove _TraceTrap for VDSO unwinding, as vdsoPC and vdsoSP
+    correspond to a call, not an interrupted instruction.
+    
+    Fixes #56574.
+    
+    Change-Id: I799aa7644d0c1e2715ab038a9eef49481dd3a7f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455166
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/log/slog/json_handler.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc.go | 46 +++++++++++++++++++++-------------------------
+ 1 file changed, 21 insertions(+), 25 deletions(-)

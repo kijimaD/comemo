@@ -1,35 +1,34 @@
-commit 73269b8e7539541a69fa8b04bf10549bbcb48aa9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jan 6 23:45:57 2020 -0800
+commit 0f7b4e72a054f974489d8342cdae5a6a7ba7a31b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Sep 24 13:11:36 2019 +0100
 
-    cmd/compile: generate commutative rules when a condition is present
+    text/template: don't evaluate '.' as a float64
     
-    The commutative rule generator has an optimization
-    where given (Add x y) with no other uses of x and y in the matching rule,
-    it doesn't generate the commutative match (Add y x).
+    When using a '.' constant literal as a reflect.Value variadic argument,
+    idealConstant would incorrectly result in a float64. This is because
+    rune literals can be represented as a float64, and contain a period,
+    which tricked the logic into thinking the literal must have been a
+    floating point number.
     
-    However, if there is also a condition referring to x or y,
-    such as (Add x y) && isFoo(x), then we should generate the commutative rule.
-    This change parses the condition, extracts all idents, and takes them
-    into consideration.
+    This also happened with other characters that can be part of a floating
+    point number, such as 'e' or 'P'.
     
-    This doesn't yield any new optimizations now.
-    However, it is the right thing to do;
-    otherwise we'll have to track it down and fix it again later.
+    To fix these edge cases, exit the case sooner if the literal was a rune,
+    since that should always go to the int case instead.
     
-    It is also expensive now, in terms of additional generated code.
-    However, it will be much, much less expensive soon,
-    once our generated code for commutative ops gets smaller.
+    Finally, add test cases that verify that they behave properly. These
+    would error before, since eq would receive a mix of int and float64,
+    which aren't comparable.
     
-    Change-Id: I52c2016c884bbc7789bf8dfe9b9c56061bc028ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213702
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #34483.
+    
+    Change-Id: Icfcb7803bfa0cf317a1d1adacacad3d69a57eb42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196808
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Payne <tom@airmap.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go  |   20 +-
- src/cmd/compile/internal/ssa/rewrite386.go   |  295 ++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go |  420 +++-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 3455 ++++++++++++++++++++++----
- src/cmd/compile/internal/ssa/rewritePPC64.go |   80 +
- src/cmd/compile/internal/ssa/rewriteS390X.go |  390 ++-
- 6 files changed, 4108 insertions(+), 552 deletions(-)
+ src/text/template/exec.go      | 11 ++++++++++-
+ src/text/template/exec_test.go |  6 ++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

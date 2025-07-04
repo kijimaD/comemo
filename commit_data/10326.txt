@@ -1,15 +1,12 @@
-commit 217408abf37b54aad25c2566d3e44691bc72b699
-Author: Rob Pike <r@golang.org>
-Date:   Wed Nov 9 14:22:44 2011 -0800
+commit 6c10aa19b88d3a3c602c725821f73b02d0cd2d58
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Wed Nov 9 13:50:13 2011 -0800
 
-    crypto: update incorrect references to Cipher interface; should be Block.
+    os/exec: Fix documentation references to os.DevNull
     
-    R=gri, rsc, r
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5372050
+    https://golang.org/cl/5372049
 
- doc/go_spec.html                  | 8 ++++----
- src/pkg/crypto/aes/cipher.go      | 2 +-
- src/pkg/crypto/blowfish/cipher.go | 2 +-
- src/pkg/crypto/xtea/cipher.go     | 2 +-
- 4 files changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/os/exec/exec.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

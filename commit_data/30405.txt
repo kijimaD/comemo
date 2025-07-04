@@ -1,20 +1,19 @@
-commit eae657e9ee2897ffac8c8918738b0a4bab5864d6
-Author: Kevin Burke <kev@inburke.com>
-Date:   Mon Feb 27 02:28:24 2017 -0800
+commit 95e809f0e525fca000ec634e1e8cc10d6cebdf30
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 23:12:10 2016 -0400
 
-    os/user: rename group cgo file
+    cmd/go: clear GIT_ALLOW_PROTOCOL during tests
     
-    In another CL, I'll add a pure Go implementation of lookupGroup and
-    lookupGroupId in lookup_unix.go, but attempting that in one CL makes
-    the diff too difficult to read.
+    Clear it before any tests begin.
+    Clear it again after TestIsSecureGitAllowProtocol sets it.
     
-    Updates #18102.
+    Fixes #17700.
     
-    Change-Id: If8e26cee5efd30385763430f34304c70165aef32
-    Reviewed-on: https://go-review.googlesource.com/37497
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6ea50d37f8222d8c7c9fee0b1eac3bbdfb5d133e
+    Reviewed-on: https://go-review.googlesource.com/32640
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/os/user/{lookup_unix.go => cgo_lookup_unix.go} | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/go/go_test.go  | 1 +
+ src/cmd/go/vcs_test.go | 1 +
+ 2 files changed, 2 insertions(+)

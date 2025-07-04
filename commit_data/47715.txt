@@ -1,31 +1,15 @@
-commit 871d63fb73476bc3bf52ceec9aa8bef3ffc85d51
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Dec 6 17:35:58 2021 -0500
+commit b3064b66d0699618cae07e97068f653410b71abc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 6 22:46:57 2021 -0700
 
-    runtime: call runtime.GC in several tests that disable GC
+    cmd/compile/internal/types2: combine two loops (cleanup of TODO)
     
-    These tests disable GC because of the potential for a deadlock, but
-    don't consider that a GC could be in progress due to other tests. The
-    likelihood of this case was increased when the minimum heap size was
-    lowered during the Go 1.18 cycle. The issue was then mitigated by
-    CL 368137 but in theory is always a problem.
+    Follow-up on https://golang.org/cl/306170.
     
-    This change is intended specifically for #45867, but I just walked over
-    a whole bunch of other tests that don't take this precaution where it
-    seems like it could be relevant (some tests it's not, like the
-    UserForcedGC test, or testprogs where no other code has run before it).
-    
-    Fixes #45867.
-    
-    Change-Id: I6a1b4ae73e05cab5a0b2d2cce14126bd13be0ba5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369747
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I71b451382b6780101a0c94174ebe579e8a0684c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307949
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/proc_test.go                      | 9 +++++++++
- src/runtime/testdata/testprog/badtraceback.go | 3 +++
- src/runtime/testdata/testprog/preempt.go      | 3 +++
- 3 files changed, 15 insertions(+)
+ src/cmd/compile/internal/types2/infer.go | 32 +++++++++++---------------------
+ 1 file changed, 11 insertions(+), 21 deletions(-)

@@ -1,15 +1,29 @@
-commit b39ec942d8f154add0af01ebf66d7524318470e2
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Mon Feb 5 13:44:05 2024 -0500
+commit 44d22e75dd9a0cbffbb04c9ce6d6bf9030634cc1
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Oct 9 19:06:23 2022 -0700
 
-    doc/next: add release note file for api/next file
+    cmd/compile: detect write barrier completion differently
     
-    Change-Id: I3003968d9d7e543c25d4b0ab1d1cd924a1efd3ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561456
-    Auto-Submit: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Instead of keeping track of in which blocks write barriers complete,
+    introduce a new op that marks the exact memory state where the
+    write barrier completes.
+    
+    For future use. This allows us to move some of the write barrier code
+    to between the start of the merging block and the WBend marker.
+    
+    Change-Id: If3809b260292667d91bf0ee18d7b4d0eb1e929f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447777
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- doc/next/6-stdlib/99-minor/sync/61696.md | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/liveness/plive.go      | 170 +++++++++++++++---------
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |   1 +
+ src/cmd/compile/internal/ssa/deadcode.go        |  14 --
+ src/cmd/compile/internal/ssa/func.go            |   6 -
+ src/cmd/compile/internal/ssa/lower.go           |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go           |   6 +
+ src/cmd/compile/internal/ssa/writebarrier.go    |  35 ++---
+ src/cmd/compile/internal/ssagen/ssa.go          |   2 +-
+ 8 files changed, 124 insertions(+), 112 deletions(-)

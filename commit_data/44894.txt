@@ -1,25 +1,33 @@
-commit 1f29e69bad3673aa4f9d1c4d1016170b9ced634a
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 31 17:41:07 2021 -0400
+commit 4f5cd0c0331943c7ec72df3b827d972584f77833
+Author: Roberto Clapis <roberto@golang.org>
+Date:   Wed Aug 26 08:53:03 2020 +0200
 
-    cmd/compile: fix outgoing calls with GOEXPERIMENT=regabiargs
+    net/http/cgi,net/http/fcgi: add Content-Type detection
     
-    The logic for constructing calls in (*state).call is based around
-    targeted experiments with register-based calls. However, when the
-    register ABI is turned on everywhere, it currently doesn't account for
-    direct calls to non-ABIInternal functions. This CL adds a much simpler
-    path to (*state).call when regabiargs is turned on that looks at the
-    ABI of the target function.
+    This CL ensures that responses served via CGI and FastCGI
+    have a Content-Type header based on the content of the
+    response if not explicitly set by handlers.
     
-    For #40724.
+    If the implementers of the handler did not explicitly
+    specify a Content-Type both CGI implementations would default
+    to "text/html", potentially causing cross-site scripting.
     
-    Change-Id: I7f4f5fed8a5ec131bcf1ce5b9d94d45672a304cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306410
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Thanks to RedTeam Pentesting GmbH for reporting this.
+    
+    Fixes #40928
+    Fixes CVE-2020-24553
+    
+    Change-Id: I82cfc396309b5ab2e8d6e9a87eda8ea7e3799473
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/823217
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252179
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go | 69 ++++++++++++++++++++--------------
- 1 file changed, 41 insertions(+), 28 deletions(-)
+ src/net/http/cgi/child.go            | 36 +++++++++++++++-------
+ src/net/http/cgi/child_test.go       | 58 ++++++++++++++++++++++++++++++++++++
+ src/net/http/cgi/integration_test.go | 53 +++++++++++++++++++++++++++++++-
+ src/net/http/fcgi/child.go           | 39 +++++++++++++++++-------
+ src/net/http/fcgi/fcgi_test.go       | 52 ++++++++++++++++++++++++++++++++
+ 5 files changed, 216 insertions(+), 22 deletions(-)

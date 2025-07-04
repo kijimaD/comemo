@@ -1,44 +1,33 @@
-commit 54da3ab385686dec5554164ba9558214445deec9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 28 16:22:52 2021 -0500
+commit 7795523910227cb6df3c91ebdb317037fc9ceb86
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 1 18:53:58 2020 -0400
 
-    runtime: use TOPFRAME to identify top-of-frame functions
+    [dev.link] cmd/compile: use hash of export data as fingerprint
     
-    No change to actual runtime, but helps reduce the laundry list
-    of functions.
+    Currently, the compiler generates a fingerprint for each package,
+    which is used by the linker for index consistency check.
     
-    mcall, morestack, and asmcgocall are not actually top-of-frame,
-    so those need more attention in follow-up CLs.
+    When building plugin or shared object, currently the linker also
+    generates a hash, by hashing the export data. At run time, when
+    a package is referenced by multiple DSOs, this hash is compared
+    to ensure consistency.
     
-    mstart moved to assembly so that it can be marked TOPFRAME.
+    It would be good if we can unify this two hashes. This way, the
+    linker doesn't need to read the export data (which is intended
+    for the compiler only, and is not always available for the
+    linker). The export data hash is sufficient for both purposes.
+    It is consistent with the current hash geneated by the linker.
+    And the export data includes indices for exported symbols, so its
+    hash can be used to catch index mismatches.
     
-    Since TOPFRAME also tells DWARF consumers not to unwind
-    this way, this change should also improve debuggers a
-    marginal amount.
+    Updates #33820.
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: If1e0d46ca973de5e46b62948d076f675f285b5d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288802
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2bc0d74930746f54c683a10dfd695d50ea3f5a38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236118
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/asm_386.s           | 8 ++++++--
- src/runtime/asm_amd64.s         | 8 ++++++--
- src/runtime/asm_arm.s           | 6 +++++-
- src/runtime/asm_arm64.s         | 6 +++++-
- src/runtime/asm_mips64x.s       | 6 +++++-
- src/runtime/asm_mipsx.s         | 6 +++++-
- src/runtime/asm_ppc64x.s        | 6 +++++-
- src/runtime/asm_riscv64.s       | 6 +++++-
- src/runtime/asm_s390x.s         | 6 +++++-
- src/runtime/asm_wasm.s          | 8 ++++++--
- src/runtime/proc.go             | 7 +++++--
- src/runtime/sys_windows_386.s   | 2 +-
- src/runtime/sys_windows_amd64.s | 2 +-
- src/runtime/sys_windows_arm.s   | 2 +-
- src/runtime/traceback.go        | 5 +----
- 15 files changed, 62 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go | 10 +++++++---
+ src/cmd/internal/obj/sym.go            | 10 ----------
+ 2 files changed, 7 insertions(+), 13 deletions(-)

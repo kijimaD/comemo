@@ -1,37 +1,39 @@
-commit a8ae93fd26063c62645d9d75b78ebf0f7dc8f391
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 23 11:35:21 2015 -0400
+commit 310d09bf73c2063626cd824b8df809595d6f0392
+Author: Michael Matloob <matloob@google.com>
+Date:   Tue May 12 12:06:45 2015 -0400
 
-    runtime: fix heap bitmap repeating with large scalar tails
+    cmd/internal/ssa: utility functions to make Funcs
     
-    When heapBitsSetType repeats a source bitmap with a scalar tail
-    (typ.ptrdata < typ.size), it lays out the tail upon reaching the end
-    of the source bitmap by simply increasing the number of bits claimed
-    to be in the incoming bit buffer. This causes later iterations to read
-    the appropriate number of zeros out of the bit buffer before starting
-    on the next repeat of the source bitmap.
+    Adds a more convenient way to define Funcs for testing.
+    For instance,
     
-    Currently, however, later iterations of the loop continue to read bits
-    from the source bitmap *regardless of the number of bits currently in
-    the bit buffer*. The bit buffer can only hold 32 or 64 bits, so if the
-    scalar tail is large and the padding bits exceed the size of the bit
-    buffer, the read from the source bitmap on the next iteration will
-    shift the incoming bits into oblivion when it attempts to put them in
-    the bit buffer. When the buffer does eventually shift down to where
-    these bits were supposed to be, it will contain zeros. As a result,
-    words that should be marked as pointers on later repetitions are
-    marked as scalars, so the garbage collector does not trace them. If
-    this is the only reference to an object, it will be incorrectly freed.
+      b1:
+        v1 = Arg <mem> [.mem]
+        Plain -> b2
+      b2:
+        Exit v1
+      b3:
+        v2 = Const <bool> [true]
+        If v2 -> b3 b2
     
-    Fix this by adding logic to drain the bit buffer down if it is large
-    instead of reading more bits from the source bitmap.
+    can be defined as
     
-    Fixes #11286.
+             fun :=Fun("entry",
+                    Bloc("entry",
+                            Valu("mem", OpArg, TypeMem, ".mem"),
+                            Goto("exit")),
+                    Bloc("exit",
+                            Exit("mem")),
+                    Bloc("deadblock",
+                            Valu("deadval", OpConst, TypeBool, true),
+                            If("deadval", "deadblock", "exit")))
     
-    Change-Id: I964432c4b9f1cec334fc8c3da0ff16460203feb6
-    Reviewed-on: https://go-review.googlesource.com/11360
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Also add an Equiv function to test two Funcs for equivalence.
+    
+    Change-Id: If1633865aeefb8e765e772b6dad19250d93a413a
+    Reviewed-on: https://go-review.googlesource.com/9992
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mbitmap.go       | 12 ++++++++++--
- test/fixedbugs/issue11286.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 2 deletions(-)
+ src/cmd/internal/ssa/deadcode_test.go | 127 +++++------
+ src/cmd/internal/ssa/func_test.go     | 401 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 455 insertions(+), 73 deletions(-)

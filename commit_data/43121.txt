@@ -1,32 +1,22 @@
-commit a424f6e45e29960c933a7ccc1cd8fc9bb2766f15
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Sep 23 11:06:39 2020 -0400
+commit c6fef1fb52e9660ce2226a19508fdaacf71e46a9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 7 13:36:36 2020 -0800
 
-    cmd/asm,cmd/compile,cmd/internal/obj/ppc64: add extswsli support on power9
+    cmd/compile: improve CFG size in ssa.html
     
-    This adds support for the extswsli instruction which combines
-    extsw followed by a shift.
+    This change forces CFGs to take the full width of their column
+    and allows them to be as tall as necessary.
     
-    New benchmark demonstrates the improvement:
-    name      old time/op  new time/op  delta
-    ExtShift  1.34µs ± 0%  1.30µs ± 0%  -3.15%  (p=0.057 n=4+3)
+    In my (recent) experience, this makes them far less likely to
+    be cropped, which makes them much more useful.
     
-    Change-Id: I21b410676fdf15d20e0cbbaa75d7c6dcd3bbb7b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257017
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@gmail.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    On rare occasions, this can lead to gigantic CFGs,
+    but if you've bothered to explicitly request a CFG,
+    this is still better than an irrevocably truncated CFG.
+    
+    Change-Id: I9a649ea57fa3c2792998bb71331a2580e429b36a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222618
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64enc.s |   1 +
- src/cmd/compile/internal/gc/bench_test.go    |  12 ++++
- src/cmd/compile/internal/ppc64/ssa.go        |   2 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules |   2 +
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   1 +
- src/cmd/compile/internal/ssa/opGen.go        |  15 ++++
- src/cmd/compile/internal/ssa/rewritePPC64.go |  36 ++++++++++
- src/cmd/internal/obj/ppc64/a.out.go          |   2 +
- src/cmd/internal/obj/ppc64/anames.go         |   2 +
- src/cmd/internal/obj/ppc64/asm9.go           | 104 +++++++++++++++++----------
- test/codegen/shift.go                        |   7 +-
- 11 files changed, 142 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/ssa/html.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

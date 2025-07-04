@@ -1,17 +1,19 @@
-commit 70cee781fc16c743ec3aa0ab441f1cb0254d4a8a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 16 22:52:00 2015 -0500
+commit 3bc0601742a68d5f73312fe13fe521f8b7fd7e1e
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Tue Oct 20 13:15:12 2015 +1100
 
-    cmd/go: use tags when evaluating file system wildcards like ./...
+    runtime: rename _func.frame to make it clear it's deprecated and unused.
     
-    Thanks to Albert Hafvenström for the diagnosis.
+    When I saw that it was labelled "legacy", I went looking for users of it
+    to see how it was still used. But there aren't any. Save the next person
+    the trouble.
     
-    Fixes #11246.
-    
-    Change-Id: I2b9e670c0ecf6aa01e5bf4d7a402619e93cc4f4a
-    Reviewed-on: https://go-review.googlesource.com/17942
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I921dd6c57b60331c9816542272555153ac133c02
+    Reviewed-on: https://go-review.googlesource.com/16035
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 10 ++++++++++
- src/cmd/go/main.go    |  2 +-
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/runtime/runtime2.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,44 +1,25 @@
-commit 2d9378c7f6dfbbe82d1bbd806093c2dfe57d7e17
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jul 27 13:30:16 2015 -0700
+commit 989b372a5cb73c982aa5ba00081e67e89cc71ff1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 23 08:40:40 2015 +1000
 
-    spec: document existing expression switch restrictions
+    cmd/asm: fix shifts again, this time for sure
     
-    The spec didn't specify several aspects of expression switches:
+    There are two conditions to worry about:
     
-    - The switch expression is evaluated exactly once.
+    1) The shift count cannot be negative. Since the evaluator uses unsigned
+    arithmetic throughout, this means checking that the high bit of
+    the shift count is always off, which is done by converting to int64
+    and seeing if the result is negative.
     
-    - Switch expressions evaluating to an untyped value are converted
-      to the respective default type before use.
+    2) For right shifts, the value cannot be negative. We don't want a
+    high bit in the value because right shifting a value depends on the
+    sign, and for clarity we always want unsigned shifts.
     
-    - An (untyped) nil value is not permitted as expression switch
-      value. (We could permit it relatively easily, but gc doesn't,
-      and disallowing it is in symmetry with the rules for var decls
-      without explicit type and untyped initializer expressions.)
+    Next step is to build some testing infrastructure for the parser.
     
-    - The comparison x == t between each case expression x and
-      switch expression value t must be valid.
-    
-    - (Some) duplicate constant case expressions are not permitted.
-    
-    This change also clarifies the following issues:
-    
-     4524: mult. equal int const switch case values should be illegal
-                                             -> spec issue fixed
-     6398: switch w/ no value uses bool rather than untyped bool
-                                             -> spec issue fixed
-    11578: allows duplicate switch cases     -> go/types bug
-    11667: int overflow in switch expression -> go/types bug
-    11668: use of untyped nil in switch      -> not a gc bug
-    
-    Fixes #4524.
-    Fixes #6398.
-    Fixes #11668.
-    
-    Change-Id: Iae4ab3e714575a5d11c92c9b8fbf027aa706b370
-    Reviewed-on: https://go-review.googlesource.com/12711
+    Change-Id: I4c46c79989d02c107fc64954403fc18613763f1d
+    Reviewed-on: https://go-review.googlesource.com/11326
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go_spec.html | 39 ++++++++++++++++++++++++++++++++++-----
- 1 file changed, 34 insertions(+), 5 deletions(-)
+ src/cmd/asm/internal/asm/parse.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

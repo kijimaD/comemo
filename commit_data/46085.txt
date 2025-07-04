@@ -1,21 +1,18 @@
-commit 9871726c72af7009aa73be33edfa06a8d9e5965e
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 18 09:38:19 2021 -0700
+commit e10c94af26b95f4af71c4a040b3d3f01499d01de
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 3 11:27:05 2020 +0100
 
-    reflect: add test for invalid conversion
+    doc/go1.16: document riscv64 port changes
     
-    Conversion between slices with different element types is not allowed.
-    Previously (1.8 <= goversion <= 1.16), this conversion was allowed
-    if the base types were from different packages and had identical names.
+    For #36641
+    For #40700
     
-    Update #47785
-    
-    Change-Id: I359de5b6fe3ff35bdbf9ab5a13902a0f820cac66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343329
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib268559a2ce7839372dbf273d95876d8d4521a45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274478
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/reflect/all_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ doc/go1.16.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

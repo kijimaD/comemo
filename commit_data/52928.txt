@@ -1,19 +1,19 @@
-commit d8ab19b2f2d754e374af7fc643dac5224667310b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 9 09:00:02 2023 -0400
+commit 74bf90c779b3d4a4babd3e3de38e3d3e5d9dd7de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 14 19:01:04 2022 -0700
 
-    net/http: regenerate h2_bundle.go
+    go/types, types2: add test case for issue for coverage
     
-    The x/net version was updated in CL 493596; cmd/internal/moddeps
-    catches the skew, but only runs on the -longtest builders (because it
-    requires network access for the bundle tool and x/net dependency).
+    The specific error doesn't occur anymore.
+    Add a test to prevent regressions.
     
-    Change-Id: I48891d51aab23b2ca6f4484215438c60bd8c8c21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493875
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    For #50729.
+    
+    Change-Id: Ibf6ef6009b3d226b4f345b5a5657939915f19633
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412235
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/h2_bundle.go | 30 ++++++++++++++++++++++++------
- 1 file changed, 24 insertions(+), 6 deletions(-)
+ .../internal/types2/testdata/fixedbugs/issue50729.go  | 19 +++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue50729.go         | 19 +++++++++++++++++++
+ 2 files changed, 38 insertions(+)

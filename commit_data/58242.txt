@@ -1,23 +1,18 @@
-commit 0dafae13605409231f410d329c86269b19814caa
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Nov 21 13:56:57 2024 -0500
+commit 070c1fcbc505f9c4b4fc759c6fafc60cff28edcb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 16 15:47:08 2023 +0700
 
-    reflect: add test of maps with keys larger than key size
+    cmd/compile: move ssagen.dvarint to objw.Uvarint
     
-    This finds the bug fixed in CL 630279.
+    Follow up discussion in CL 535077.
     
-    reflect mutates the SwissMapType of a map[unsafe.Pointer]unsafe.Pointer,
-    which happened to already have the correct GroupSize for all of the maps
-    used in the reflect tests.
-    
-    For #54766.
-    
-    Change-Id: If4428e1e799598e7512edceb3cefb2ad00cfa712
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630676
+    Change-Id: I102c90839e39c463e878ff925872376303724e12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535636
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/reflect/all_test.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/cmd/compile/internal/objw/objw.go  |  9 +++++++++
+ src/cmd/compile/internal/ssagen/ssa.go | 18 ++----------------
+ 2 files changed, 11 insertions(+), 16 deletions(-)

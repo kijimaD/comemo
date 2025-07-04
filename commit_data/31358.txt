@@ -1,20 +1,22 @@
-commit 819d1cce6e1cfc4439219a22f9356f6885546029
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Wed Jan 18 23:47:54 2017 -0500
+commit ef30a1c8aa68f5226de1ed7397751f15f2956d62
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 13 09:06:08 2017 -0800
 
-    net/http: make LocalAddrContext handle wildcard interface
+    runtime: fix some assembly offset names
     
-    The LocalAddrContext should have the network address of the actual
-    interface.
+    For vet. There are more. This is a start.
     
-    Fixes #18686
-    
-    Change-Id: I9c401eda312f3a0e7e65b013af827aeeef3b4d3d
-    Reviewed-on: https://go-review.googlesource.com/35490
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibbbb2b20b5db60ee3fac4a1b5913d18fab01f6b9
+    Reviewed-on: https://go-review.googlesource.com/36939
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/serve_test.go | 38 +++++++++++++++++++++++++++++++-------
- src/net/http/server.go     |  2 +-
- 2 files changed, 32 insertions(+), 8 deletions(-)
+ src/runtime/sys_freebsd_386.s   | 4 ++--
+ src/runtime/sys_linux_arm.s     | 4 ++--
+ src/runtime/sys_nacl_386.s      | 4 ++--
+ src/runtime/sys_nacl_amd64p32.s | 4 ++--
+ src/runtime/sys_nacl_arm.s      | 6 +++---
+ src/runtime/sys_openbsd_386.s   | 4 ++--
+ src/runtime/sys_plan9_386.s     | 4 ++--
+ 7 files changed, 15 insertions(+), 15 deletions(-)

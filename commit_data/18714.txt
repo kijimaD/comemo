@@ -1,15 +1,19 @@
-commit 13ab78fdd995cf328c341d86cdcffd154e3441b7
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Mar 4 10:36:04 2014 +1100
+commit ebe1eb6537d4873863db4a526250a0e5ddab41b2
+Author: Graham King <graham4king@gmail.com>
+Date:   Mon Mar 3 11:11:04 2014 -0800
 
-    runtime: update CBARGS macro for nacl/amd64p32
+    cmd/ld: DWARF opcode base to 10
     
-    CBARGS is unused on amd64p32 so make this explicit.
+    DWARF 2 has 9 standard opcodes, so dwarfdump expects us to use an
+    opcode base of at least 10. Previously we used 5.
     
-    LGTM=bradfitz
-    R=rsc, bradfitz
+    Discussion:
+    https://groups.google.com/forum/#!topic/golang-dev/d-BqpPgalzc
+    
+    LGTM=josharian, rsc
+    R=golang-codereviews, gobot, rsc, josharian, iant, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/70940043
+    https://golang.org/cl/69320043
 
- src/pkg/runtime/cgocall.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/ld/dwarf.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

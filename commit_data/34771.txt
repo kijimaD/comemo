@@ -1,20 +1,45 @@
-commit 5cf3b523080ea35a5148c3dc6c8a701305f1f875
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Mar 29 18:48:33 2018 -0700
+commit a025277505d49fac9a5100ae9305020b063657c2
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 4 10:19:53 2017 -0700
 
-    api: add exception for os.ModeType value
+    bytes,strings: in generic Index, use mix of IndexByte and Rabin-Karp
     
-    The ModeType constant is a bit-wise OR of several other values.
-    It is reasonable for this to change without breaking compatibility.
+    Use IndexByte first, as it allows us to skip lots of bytes quickly.
+    If IndexByte is generating a lot of false positives, switch over to Rabin-Karp.
     
-    This fixes the failures introduced by https://golang.org/cl/103597
+    Experiments for ppc64le
+    bytes:
+    name                             old time/op  new time/op  delta
+    IndexPeriodic/IndexPeriodic2-2   1.12ms ± 0%  0.18ms ± 0%  -83.54%  (p=0.000 n=10+9)
+    IndexPeriodic/IndexPeriodic4-2    635µs ± 0%   184µs ± 0%  -71.06%  (p=0.000 n=9+9)
+    IndexPeriodic/IndexPeriodic8-2    289µs ± 0%   184µs ± 0%  -36.51%  (p=0.000 n=10+9)
+    IndexPeriodic/IndexPeriodic16-2   133µs ± 0%   183µs ± 0%  +37.68%  (p=0.000 n=10+9)
+    IndexPeriodic/IndexPeriodic32-2  68.3µs ± 0%  70.2µs ± 0%   +2.76%  (p=0.000 n=10+10)
+    IndexPeriodic/IndexPeriodic64-2  35.8µs ± 0%  36.6µs ± 0%   +2.17%  (p=0.000 n=8+10)
     
-    Change-Id: I817e351cf3d1e0115dce665c8efbce21bc36426c
-    Reviewed-on: https://go-review.googlesource.com/103616
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    strings:
+    name                             old time/op  new time/op  delta
+    IndexPeriodic/IndexPeriodic2-2    184µs ± 0%   184µs ± 0%   +0.11%  (p=0.029 n=4+4)
+    IndexPeriodic/IndexPeriodic4-2    184µs ± 0%   184µs ± 0%     ~     (p=0.886 n=4+4)
+    IndexPeriodic/IndexPeriodic8-2    184µs ± 0%   184µs ± 0%     ~     (p=0.486 n=4+4)
+    IndexPeriodic/IndexPeriodic16-2   185µs ± 1%   184µs ± 0%     ~     (p=0.343 n=4+4)
+    IndexPeriodic/IndexPeriodic32-2   184µs ± 0%    69µs ± 0%  -62.37%  (p=0.029 n=4+4)
+    IndexPeriodic/IndexPeriodic64-2   184µs ± 0%    37µs ± 0%  -80.17%  (p=0.029 n=4+4)
+    
+    Fixes #22578
+    
+    Change-Id: If2a4d8554cb96bfd699b58149d13ac294615f8b8
+    Reviewed-on: https://go-review.googlesource.com/76070
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- api/except.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/bytes/bytes.go             | 43 ++++++++++++++++++++++++++++++++++++++++++
+ src/bytes/bytes_amd64.go       | 40 +--------------------------------------
+ src/bytes/bytes_generic.go     | 36 ++++++++++++++++++++++++++---------
+ src/bytes/bytes_s390x.go       | 40 +--------------------------------------
+ src/bytes/bytes_test.go        | 18 ++++++++++++++++++
+ src/strings/strings.go         | 24 +++++++++++++++++++++++
+ src/strings/strings_amd64.go   | 20 +-------------------
+ src/strings/strings_generic.go | 38 ++++++++++++++++++++++---------------
+ src/strings/strings_s390x.go   | 20 +-------------------
+ src/strings/strings_test.go    | 15 +++++++++++++++
+ 10 files changed, 154 insertions(+), 140 deletions(-)

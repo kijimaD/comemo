@@ -1,19 +1,22 @@
-commit 8285c85fe32147fb27d7aa5cfc41b8bd9d65fa0d
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Apr 11 14:28:24 2019 -0700
+commit 3f9efe750058308bc499c5eb22bc84193fedb6b3
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 23 11:17:36 2018 +0100
 
-    syscall: skip DirentRepeat test on freebsd
+    cmd/link: fix XCOFF sections
     
-    Dirent doesn't work properly. Diable the test for now.
+    XCOFF files can't have multiples text or data sections. The name
+    of each type section must be .text, .data and .bss.
     
-    Update #31416
+    This commit also updates cmd/internal/objfile/xcoff.go to retrieve Go
+    sections using runtime symbols.
     
-    Change-Id: I34a8045598a9c303dcc754ce04da3c124f122d1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171818
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib6315f19dad2d154a4531fc6508e7cbd8bc94743
+    Reviewed-on: https://go-review.googlesource.com/c/151037
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/dirent_bsd_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/internal/objfile/xcoff.go  |  48 +++++--
+ src/cmd/link/internal/ld/data.go   |   4 -
+ src/cmd/link/internal/ld/xcoff.go  | 259 +++++++++++++++++--------------------
+ src/cmd/link/internal/ppc64/asm.go |  22 +---
+ 4 files changed, 162 insertions(+), 171 deletions(-)

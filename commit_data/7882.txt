@@ -1,15 +1,15 @@
-commit 2795b13156993700e0e7355e2c4fa2fc617fd9ae
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 25 18:31:55 2011 -0700
+commit c3fa7305d1ff3964b3471bab246ba17894eadff2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Mar 26 11:56:34 2011 +1100
 
-    gc: remove interim ... error which rejects valid code.
-    
-    It's been six months.
+    dashboard: remove old python/bash builder, update README
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4289073
+    https://golang.org/cl/4275076
 
- src/cmd/gc/typecheck.c   | 5 -----
- test/fixedbugs/bug252.go | 4 ++--
- 2 files changed, 2 insertions(+), 7 deletions(-)
+ misc/dashboard/README          |  34 +----
+ misc/dashboard/buildcontrol.py | 278 -----------------------------------------
+ misc/dashboard/buildcron.sh    |  58 ---------
+ misc/dashboard/builder.sh      |  95 --------------
+ 4 files changed, 5 insertions(+), 460 deletions(-)

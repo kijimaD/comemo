@@ -1,18 +1,38 @@
-commit caa8e1f97788d4276276d68610fadc6179a022ee
-Author: David Chase <drchase@google.com>
-Date:   Tue Sep 27 14:37:35 2022 -0400
+commit 00d6d2037ee1bf4b6959219120b79b7c01244b02
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Oct 29 17:41:41 2021 -0400
 
-    cmd/compile: make a type-specialized copy of encoding/binary.ReadUvarint
+    cmd/doc, go/doc: add basic support for generic code
     
-    This is to get better escape analysis for a frequently-allocated object.
+    Update cmd/doc and go/doc for the generics, by adding handling for type
+    parameters and the new embedded interface elements.
     
-    Change-Id: I1942a4e1c3cd1f0fa870bc8433a0165c18ce9c75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435336
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Specifically:
+     - Format type parameters when summarizing type and function nodes.
+     - Find the origin type name for instantiation expressions, so that
+       methods are associated with generic type declarations.
+     - Generalize the handling of embedding 'error' in interfaces to
+       arbitrary predeclared types.
+     - Keep embedded type literals.
+     - Update filtering to descend into embedded type literals.
+    
+    Also add "any" to the list of predeclared types.
+    
+    Updates #49210
+    
+    Change-Id: I6ea82869f19c3cdbc3c842f01581c8fc7e1c2ee7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359778
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/pkgbits/decoder.go | 31 ++++++++++++++++++++++++++++++-
- 1 file changed, 30 insertions(+), 1 deletion(-)
+ src/cmd/doc/pkg.go                    | 21 +++++++++--
+ src/go/doc/exports.go                 | 58 ++++++++++++++++++++---------
+ src/go/doc/filter.go                  |  2 +
+ src/go/doc/reader.go                  | 29 ++++++++++-----
+ src/go/doc/testdata/generics.0.golden | 70 +++++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/generics.1.golden | 60 ++++++++++++++++++++++++++++++
+ src/go/doc/testdata/generics.2.golden | 70 +++++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/generics.go       | 61 ++++++++++++++++++++++++++++++
+ 8 files changed, 339 insertions(+), 32 deletions(-)

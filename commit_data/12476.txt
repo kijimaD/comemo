@@ -1,17 +1,28 @@
-commit 807aadcd3e148110d0e7d4dc251d831c35af30b6
+commit a385f38dfa0e05ef51422e2910e0928062258339
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 12:09:43 2012 -0500
+Date:   Wed Mar 7 12:06:22 2012 -0500
 
-    cmd/go: fix go test -compiler
+    net: delete usableLocalPort from test
     
-    The compiler must be changed with the Set method
-    so that the buildToolchain gets updated too.
+    The old way to find a port was to listen :0 and then
+    look at what port it picked, close the listener, and then
+    immediately try to listen on that port.
     
-    Fixes #3231.
+    On some Windows 7 machines that sequence fails at
+    the second listen, because the first one is still lingering
+    in the TCP/IP stack somewhere.  (Ironically, most of these
+    are used in tests of a "second listen", which in this case
+    ends up being the third listen.)
+    
+    Instead of this race, just return the listener from the
+    function, replacing usableLocalPort+Listen with
+    usableListenPort.
+    
+    Fixes #3219.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5768044
+    https://golang.org/cl/5769045
 
- src/cmd/go/testflag.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/unicast_test.go | 75 +++++++++++++++++++--------------------------
+ 1 file changed, 31 insertions(+), 44 deletions(-)

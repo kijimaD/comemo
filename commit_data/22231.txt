@@ -1,27 +1,13 @@
-commit 00e0fe4b95d0ebaf17bab86795337015e476b3fc
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Mar 30 08:36:37 2015 -0400
+commit f1489ac2511eda7c9eaca6bac83d329410b3ce92
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Sun Mar 1 10:09:27 2015 -0500
 
-    misc/ios: retry loop to handle builder flakiness
+    build: update Windows make.bat to use CC_FOR_TARGET.
     
-    After moving the darwin/arm builder to new hardware several new flaky
-    error messages appeared. This provided enough information to Google
-    to make it clear that iOS build systems have been flaky for many
-    years, and that is unlikely to change any time soon.
-    
-    However, all of the pain of lldb and using a breakpoint early in
-    program initialization gives us an advantage: all install and
-    initialization flakiness appears to happen before the Go program ever
-    gets going. So if we see an error or we timeout before we reach our
-    breakpoint (before any test code has executed), we can assume it is
-    the fault of the builder and restart without risking hiding a flaky
-    Go test.
-    
-    This code has successfully processed the last 8 builds. I am hopeful.
-    
-    Change-Id: Ide24aaae4fa7bdab9d8f4432bb85d8f2256c7606
-    Reviewed-on: https://go-review.googlesource.com/8241
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Ie4d8bedb9408372dff64e9a7fd857e1be4ee59e1
+    Reviewed-on: https://go-review.googlesource.com/6401
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- misc/ios/go_darwin_arm_exec.go | 110 ++++++++++++++++++++++++++++-------------
- 1 file changed, 76 insertions(+), 34 deletions(-)
+ src/make.bat | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

@@ -1,23 +1,19 @@
-commit 4a9d98d49a4f49672521973852fe8983ba790c5f
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Mon Aug 19 17:40:55 2024 -0700
+commit 80a7315c3400b011a0f89e63aca73031a9073c9a
+Author: ryomak <ryooomaaa0413@gmail.com>
+Date:   Wed Jun 28 22:06:38 2023 +0900
 
-    syscall: optimize Getwd on aix
+    image/draw: replace deprecated image.ZP and image.ZR in xx_test.go
     
-    When looking for \0, use clen which may be optimized.
-    
-    Also, return EINVAL when returned string is empty.
-    
-    This makes it similar to how it is implemented in *bsd and solaris.
-    
-    Change-Id: I3e37ed25f47110eafd12c80291f7746de9db7b23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606902
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I87545a46e5871452075152b4c99ba85089ef86b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506735
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/syscall/syscall_aix.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/image/draw/bench_test.go   |  2 +-
+ src/image/draw/clip_test.go    | 64 +++++++++++++++++++++---------------------
+ src/image/draw/draw_test.go    | 18 ++++++------
+ src/image/draw/example_test.go |  2 +-
+ 4 files changed, 43 insertions(+), 43 deletions(-)

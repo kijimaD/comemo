@@ -1,20 +1,31 @@
-commit 84ca4949a71554265b3c8a99359a5fad6ca0cab1
-Author: eric fang <eric.fang@arm.com>
-Date:   Tue Mar 2 06:08:51 2021 +0000
+commit efbe47b1625422f21bb2f130f916ce040756dbe3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 12:27:01 2020 -0400
 
-    cmd/compile: remove 8-byte alignment requirement of stack slot on mips64
+    html/template: add tests from text/template
     
-    This CL applies CL 267999 to mips64.
+    Copy and adapt tests from text/template, to exercise more of html/template's copy.
     
-    Updates #42385
+    Various differences in behavior are flagged with NOTE comments or t.Skip
+    and documented in #40075. Many of them are probably bugs.
+    One clarifying test case added to both text/template and html/template.
     
-    Change-Id: Ideab21be0d8c1a36b3be7411b24adac70a3d16e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297771
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    No changes to the package itself.
+    
+    Change-Id: Ifefad83d647db846040d24c2741a0244b00ade82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241084
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssagen/pgen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/html/template/clone_test.go       |    2 +-
+ src/html/template/content_test.go     |    6 +-
+ src/html/template/escape_test.go      |    2 +-
+ src/html/template/exec_test.go        | 1708 +++++++++++++++++++++++++++++++++
+ src/html/template/multi_test.go       |  246 +++++
+ src/html/template/testdata/file1.tmpl |    2 +
+ src/html/template/testdata/file2.tmpl |    2 +
+ src/html/template/testdata/tmpl1.tmpl |    3 +
+ src/html/template/testdata/tmpl2.tmpl |    3 +
+ src/text/template/multi_test.go       |    1 +
+ 10 files changed, 1970 insertions(+), 5 deletions(-)

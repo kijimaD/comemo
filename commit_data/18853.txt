@@ -1,18 +1,16 @@
-commit 28792f5d83578d9087be5d3b2490ae8a10e189de
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Thu Mar 13 18:26:01 2014 +1100
+commit 741244e4336f7056c733f68d6aef07bc27349e9d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Mar 13 08:12:38 2014 +0100
 
-    runtime: avoid runtime·cgocall in functions called by forkAndExecInChild
+    cmd/6g: fix stack zeroing preamble on amd64p32.
     
-    Calling runtime·cgocall could trigger a GC in the child while
-    gclock was held by the parent.
+    It was using a REP STOSQ but putting in CX the number of 32-bit
+    words to clear.
     
-    Fixes #7511
-    
-    LGTM=bradfitz, dvyukov, dave
-    R=golang-codereviews, bradfitz, dvyukov, dave
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/75210044
+    LGTM=dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/75240043
 
- src/pkg/runtime/syscall_solaris.goc | 8 ++++----
+ src/cmd/6g/ggen.c | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)

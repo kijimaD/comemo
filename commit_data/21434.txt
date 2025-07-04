@@ -1,39 +1,39 @@
-commit 3c0fee10dbe82771dcaa956a95bdfabdced5fff7
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 14 11:09:50 2015 -0500
+commit dcec123a4923437242c52d2693ace80d2f3c704e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 22 10:53:51 2014 -0500
 
-    cmd/6g, liblink, runtime: support saving base pointers
+    runtime: add GODEBUG wbshadow for finding missing write barriers
     
-    This adds a "framepointer" GOEXPERIMENT that that makes the amd64
-    toolchain maintain base pointer chains in the same way that gcc
-    -fno-omit-frame-pointer does.  Go doesn't use these saved base
-    pointers, but this does enable external tools like Linux perf and
-    VTune to unwind Go stacks when collecting system-wide profiles.
+    This is the detection code. It works well enough that I know of
+    a handful of missing write barriers. However, those are subtle
+    enough that I'll address them in separate followup CLs.
     
-    This requires support in the compilers to not clobber BP, support in
-    liblink for generating the BP-saving function prologue and unwinding
-    epilogue, and support in the runtime to save BPs across preemption, to
-    skip saved BPs during stack unwinding and, and to adjust saved BPs
-    during stack moving.
+    GODEBUG=wbshadow=1 checks for a write that bypassed the
+    write barrier at the next write barrier of the same word.
+    If a bug can be detected in this mode it is typically easy to
+    understand, since the crash says quite clearly what kind of
+    word has missed a write barrier.
     
-    As with other GOEXPERIMENTs, everything from the toolchain to the
-    runtime must be compiled with this experiment enabled.  To do this,
-    run make.bash (or all.bash) with GOEXPERIMENT=framepointer.
+    GODEBUG=wbshadow=2 adds a check of the write barrier
+    shadow copy during garbage collection. Bugs detected at
+    garbage collection can be difficult to understand, because
+    there is no context for what the found word means.
+    Typically you have to reproduce the problem with allocfreetrace=1
+    in order to understand the type of the badly updated word.
     
-    Change-Id: I4024853beefb9539949e5ca381adfdd9cfada544
-    Reviewed-on: https://go-review.googlesource.com/2992
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If863837308e7c50d96b5bdc7d65af4969bf53a6e
+    Reviewed-on: https://go-review.googlesource.com/2061
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/6g/gsubr.c         |  5 +++++
- src/cmd/6g/reg.c           |  3 +++
- src/liblink/go.c           |  2 +-
- src/liblink/obj6.c         | 52 +++++++++++++++++++++++++++++++++++++++++++---
- src/runtime/arch1_amd64.go |  2 +-
- src/runtime/asm_amd64.s    | 26 ++++++++++++++++++++---
- src/runtime/cgocall.go     |  5 +++++
- src/runtime/proc1.go       |  3 +++
- src/runtime/runtime2.go    |  1 +
- src/runtime/stack1.go      | 17 +++++++++++++++
- src/runtime/traceback.go   |  6 ++++++
- test/nosplit.go            | 20 ++++++++++++++++++
- 12 files changed, 134 insertions(+), 8 deletions(-)
+ src/runtime/extern.go   |  12 +++++
+ src/runtime/malloc.go   |   4 ++
+ src/runtime/malloc1.go  |  66 +++++++++++++++++++++++++
+ src/runtime/malloc2.go  |   9 ++++
+ src/runtime/mgc.go      |  15 ++++--
+ src/runtime/mgc0.go     | 127 ++++++++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/panic.go    |  16 ++++++
+ src/runtime/proc1.go    |   1 +
+ src/runtime/runtime1.go |  23 +++++++--
+ src/runtime/runtime2.go |  14 ------
+ src/runtime/stack1.go   |  12 +++--
+ 11 files changed, 268 insertions(+), 31 deletions(-)

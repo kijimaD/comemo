@@ -1,18 +1,30 @@
-commit adc80c0665c0aa9a4a504e5c5dd2ddf981d3a8c3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 13 06:31:05 2017 -0700
+commit 7d889af26d40a6d81e668c9780086e8c8ef14ceb
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Feb 1 09:37:47 2017 +0100
 
-    cmd/compile: refactor Linksym
+    misc/ios: include the bundle id in the GOIOS_APP_ID env variable
     
-    Extract a helper function, linksymname.
-    This simplifies Linksym,
-    and linksymname will be useful in future work.
+    The iOS exec wrapper use the constant bundle id "golang.gotest" for
+    running Go programs on iOS. However, that only happens to work on
+    the old iOS builders where their provisioning profile covers
+    that bundle id.
     
-    Change-Id: Ic5ff8b704a16d5020f6931e008e2f630f687cbd3
-    Reviewed-on: https://go-review.googlesource.com/40550
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Expand the detection script to list all available provisioning
+    profiles for the attached device and include the bundle id in the
+    GOIOS_APP_ID environment variable.
+    
+    To allow the old builders to continue, the "golang.gotest" bundle
+    id is used as a fallback if only the app id prefix is specified in
+    GOIOS_APP_ID.
+    
+    For the new builders.
+    
+    Change-Id: I8baa1d4d57f845de851c3fad3f178e05e9a01b17
+    Reviewed-on: https://go-review.googlesource.com/36060
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/obj.go | 27 +++++++++++++--------------
- 1 file changed, 13 insertions(+), 14 deletions(-)
+ misc/ios/detect.go             | 55 ++++++++++++++++++++++++------------------
+ misc/ios/go_darwin_arm_exec.go | 26 ++++++++++++++------
+ 2 files changed, 50 insertions(+), 31 deletions(-)

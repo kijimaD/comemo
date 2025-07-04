@@ -1,15 +1,13 @@
-commit 53304558f95660233be1259b817fb1ca4693279d
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 31 13:07:16 2014 -0700
+commit 2c982ce9a0d30cf7c771d24b2d4d124b8230087a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 31 10:34:51 2014 -0700
 
-    runtime: fix 32 bit build.
+    cmd/gc: fix example flag in comment
     
-    int(maxMem) is negative on 32 bits.  Need to use
-    unsigned arithmetic.
-    
-    TBR=bradfitz
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/121000045
+    https://golang.org/cl/118480044
 
- src/pkg/runtime/slice.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

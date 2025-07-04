@@ -1,14 +1,15 @@
-commit c3be760889be43a61edbc868921517151b4acde5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jun 9 10:29:25 2011 +1000
+commit ffd01f2a479af55cb12566bc2ba7e38b4be8cf01
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jun 9 10:18:36 2011 +1000
 
-    runtime: increase maximum number of windows callbacks
+    mail: decode "Q"-encoded mail addresses.
     
-    Fixes #1912.
+    Supports ISO-8859-1 and UTF-8.
     
-    R=rsc
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4591047
+    https://golang.org/cl/4568064
 
- src/pkg/runtime/windows/thread.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/mail/message.go      | 48 +++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/mail/message_test.go | 21 +++++++++++++++++++
+ 2 files changed, 68 insertions(+), 1 deletion(-)

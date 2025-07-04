@@ -1,0 +1,31 @@
+commit dd6dee48b27e35e3d6ba0723b6851b5fe17d1049
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 15 12:56:23 2024 -0400
+
+    net/http: remove misleading response headers on error
+    
+    This is a reapply of CL 544019 and CL 569815, but with
+    less aggressive semantics as discussed in proposal #66343.
+    
+    Error deletes Content-Encoding, since it is writing the response
+    and any preset encoding may not be correct.
+    
+    On the error-serving path in ServeContent/ServeFile/ServeFS,
+    these functions delete additional headers: Etag, Last-Modified,
+    and Cache-Control. The caller may have set these intending
+    them for the success response, and they may well not be correct
+    for error responses.
+    
+    Fixes #50905.
+    Fixes #66343.
+    
+    Change-Id: I873d33edde1805990ca16d85ea8d7735b7448626
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571995
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/fs.go         | 32 +++++++++++------
+ src/net/http/fs_test.go    | 85 +++++++++++++++++++++++++++++++++++++++++++---
+ src/net/http/serve_test.go | 22 ++++++++++++
+ src/net/http/server.go     | 19 +++++++++--
+ 4 files changed, 140 insertions(+), 18 deletions(-)

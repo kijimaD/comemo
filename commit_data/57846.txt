@@ -1,22 +1,24 @@
-commit 81f89f201137eea758715ec14f2586513ddb8380
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Wed Oct 30 15:18:35 2024 -0400
+commit ae09ca6c0fd212a19096a1c9c504fe59fc7471bf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 14:43:22 2023 -0700
 
-    crypto/internal/fips/sha3/testdata: remove unused KATS
+    cmd/compile/internal/ir: simplify printing of OLITERALs
     
-    When the SHA3 code was imported from x/crypto we determined the
-    keccackKats.json.deflate testcases were redundant with existing test
-    coverage and ACVP. While the testcases referencing the data were
-    already removed, we forgot to remove the data itself prior to this
-    commit.
+    This formatting used to be relevant to user error diagnostics and
+    (much earlier) even to the old textual export data format, but now
+    it's only relevant to backend debugging. So we can simplify a lot,
+    adjusting a few test expectations accordingly.
     
-    Change-Id: Id2da9201653ff93e618e905bef53f57cf450b5b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623655
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ibe8e029284ce6150bfa24ef794d8d9eff66dbdea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526375
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- .../fips/sha3/testdata/keccakKats.json.deflate         | Bin 540828 -> 0 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/compile/internal/ir/expr.go    |  6 ++++-
+ src/cmd/compile/internal/ir/fmt.go     | 45 +++++++++++-----------------------
+ src/cmd/compile/internal/ir/val.go     | 17 -------------
+ src/cmd/compile/internal/types/fmt.go  | 36 ---------------------------
+ src/cmd/compile/internal/types/type.go | 20 +++++++++++++++
+ 5 files changed, 39 insertions(+), 85 deletions(-)

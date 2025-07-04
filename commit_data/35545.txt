@@ -1,18 +1,14 @@
-commit fb0d6e4bd18da45fdb2b88640d368e919d3b6c7c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 30 16:55:26 2018 +0200
+commit 0a4c439d3f85e150554266976dbf6dccfd6638e1
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Feb 18 19:32:26 2018 +0100
 
-    cmd/dist: remove external linking check for macOS 10.6
+    cmd/compile: aggregate rules that fold LEA/ADD into MOVx ops
     
-    This was missed in CL 115236.
+    No functional changes.
     
-    Updates #23122
-    
-    Change-Id: I5a64bd02d356c21c0e5d02dafafb3721f8dd8e06
-    Reviewed-on: https://go-review.googlesource.com/115276
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4a3642d6dedf602a62f5a69cb630d35965ad6b98
+    Reviewed-on: https://go-review.googlesource.com/94763
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/test.go | 11 +----------
- 1 file changed, 1 insertion(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 82 +++++-----------------------
+ 1 file changed, 14 insertions(+), 68 deletions(-)

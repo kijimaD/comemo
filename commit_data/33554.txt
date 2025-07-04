@@ -1,14 +1,27 @@
-commit 707a4d3fed2e3de3bb08508b31279161bedb8df8
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Tue Nov 14 21:32:00 2017 -0400
+commit ea5e3bd2a18fc26fa9028865c8f391b18ed24786
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Tue Aug 22 15:41:50 2017 +0530
 
-    encoding/pem: add Encode example
+    all: fix easy-to-miss typos
     
-    Change-Id: Ib9ec3524b712e016a9dd2fbee5555362c1a0cb59
-    Reviewed-on: https://go-review.googlesource.com/77770
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Using the wonderful https://github.com/client9/misspell tool.
+    
+    Change-Id: Icdbc75a5559854f4a7a61b5271bcc7e3f99a1a24
+    Reviewed-on: https://go-review.googlesource.com/57851
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/pem/example_test.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/archive/tar/writer.go                   | 2 +-
+ src/cmd/compile/internal/ssa/looprotate.go  | 2 +-
+ src/cmd/compile/internal/syntax/branches.go | 2 +-
+ src/cmd/internal/objabi/symkind.go          | 2 +-
+ src/cmd/link/internal/ld/lib.go             | 2 +-
+ src/cmd/link/internal/ld/link.go            | 2 +-
+ src/database/sql/convert.go                 | 2 +-
+ src/database/sql/sql_test.go                | 2 +-
+ src/encoding/asn1/asn1_test.go              | 2 +-
+ src/internal/cpu/cpu.go                     | 2 +-
+ src/math/big/calibrate_test.go              | 2 +-
+ src/testing/testing.go                      | 2 +-
+ 12 files changed, 12 insertions(+), 12 deletions(-)

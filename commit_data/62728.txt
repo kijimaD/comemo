@@ -1,0 +1,19 @@
+commit 06f82af1837bf77dfb2f337f5bb15b6c3f85a454
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 20 22:55:37 2025 +1100
+
+    cmd/internal/obj/arm64: return a bit shift from movcon
+    
+    Return the shift in bits from movcon, rather than returning an index.
+    This allows a number of multiplications to be removed, making the code
+    more readable. Scale down to an index only when encoding.
+    
+    Change-Id: I1be91eb526ad95d389e2f8ce97212311551790df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650939
+    Auto-Submit: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 31 +++++++++++++++----------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)

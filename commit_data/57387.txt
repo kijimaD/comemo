@@ -1,19 +1,23 @@
-commit 9e9b1f57c26a6d13fdaebef67136718b8042cdba
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 5 16:53:17 2024 -0700
+commit e4aec1fa8a9c57672b783d16dd122cb4e6708089
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Aug 1 13:28:14 2023 +0000
 
-    reflect: gofmt all_test.go
+    text/template: use "IsValid" instead of "!= zero" to compare zero Value
     
-    CL 580779 accidentally committed an un-gofmt-ed all_test.go
+    See CL 308769
     
-    Change-Id: I071ad8d8d08cab12032ff8d3eebecb55e808f14a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610561
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I0caa0a84215b3d4b8b3dc6f041b6cd9cbe2c0908
+    GitHub-Last-Rev: e3aa5bde23fe26cbb6711a6ffbf4856a23fa6f54
+    GitHub-Pull-Request: golang/go#61657
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514195
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/reflect/all_test.go | 104 ++++++++++++++++++++++++------------------------
- 1 file changed, 52 insertions(+), 52 deletions(-)
+ src/text/template/funcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,24 +1,23 @@
-commit 89265f98948718c0d4d3d4763decf02914188ae6
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Jul 7 11:17:28 2023 +0200
+commit 6b113c0fecd62b57ee88757c3ca80e9bdd11150d
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Mon Jul 11 15:56:37 2022 +0000
 
-    net: remove unused error result from newRawConn
+    cmd/compile: avoid excessive libfuzzer instrumentation of int compares
     
-    It's currently always nil, and the code gets generally less verbose.
+    Do not intercept integer compares that are used to increment libFuzzer's
+    8-bit counters. This is unnecessary and has a negative impact on the
+    fuzzing performance. This fixes #53760.
     
-    Change-Id: Id4f5f9ac6eac0218dda34b8bd5ef41c633cfaf2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508396
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Id22efac968b18014eedabb6f0762e1456897024e
+    GitHub-Last-Rev: 52f69fd68c21001beb7b853d4f0343ece0d3f9d1
+    GitHub-Pull-Request: golang/go#53786
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416796
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/net/iprawsock.go  |  2 +-
- src/net/rawconn.go    |  8 ++++----
- src/net/sock_posix.go | 17 ++++-------------
- src/net/tcpsock.go    |  4 ++--
- src/net/udpsock.go    |  2 +-
- src/net/unixsock.go   |  4 ++--
- 6 files changed, 14 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/walk/compare.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

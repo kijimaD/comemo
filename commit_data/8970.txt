@@ -1,12 +1,14 @@
-commit 141f676bab9100cb9323297f839ef8d11b0c3e4d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 7 13:45:13 2011 -0700
+commit 03f987c8eae3b9ac065b4e69c3fd3024fa73fe92
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jul 7 16:32:19 2011 +1000
 
-    doc: remove ed from apt-get package list
+    image: tighten Paletted.Opaque to check only those palette entries
+    in the image, not all palette entries.
     
-    R=golang-dev, gri
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4672052
+    https://golang.org/cl/4672049
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/image/image.go      | 17 +++++++++++++++--
+ src/pkg/image/image_test.go |  5 +++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)

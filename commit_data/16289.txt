@@ -1,13 +1,15 @@
-commit df29cdd33d63c7fe452a32aab193df7f0815f7ef
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed May 15 03:50:27 2013 +0800
+commit 2184282308566ad6fd445ea55ab755019e360d77
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 09:43:56 2013 -0700
 
-    doc/go_spec: fix typos
-    Fixes #5456.
+    cmd/api: don't print out except.txt removed features to stdout
+    
+    It's just noise. They've already been acknowledged in except.txt.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9400044
+    https://golang.org/cl/9392047
 
- doc/go_spec.html | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/api/goapi.go      | 7 ++++++-
+ src/cmd/api/goapi_test.go | 2 +-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

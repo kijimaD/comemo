@@ -1,30 +1,25 @@
-commit caa1b4afbd145358450587053f290e6870c04b1c
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Feb 28 16:30:07 2018 -0500
+commit 39d4bb9c0f3ac3f87de64b069ea176595e39d46c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 10 14:10:28 2017 -0700
 
-    cmd/compile/internal/ssa: note zero-width Ops
+    [release-branch.go1.9] cmd/go: correct directory used in checkNestedVCS test
     
-    Add a bool to opInfo to indicate if an Op never results in any
-    instructions. This is a conservative approximation: some operations,
-    like Copy, may or may not generate code depending on their arguments.
+    This error was not used when using git because nested git is permitted.
+    Add test using Mercurial, so that at least we have a test, even though
+    the test is not run by default.
     
-    I built the list by reading each arch's ssaGenValue function. Hopefully
-    I got them all.
+    Fixes #22157
+    Fixes #22201
     
-    Change-Id: I130b251b65f18208294e129bb7ddc3f91d57d31d
-    Reviewed-on: https://go-review.googlesource.com/97957
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If521f3c09b0754e00e56fa3cd0364764a57a43ad
+    Reviewed-on: https://go-review.googlesource.com/69670
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70984
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go     |   4 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   6 +-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |   6 +-
- src/cmd/compile/internal/ssa/gen/ARMOps.go     |   2 +-
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |   2 +-
- src/cmd/compile/internal/ssa/gen/MIPSOps.go    |   2 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |   6 +-
- src/cmd/compile/internal/ssa/gen/S390XOps.go   |   6 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |  34 ++++----
- src/cmd/compile/internal/ssa/gen/main.go       |   4 +
- src/cmd/compile/internal/ssa/op.go             |   1 +
- src/cmd/compile/internal/ssa/opGen.go          | 108 ++++++++++++++++---------
- 12 files changed, 107 insertions(+), 74 deletions(-)
+ src/cmd/go/go_test.go          | 9 ++++-----
+ src/cmd/go/internal/get/vcs.go | 2 +-
+ 2 files changed, 5 insertions(+), 6 deletions(-)

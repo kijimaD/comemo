@@ -1,21 +1,24 @@
-commit 5bd284e86840eba5e4ace473a3f7341a40332db6
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Thu Mar 3 10:43:29 2011 -0800
+commit e46acb091fa7dfbdb99e61801f37522bd8b80365
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 3 13:20:17 2011 -0500
 
-    fmt: make recursive scan more efficient.
-    Detect when scan is being called recursively and
-    re-use the same scan state.
+    reflect: add PtrTo, add Value.Addr (old Addr is now UnsafeAddr)
     
-    On my machine, for a recursion-heavy benchmark, this
-    results in 44x speed up. This does impose a 4% penalty
-    on the non-recursive case, which can be removed by
-    heap-allocating the saved state, at 40% performance penalty
-    on the recursive case. Either way is fine with me.
+    This change makes it possible to take the address of a
+    struct field or slice element in order to call a method that
+    requires a pointer receiver.
     
-    R=r
+    Existing code that uses the Value.Addr method will have
+    to change (as gob does in this CL) to call UnsafeAddr instead.
+    
+    R=r, rog
     CC=golang-dev
-    https://golang.org/cl/4253049
+    https://golang.org/cl/4239052
 
- src/pkg/fmt/scan.go      |  81 ++++++++++++++++++++++----------
- src/pkg/fmt/scan_test.go | 117 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 173 insertions(+), 25 deletions(-)
+ src/pkg/gob/decode.go        |   6 +-
+ src/pkg/gob/encode.go        |   6 +-
+ src/pkg/reflect/all_test.go  |  75 ++++++++++++++++++++
+ src/pkg/reflect/deepequal.go |   4 +-
+ src/pkg/reflect/type.go      |  88 +++++++++++++++++++++++-
+ src/pkg/reflect/value.go     | 158 +++++++++++++++++++++++++++++++------------
+ 6 files changed, 285 insertions(+), 52 deletions(-)

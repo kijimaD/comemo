@@ -1,13 +1,21 @@
-commit 56517aed959d2f73e7d76e80c79c5cbc87e4bd54
-Author: Gustavo Franco <gustavorfranco@gmail.com>
-Date:   Tue Jan 29 08:20:43 2013 -0800
+commit 81221f512d6ad8c15491b3ab29ea3fa3db800466
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 29 14:57:11 2013 +0400
 
-    cmd/go: add helpful error message when vcs is not found.
-    Fixes #4652.
+    runtime: dump the full stack of a throwing goroutine
+    Useful for debugging of runtime bugs.
+    + Do not print "stack segment boundary" unless GOTRACEBACK>1.
+    + Do not traceback system goroutines unless GOTRACEBACK>1.
     
-    R=bradfitz, minux.ma, rsc
+    R=rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7094049
+    https://golang.org/cl/7098050
 
- src/cmd/go/vcs.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/pkg/runtime/panic.c         | 2 ++
+ src/pkg/runtime/proc.c          | 6 ++++++
+ src/pkg/runtime/runtime.h       | 4 +++-
+ src/pkg/runtime/symtab.c        | 6 ++++--
+ src/pkg/runtime/time.goc        | 4 +++-
+ src/pkg/runtime/traceback_arm.c | 9 +++++----
+ src/pkg/runtime/traceback_x86.c | 7 ++++---
+ 7 files changed, 27 insertions(+), 11 deletions(-)

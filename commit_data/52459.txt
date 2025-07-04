@@ -1,21 +1,26 @@
-commit b431277da850b47cd05c5e7697303c0d6fbe2cea
-Author: Keiichi Hirobe <chalenge.akane@gmail.com>
-Date:   Tue Mar 28 01:56:29 2023 +0900
+commit d544591d72ade40d34d7a8ee70e7239ae63b4116
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue May 11 11:44:24 2021 +0800
 
-    internal/singleflight: move Done call in TestForgetUnshared
+    cmd/dist: add asan tests for global objects in testsanitizers package
     
-    Prior to this change, there was a possibility that the call of ForgetUnshared at line 134 could acquire the lock first.
-    Then, after ForgetUnshared released the lock, the doCall function could acquire it and complete its call.
-    This change prevents this situation by ensuring that ForgetUnshared at line 134 only executes after doCall has finished executing and released the lock.
+    Add tests to test that -asan in Go can detect the error memory access
+    to the global objects.
     
-    Change-Id: I45cd4040e40ed52ca8e1b3863092886668dfd521
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479499
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #44853.
+    
+    Change-Id: I612a048460b497d18389160b66e6f818342d3941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321716
+    Run-TryBot: Fannie Zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- src/internal/singleflight/singleflight_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testsanitizers/asan_test.go               |  5 ++++
+ .../testsanitizers/testdata/asan_global1_fail.go   | 25 +++++++++++++++++
+ .../testsanitizers/testdata/asan_global2_fail.go   | 31 ++++++++++++++++++++++
+ .../testsanitizers/testdata/asan_global3_fail.go   | 28 +++++++++++++++++++
+ .../testsanitizers/testdata/asan_global4_fail.go   | 25 +++++++++++++++++
+ misc/cgo/testsanitizers/testdata/asan_global5.go   | 22 +++++++++++++++
+ 6 files changed, 136 insertions(+)

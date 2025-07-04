@@ -1,33 +1,20 @@
-commit f966695ccea356e4e4e8cc0328276e2d00c9fc1e
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Jan 3 11:47:39 2025 -0800
+commit 3188758653fc7d2b229e234273d41878ddfdd5f2
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Mon Sep 4 14:37:13 2023 +0800
 
-    context: use "canceled" in docs to refer to timed-out contexts
+    log/slog: add LogLoggerLevel to enable setting level on the default logger
     
-    In documentation, we've usually but not always referred to a
-    context with a closed Done channel as "done" rather than
-    "canceled", to avoid ambiguity between a context canceled
-    by calling a CancelFunc and one past its deadline.
+    Fixes #62418
     
-    This actually adds ambiguity, however, since it's common to
-    see references to a "canceled context" that are intended to
-    cover contexts past their deadline. If you see "function F
-    returns if its context is canceled", you can reasonably
-    assume that F will return if its context passes its
-    deadline, unless something says otherwise.
-    
-    Update the context package docs to explicitly state that
-    a context is canceled when its deadline passes. Drop references
-    to contexts becoming "done" and just use "canceled" throughout.
-    
-    Fixes #70945
-    
-    Change-Id: I99fbd800c6049deaa37015a304f7f9d9a84100e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640095
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I889a53d00c8a463b4d7ddb41893c000d7cd0e7b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525096
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/context/context.go      | 42 ++++++++++++++++++++++--------------------
- src/context/example_test.go |  4 ++--
- 2 files changed, 24 insertions(+), 22 deletions(-)
+ api/next/62418.txt                     |  1 +
+ src/log/slog/example_log_level_test.go | 58 ++++++++++++++++++++++++++++++
+ src/log/slog/handler.go                |  2 +-
+ src/log/slog/logger.go                 | 42 +++++++++++++++++++---
+ src/log/slog/logger_test.go            | 66 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 163 insertions(+), 6 deletions(-)

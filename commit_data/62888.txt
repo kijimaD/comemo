@@ -1,0 +1,26 @@
+commit 760f22848de788806cb4ed25383cd92ea9091eef
+Author: John Bampton <jbampton@gmail.com>
+Date:   Wed Apr 9 21:08:06 2025 +0000
+
+    crypto/internal/hpke: rename Receipient to Recipient
+    
+    receipient -> recipient
+    
+    Change-Id: I9ed5937acf0f3808283e35221f8b4f41408eee7c
+    GitHub-Last-Rev: 0ed5ff7a46808d5311af3620b6577734a1e557f4
+    GitHub-Pull-Request: golang/go#73131
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662175
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ src/crypto/internal/hpke/hpke.go         | 8 ++++----
+ src/crypto/internal/hpke/hpke_test.go    | 8 ++++----
+ src/crypto/tls/ech.go                    | 4 ++--
+ src/crypto/tls/handshake_server_tls13.go | 2 +-
+ 4 files changed, 11 insertions(+), 11 deletions(-)

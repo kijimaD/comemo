@@ -1,22 +1,12 @@
-commit 3de7ba1873b3efb0004d61147cc049dd42d8725d
+commit 56f8b297c724e43971b2b35e72bd8be9d5c0ea44
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 1 10:05:16 2014 -0400
+Date:   Wed Aug 27 11:10:01 2014 -0400
 
-    runtime: change PC, SP values in Stkframe, Panic, Defer from byte* to uintptr
+    CONTRIBUTORS: add Rick Hudson (Google CLA)
     
-    uintptr is better when translating to Go,
-    and in a few places it's better in C too.
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/138980043
+    TBR=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/131410043
 
- src/pkg/runtime/heapdump.c      | 10 +++++-----
- src/pkg/runtime/mgc0.c          | 20 ++++++++++----------
- src/pkg/runtime/panic.c         | 16 ++++++++--------
- src/pkg/runtime/runtime.h       | 16 ++++++++--------
- src/pkg/runtime/stack.c         | 10 +++++-----
- src/pkg/runtime/traceback_arm.c | 12 ++++++------
- src/pkg/runtime/traceback_x86.c | 16 ++++++++--------
- 7 files changed, 50 insertions(+), 50 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

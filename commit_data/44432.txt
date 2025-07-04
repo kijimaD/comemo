@@ -1,20 +1,26 @@
-commit 5f15af111cb40c3ac154be88288abd381e6f61e2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 15 09:48:39 2021 -0500
+commit 5de90d33c837af4d9a375a0a36811c7033655596
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Jul 1 11:31:15 2020 +0000
 
-    syscall: comment on fields omitted from the win32finddata1 struct
+    Revert "encoding/json: don't reuse slice elements when decoding"
     
-    Updates #42637
+    This reverts https://golang.org/cl/191783.
     
-    Change-Id: I4c7d38034b60c2c04efdeb530a97d96deddfd6fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284152
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reason for revert: Broke too many programs which depended on the previous
+    behavior, even when it was the opposite of what the documentation said.
+    
+    We can attempt to fix the original issue again for 1.16, while keeping
+    those programs in mind.
+    
+    Fixes #39427.
+    
+    Change-Id: I7a7f24b2a594c597ef625aeff04fff29aaa88fc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240657
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/types_windows.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/encoding/json/decode.go      | 40 ++++++++++++++++++----------------------
+ src/encoding/json/decode_test.go | 15 +--------------
+ 2 files changed, 19 insertions(+), 36 deletions(-)

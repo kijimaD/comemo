@@ -1,15 +1,24 @@
-commit 98534812bdcdd22b13469ea587e310187876b7d2
-Author: David Chase <drchase@google.com>
-Date:   Mon Apr 6 11:12:26 2020 -0400
+commit ba0bab7b4fda1498f2ace58b9d38f0fb8c748f53
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 26 22:48:15 2019 -0400
 
-    cmd/compile: make logopt test skip if cannot create scratch directory
+    cmd/internal/obj/mips: fix encoding of FCR registers
     
-    Fixes #38251.
+    The asm encoder generally assumes that the lowest 5 bits of the
+    REG_XX constants match the machine instruction encoding, i.e.
+    the lowest 5 bits is the register number. This was not true for
+    FCR registers and M registers. Make it so.
     
-    Change-Id: Ic635843fb503484a1c9a230b0cca571393d3da5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227339
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    MOV Rx, FCRy was encoded as two machine instructions. The first
+    is unnecessary. Remove.
+    
+    Change-Id: Ib988e6b109ba8f564337cdd31019c1a6f1881f5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203717
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/mips64.s | 13 ++++++-----
+ src/cmd/internal/obj/mips/a.out.go         | 35 +++++++++++++++++++++++-------
+ src/cmd/internal/obj/mips/asm0.go          |  7 +++---
+ 3 files changed, 37 insertions(+), 18 deletions(-)

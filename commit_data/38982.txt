@@ -1,26 +1,20 @@
-commit 720af3c8c4a0223f605b45b80c6a46f46321c760
-Author: Iskander Sharipov <quasilyte@gmail.com>
-Date:   Wed May 1 00:01:39 2019 +0300
+commit 3331608c1c1f357c26f46f028a2c5c6e23036d63
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 13 08:17:09 2018 -0500
 
-    cmd/asm: reject BSWAPW on amd64
+    go/internal/gccgoimporter: test fix for older gccgo versions
     
-    Since BSWAP operation on 16-bit registers is undefined,
-    forbid the usage of BSWAPW. Users should rely on XCHGB instead.
+    Avoid running the test for issue 29198 if the available copy of gccgo
+    is too old (needs to support context package). Fixes a failure on the
+    solaris builder.
     
-    This behavior is consistent with what GAS does.
+    Updates #29198.
     
-    Fixes #29167
-    
-    Change-Id: I3b31e3dd2acfd039f7564a1c17e6068617bcde8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174312
-    Run-TryBot: Iskander Sharipov <quasilyte@gmail.com>
+    Change-Id: I2b1b3438f4ac105432f30078fbef78e24f2077cd
+    Reviewed-on: https://go-review.googlesource.com/c/153831
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/line_test.go        | 4 ++++
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 2 --
- src/cmd/internal/obj/x86/aenum.go            | 1 -
- src/cmd/internal/obj/x86/anames.go           | 1 -
- src/cmd/internal/obj/x86/asm6.go             | 1 -
- src/cmd/internal/obj/x86/obj6.go             | 1 -
- 6 files changed, 4 insertions(+), 6 deletions(-)
+ src/go/internal/gccgoimporter/importer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

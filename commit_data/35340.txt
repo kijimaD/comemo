@@ -1,14 +1,21 @@
-commit 337cc2915625728021eaf113fe54e83a5a05530e
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun May 6 20:18:52 2018 +0200
+commit 01b8f5d7cf3c5ee83034135870edd8837eae4cba
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 6 18:00:13 2018 -0500
 
-    cmd/compile: simplify extendslice and isAppendOfMake
+    runtime: remove legacy comments and code from arm morestack
     
-    Change-Id: Ia66361812837dde23aac09e916f058ba509a323c
-    Reviewed-on: https://go-review.googlesource.com/111737
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    CL 137410043 deleted support for split stacks, which means morestack
+    no longer needed to save its caller's frame or argument size or its
+    caller's argument pointer. However, this commit failed to update the
+    comment or delete the line that computed the caller's argument
+    pointer. Clean these up now.
+    
+    Change-Id: I65725d3d42c86e8adb6645d5aa80c305d473363d
+    Reviewed-on: https://go-review.googlesource.com/92437
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/walk.go | 12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
+ src/cmd/vet/all/whitelist/arm.txt | 3 ---
+ src/runtime/asm_arm.s             | 4 ----
+ 2 files changed, 7 deletions(-)

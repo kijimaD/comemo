@@ -1,17 +1,15 @@
-commit 59c18b0b366f4d65d0c6c33e87ad056d291fea4d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Apr 22 15:31:25 2011 +1000
+commit 8d6a12f57012abec3db7bd7a124ac7551faeef04
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 21 19:57:19 2011 -0700
 
-    os: Open with O_APPEND|O_CREATE to append to the end of file on Windows
+    http: clarify docs on Request HTTP version
     
-    Credit for the fix goes to Hector, test by PeterGo.
+    Fixes #910
     
-    Fixes #1655.
-    
-    R=golang-dev, rsc1, peterGo
-    CC=golang-dev, hector
-    https://golang.org/cl/4436051
+    R=adg, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4439062
 
- src/pkg/os/os_test.go              | 12 ++++++++++++
- src/pkg/syscall/syscall_windows.go |  7 +++++--
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ src/pkg/http/dump.go    | 2 ++
+ src/pkg/http/request.go | 9 ++++++---
+ 2 files changed, 8 insertions(+), 3 deletions(-)

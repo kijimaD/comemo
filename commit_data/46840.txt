@@ -1,40 +1,22 @@
-commit 577bb7dba11ef2f6588664dcface13fba32bb354
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Oct 11 12:22:52 2021 -0400
+commit 0d34d85dee216b62a4212d25de57e1119c1e7ee5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Feb 6 01:00:58 2021 +0100
 
-    all: update vendored golang.org/x/tools
+    [dev.boringcrypto] crypto/internal/boring: remove .llvm_addrsig section
     
-    Now that x/tools/go/types/objectpath has been updates to support type
-    parameters, I ran the following commands to update x/tools inside the
-    cmd module:
+    The section doesn't survive some of the mangling of the object file we
+    do while building it, and ld.lld --icf=safe throws a warning on it.
     
-            go get -d golang.org/x/tools@18fa840216958359dc43466f3e70d96add38edbb # main branch
-            go mod tidy
-            go mod vendor
+    Could have changed the clang invocation to add -fno-addrsig, but this
+    change is safer in that it doesn't affect the FIPS module build.
     
-    Updates #48588
-    
-    Change-Id: Ibebc1ac2f721d6e2eb1a4f6c610918770d4879ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355012
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I65e097a48857f90aaa641dceb47120350ba8c073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290170
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- src/cmd/vendor/golang.org/x/tools/cover/profile.go |  11 +-
- .../x/tools/go/analysis/passes/tests/tests.go      |  60 +++++-
- .../go/analysis/passes/unmarshal/unmarshal.go      |   3 +-
- .../golang.org/x/tools/go/ast/astutil/enclosing.go |  20 +-
- .../golang.org/x/tools/go/ast/astutil/rewrite.go   |  12 +-
- .../golang.org/x/tools/go/ast/inspector/typeof.go  |   9 +-
- .../x/tools/go/types/objectpath/objectpath.go      | 151 +++++++++++++---
- .../x/tools/internal/typeparams/enabled_go117.go   |  12 ++
- .../x/tools/internal/typeparams/enabled_go118.go   |  15 ++
- .../x/tools/internal/typeparams/notypeparams.go    |  93 ----------
- .../x/tools/internal/typeparams/typeparams.go      | 134 --------------
- .../tools/internal/typeparams/typeparams_go117.go  | 201 +++++++++++++++++++++
- .../tools/internal/typeparams/typeparams_go118.go  | 189 +++++++++++++++++++
- src/cmd/vendor/modules.txt                         |   2 +-
- 16 files changed, 639 insertions(+), 279 deletions(-)
+ src/crypto/internal/boring/build.sh                |   3 ++-
+ .../boring/goboringcrypto_linux_amd64.syso         | Bin 10865904 -> 10864336 bytes
+ 2 files changed, 2 insertions(+), 1 deletion(-)

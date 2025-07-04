@@ -1,17 +1,21 @@
-commit 09daf313b255b84e1a8e5323a4b40c1099b7ceb0
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Sep 28 21:28:18 2022 +0800
+commit 53bab198d93153f0123cb806ebb2b5c9ebbe8dc7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 5 10:11:11 2021 -0400
 
-    cmd/asm: use strings.TrimSuffix
+    runtime: skip TestNoShrinkStackWhileParking on netbsd/arm64
     
-    Change-Id: If08ce3f8534f5fb7ce97ec124bfeff937e65f63b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435943
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This test appears to deadlock frequently on the only netbsd-arm64
+    builder we have (netbsd-arm64-bsiegert). Skip the test to provide
+    more useful test coverage for other failures.
+    
+    For #49382
+    
+    Change-Id: I3be32f58ce1e396f7c69163e70cf58f779f57ac6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361615
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- src/cmd/asm/internal/flags/flags.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/runtime/chan_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

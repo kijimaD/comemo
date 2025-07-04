@@ -1,51 +1,40 @@
-commit 98289021f3444a2f80c8f7630f5e519d9c338963
-Author: Brendan Jackman <jackmanb@google.com>
-Date:   Fri Sep 8 07:46:19 2023 +0000
+commit bb3965695d3bc3586fba55c7b8d5e8a56cd4c0c9
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Wed Nov 2 16:55:51 2022 +0000
 
-    time: clarify docs to avoid date calculation pitfalls
+    cmd/go/internal/vcs: also check file mode when identifying VCS root
     
-    I recently reviewed some code that did time calculations using
-    `time.UnixMicro(0).UTC()`. I commented that because time calculations
-    are independent of the location, they should drop the `.UTC()`, and they
-    replied that it made their tests fail.
+    Currently, FromDir identifies a VCS checkout directory just by checking
+    whether it contains a specified file. This is not enough. For example,
+    although there is a ".git" file (a plain file, not a directory) in a
+    git submodule directory, this directory is not a git repository root.
     
-    I looked into it and eventually discovered it was because they were
-    using AddDate. Dramatically simplified, their code did something like:
+    This change takes the file mode into account. As of now, the filename
+    and file mode for the supported VCS tools are:
     
-        orig := time.Date(2013, time.March, 23, 12, 00, 0, 0, time.UTC)
-        want := time.Date(2013, time.March, 23, 0, 0, 0, 0, time.UTC)
+    - Mercurial:    .hg             directory
+    - Git:          .git            directory
+    - Bazaar:       .bzr            directory
+    - Subversion:   .svn            directory
+    - Fossil:       .fslckout       plain file
+    - Fossil:       _FOSSIL_        plain file
     
-        epoch := time.UnixMicro(0)
+    This CL effectively reverts CL 30948 for #10322.
     
-        days := int(orig.Sub(epoch).Hours() / 24)
+    Fixes #53640.
     
-        got := epoch.AddDate(0, 0, days)
-        if !got.Equal(want) {
-            t.Errorf("ay caramba: %v vs %v", got.UTC(), want.UTC())
-        }
-    
-    The issue is that their tests run in Pacific time, which is currently
-    PST (UTC-8) but was PDT (UTC-7) in January 1970.
-    
-    It turns out they were implementing some business policy that really
-    cares abut calendar days so AddDate is correct, but it's certainly a bit
-    confusing!
-    
-    The idea with this change is to remove the risk that readers make a
-    false shortcut in their mind: "Locations do not affect time
-    calculations". To do this we remove some text from the core time.Time
-    doc and shift it to the areas of the library that deal with these
-    intrinsically confusing operations.
-    
-    Change-Id: I8200e9edef7d1cdd8516719e34814eb4b78d30a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526676
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iea316c7e983232903bddb7e7f6dbaa55e8498685
+    GitHub-Last-Rev: 7a2d6ff6f939c892f4740c57ea36c031bf7bd6be
+    GitHub-Pull-Request: golang/go#56296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443597
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/time/example_test.go | 22 ++++++++++++++++++----
- src/time/time.go         | 20 ++++++++++++++------
- src/time/zoneinfo.go     |  4 ++++
- 3 files changed, 36 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go                     | 84 +++++++++++-----------
+ src/cmd/go/internal/vcs/vcs_test.go                | 14 ++--
+ .../go/testdata/script/version_buildvcs_fossil.txt |  3 +-
+ .../go/testdata/script/version_buildvcs_git.txt    | 18 +++++
+ 4 files changed, 68 insertions(+), 51 deletions(-)

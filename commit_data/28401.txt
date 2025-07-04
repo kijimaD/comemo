@@ -1,23 +1,16 @@
-commit f13701bf2f32fe48f6dcf9149b35b9ce3effe022
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Sep 15 13:04:50 2016 -0700
+commit 4cad610401edc11fe921205438a7b3ab4faa3982
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 20:42:21 2016 +0000
 
-    test: make SSA tests unconditional
+    os/exec: remove Cmd.RunContext and Cmd.WaitContext, add CommandContext
     
-    Delete legacy backend tests, make SSA tests unconditional.
+    Fixes #15775
     
-    Next CL will remove _ssa from the file names.
-    
-    Update #16357
-    
-    Change-Id: I2a7f5dcbc69455f63b5e6e6b2725df26ab86c8dd
-    Reviewed-on: https://go-review.googlesource.com/29231
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I0a6c2ca09d3850c3538494711f7a9801b9500411
+    Reviewed-on: https://go-review.googlesource.com/23300
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/live.go        | 656 ----------------------------------------------------
- test/live_ssa.go    |   1 -
- test/nilptr3.go     | 224 ------------------
- test/nilptr3_ssa.go |   1 -
- 4 files changed, 882 deletions(-)
+ src/os/exec/exec.go      | 38 +++++++++++++++++++-------------------
+ src/os/exec/exec_test.go | 18 +++++++++++++-----
+ 2 files changed, 32 insertions(+), 24 deletions(-)

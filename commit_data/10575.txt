@@ -1,19 +1,13 @@
-commit bc9ce6a129af4b99ec63810e61166e2b98285823
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 1 11:50:15 2011 -0800
+commit 473de6035930f4014a07f5b2a1315993cb42fb27
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 1 11:44:17 2011 -0800
 
-    go/doc: better headscan
+    time: update doc string for Error method
+    Fixes #2512.
     
-    - scan all comments not just the package documentation
-    - declutter output so that false positives are more easily spotted
-    - count the number of headings to quickly see differences
-    - minor tweaks
-    
-    R=golang-dev, r, r
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5450061
+    https://golang.org/cl/5449057
 
- src/pkg/go/doc/comment.go      | 14 +++----
- src/pkg/go/doc/comment_test.go |  2 +-
- src/pkg/go/doc/headscan.go     | 90 ++++++++++++++++++++++++++++++++++--------
- 3 files changed, 82 insertions(+), 24 deletions(-)
+ src/pkg/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

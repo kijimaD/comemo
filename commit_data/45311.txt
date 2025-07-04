@@ -1,18 +1,36 @@
-commit d2f96f2f75f6808362136dd1f20ae338e91aed81
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Apr 15 13:31:32 2021 +0200
+commit 8fe372c7b36b4d078c871a26e10b427c41275ecd
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Oct 19 13:09:55 2020 -0700
 
-    math/rand: make the security warning clearer and more prominent
+    cmd/compile:  allowing inlining of functions with OCALLPART
     
-    It is still a common misconception that math/rand can be used for
-    security-sensitive work if seeded with crypto/rand
-    (lazyledger/lazyledger-core#270). It can not.
+    OCALLPART is exported in its original form, which is as an OXDOT.
     
-    Change-Id: I8598c352d1750eabeada50be9976ab68cbb42cc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310350
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    The body of the method value wrapper created in makepartialcall() was
+    not being typechecked, and that was causing a problem during escape
+    analysis, so I added code to typecheck the body.
+    
+    The go executable got slightly bigger with this change (13598111 ->
+    13598905), because of extra exported methods with OCALLPART (I
+    believe), while the text size got slightly smaller (9686964 ->
+    9686643).
+    
+    This is mainly part of the work to make sure all function bodies can
+    be exported (for purposes of generics), but might as well fix the
+    OCALLPART inlining bug as well.
+    
+    Fixes #18493
+    
+    Change-Id: If7aa055ff78ed7a6330c6a1e22f836ec567d04fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263620
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/math/rand/rand.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/closure.go |  6 ++++++
+ src/cmd/compile/internal/gc/iexport.go |  9 +++++++--
+ src/cmd/compile/internal/gc/iimport.go |  2 +-
+ src/cmd/compile/internal/gc/inl.go     |  6 ++++--
+ test/inline.go                         | 17 +++++++++++++++++
+ 5 files changed, 35 insertions(+), 5 deletions(-)

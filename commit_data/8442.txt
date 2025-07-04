@@ -1,19 +1,12 @@
-commit 29b246c644394f651ef4e84083ef20ae1401a7f0
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu May 19 09:24:27 2011 -0300
+commit bddd092dc37e562f23e3599096de6ac5708fdf1b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu May 19 14:53:26 2011 +1000
 
-    template: support string, int and float literals
+    flag: fix docs on flag.Var.
     
-    This enables customizing the behavior of formatters
-    with logic such as {"template"|import} or even
-    {Field1 Field2 "%.2f 0x%X"|printf}
-    
-    Thanks to Roger Peppe for some debate on this.
-    
-    R=golang-dev, r, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4536059
+    https://golang.org/cl/4539067
 
- src/pkg/template/template.go      | 138 +++++++++++++++++++++++++++++++-------
- src/pkg/template/template_test.go |  39 +++++++++++
- 2 files changed, 154 insertions(+), 23 deletions(-)
+ src/pkg/flag/flag.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

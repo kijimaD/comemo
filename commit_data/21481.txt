@@ -1,19 +1,17 @@
-commit da4abda2a1718c74b39134764ae6f694041a25e4
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Feb 4 21:30:22 2015 -0500
+commit e16ab38dc9dd788a17b989484d32dca0ef643c45
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 7 17:05:51 2015 -0800
 
-    liblink, cmd/5a: fix reglist parsing/printing after changing REG_R0 to 32
+    build: increase Plan 9 timeout for runtime multi-CPU test, add temporary -v
     
-    Fixes #9759.
+    This isn't the final answer, but it will give us a clue about what's
+    going on.
     
-    Change-Id: I263f1251b9401371231374551c4f71c70cb6e359
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/3931
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Update #9491
+    
+    Change-Id: I997f6004eb97e86a4a89a8caabaf58cfdf92a8f0
+    Reviewed-on: https://go-review.googlesource.com/2510
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5a/a.y      | 10 +++++-----
- src/cmd/5a/y.tab.c  | 10 +++++-----
- src/cmd/5a/y.tab.h  |  2 +-
- src/liblink/asm5.c  |  4 ++--
- src/liblink/list5.c |  5 +++--
- 5 files changed, 16 insertions(+), 15 deletions(-)
+ src/run.rc | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

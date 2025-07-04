@@ -1,20 +1,52 @@
-commit f1039180bd9613bd23dbf47b240f3801172d2706
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 29 17:35:52 2024 -0700
+commit 5ffdc1f15c66f4f31124a43c4bd9de94b9131e15
+Author: Lance Yang <ioworker0@gmail.com>
+Date:   Tue May 16 08:20:42 2023 +0000
 
-    cmd/compile/internal/types2: enable Alias types for TestStdlib
+    runtime: fall back on mmap if madvise is unsupported
     
-    This is expected to eliminate a potential race condition
-    which is causing a flaky test.
+    Since Linux 3.18, support for madvise is optional, depending on
+    the setting of the CONFIG_ADVISE_SYSCALLS configuration option.
     
-    Fixes #67260.
+    The Go runtime currently assumes in several places that we
+    do not unmap heap memory; that needs to remain true. So, if
+    madvise is unsupported, we cannot fall back on munmap. AFAIK,
+    the only way to free the pages is to remap the memory region.
     
-    Change-Id: I3fd76047136e2d4659a1c551491e371b67e8a7ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589236
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For the x86, the system call mmap() is implemented by sys_mmap2()
+    which calls do_mmap2() directly with the same parameters. The main
+    call trace for
+    mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0)
+    is as follows:
+    
+    ```
+    do_mmap2()
+        \- do_mmap_pgoff()
+            \- get_unmapped_area()
+            \- find_vma_prepare()
+    
+            // If a VMA was found and it is part of the new mmaping, remove
+            // the old mapping as the new one will cover both.
+            // Unmap all the pages in the region to be unmapped.
+            \- do_munmap()
+    
+            // Allocate a VMA from the slab allocator.
+            \- kmem_cache_alloc()
+    
+            // Link in the new vm_area_struct.
+            \- vma_link()
+    ```
+    
+    So, it's safe to fall back on mmap().
+    See D.2 https://www.kernel.org/doc/gorman/html/understand/understand021.html
+    
+    Change-Id: Ia2b4234bc0bf8a4631a9926364598854618fe270
+    GitHub-Last-Rev: 179f04715442b44cd4b7bf3e6cae3dd9092128e7
+    GitHub-Pull-Request: golang/go#60218
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495081
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/stdlib_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/mem_linux.go | 32 ++++++++++++++++++++++++--------
+ 1 file changed, 24 insertions(+), 8 deletions(-)

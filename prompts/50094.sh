@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50094: aa4299735b78189eeac1e2c4edafb9d014cc62d7
+# Index 50094: c129af90eb20a5723fc7ed19b19afe054036fe71
 
 echo "🚀 Generating explanation for commit 50094..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 50094
-- **コミットハッシュ**: aa4299735b78189eeac1e2c4edafb9d014cc62d7
-- **GitHub URL**: https://github.com/golang/go/commit/aa4299735b78189eeac1e2c4edafb9d014cc62d7
+- **コミットハッシュ**: c129af90eb20a5723fc7ed19b19afe054036fe71
+- **GitHub URL**: https://github.com/golang/go/commit/c129af90eb20a5723fc7ed19b19afe054036fe71
 
 ### 章構成
 

@@ -1,18 +1,20 @@
-commit 2a7e19e0383430d75dcef9637c0c6dcaf64127d5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 4 15:43:50 2018 -0700
+commit 43288467d2bcec28c46ed1610c56e563ce885d2f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jan 24 23:44:17 2018 -0500
 
-    cmd/go: quote parentheses when outputting command
+    test: add test for gccgo bug 23545
     
-    A gccgo command line can contain parentheses, for -( and -).
-    Quote them when outputting a command line, so that `go build -x`
-    output is suitable for use as shell input.
+    The fix is CL 91035.
     
-    Change-Id: I43194b87bf048e583c222b19ca4bcdcb1deca97a
-    Reviewed-on: https://go-review.googlesource.com/111635
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Build only with gccgo at the moment, as it hits issue #23546.
+    
+    Updates #23545.
+    
+    Change-Id: I3a1367bb31b04773d31f71016f8fd7bd1855d7b5
+    Reviewed-on: https://go-review.googlesource.com/89735
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/exec.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ test/fixedbugs/issue23545.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

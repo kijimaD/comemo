@@ -1,27 +1,27 @@
-commit 180bcad33dcd3d59443fe8eda5ae7556b1b2945b
-Author: Damien Neil <dneil@google.com>
-Date:   Tue May 31 14:47:33 2022 -0700
+commit 37f5885f29068d869e161c4ee8ee17c3e1195cc8
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Aug 16 16:48:27 2021 -0700
 
-    net/http: wait for listeners to exit in Server.Close and Shutdown
+    [dev.fuzz] internal/fuzz: fail minimization on non-reproducible crash
     
-    Avoid race conditions when a new connection is accepted just after
-    Server.Close or Server.Shutdown is called by waiting for the
-    listener goroutines to exit before proceeding to clean up active
-    connections.
+    workerServer.minimize now returns a response with Success = false when
+    the fuzz function run with the original input does not produce an
+    error. This may indicate flakiness.
     
-    No test because the mechanism required to trigger the race condition
-    reliably requires such tight coupling to the Server internals that
-    any test would be quite fragile in the face of reasonable refactorings.
+    The coordinator still records a crash, but it will use the unminimized
+    input with its original error message.
     
-    Fixes #48642
-    Updates #33313, #36819
+    When minimization of interesting inputs is supported, Success = false
+    indicates that new coverage couldn't be reproduced, and the input will
+    be discarded.
     
-    Change-Id: I109a93362680991bf298e0a95637595dcaa884af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409537
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I72c0e9808f0b0e5390dc7b64141cd0d653ee0af3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342996
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/http/server.go | 22 +++++++++++++++-------
- 1 file changed, 15 insertions(+), 7 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt |  2 +-
+ src/internal/fuzz/minimize_test.go                | 51 ++++++++++++++++-------
+ src/internal/fuzz/worker.go                       | 49 +++++++++++-----------
+ 3 files changed, 62 insertions(+), 40 deletions(-)

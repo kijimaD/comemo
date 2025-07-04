@@ -1,30 +1,34 @@
-commit 61a0a701135e38c48131ea18925dc5b027cc3a3c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Sep 21 14:05:57 2021 -0700
+commit 6de9423445840351a4cc7b17d732f0b5e922ef1a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 16 03:27:17 2021 -0800
 
-    runtime: convert _func.entry to a method
+    [dev.regabi] cmd/compile: cleanup OAS2FUNC ordering
     
-    A subsequent change will alter the semantics of _func.entry.
-    To make that change obvious and clear, change _func.entry to a method,
-    and rename the field to _func.entryPC.
+    Currently, to ensure OAS2FUNC results are assigned in the correct
+    order, they're always assigned to temporary variables. However, these
+    temporary variables are typed based on the destination type, which may
+    require an interface conversion. This means walk may have to then
+    introduce a second set of temporaries to ensure result parameters are
+    all copied out of the results area, before it emits calls to runtime
+    conversion functions.
     
-    Change-Id: I05d66b54d06c5956d4537b0729ddf4290c3e2635
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351460
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    That's just silly. Instead, this CL changes order to allocate the
+    result temporaries with the same type as the function returns in the
+    first place, and then assign them one at a time to their destinations,
+    with conversions as needed.
+    
+    While here, also fix an order-of-evaluation issue with has-ok
+    assignments that I almost added to multi-value function call
+    assignments, and add tests for each.
+    
+    Change-Id: I9f4e962425fe3c5e3305adbbfeae2c7f253ec365
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284220
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/test/inl_test.go |  1 +
- src/runtime/debugcall.go                  |  2 +-
- src/runtime/debuglog.go                   |  4 ++--
- src/runtime/heapdump.go                   |  6 +++---
- src/runtime/panic.go                      |  2 +-
- src/runtime/plugin.go                     |  2 +-
- src/runtime/preempt.go                    |  2 +-
- src/runtime/print.go                      |  2 +-
- src/runtime/runtime2.go                   |  2 +-
- src/runtime/stack.go                      |  4 ++--
- src/runtime/symtab.go                     | 29 +++++++++++++++++------------
- src/runtime/traceback.go                  | 26 +++++++++++++-------------
- 12 files changed, 44 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/walk/assign.go | 10 ++--
+ src/cmd/compile/internal/walk/order.go  | 83 +++++++++++++++------------------
+ test/reorder.go                         | 16 +++++++
+ 3 files changed, 57 insertions(+), 52 deletions(-)

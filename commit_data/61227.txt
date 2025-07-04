@@ -1,0 +1,50 @@
+commit 6a49f81edc7aa8aa12e26a1a0ed8819a3e5c7b5e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 21 17:34:22 2024 +0000
+
+    runtime,time: use atomic.Int32 for isSending
+    
+    This change switches isSending to be an atomic.Int32 instead of an
+    atomic.Uint8. The Int32 version is managed as a counter, which is
+    something that we couldn't do with Uint8 without adding a new intrinsic
+    which may not be available on all architectures.
+    
+    That is, instead of only being able to support 8 concurrent timer
+    firings on the same timer because we only have 8 independent bits to set
+    for each concurrent timer firing, we can now have 2^31-1 concurrent
+    timer firings before running into any issues. Like the fact that each
+    bit-set was matched with a clear, here we match increments with
+    decrements to indicate that we're in the "sending on a channel" critical
+    section in the timer code, so we can report the correct result back on
+    Stop or Reset.
+    
+    We choose an Int32 instead of a Uint32 because it's easier to check for
+    obviously bad values (negative values are always bad) and 2^31-1
+    concurrent timer firings should be enough for anyone.
+    
+    Previously, we avoided anything bigger than a Uint8 because we could
+    pack it into some padding in the runtime.timer struct. But it turns out
+    that the type that actually matters, runtime.timeTimer, is exactly 96
+    bytes in size. This means its in the next size class up in the 112 byte
+    size class because of an allocation header. We thus have some free space
+    to work with. This change increases the size of this struct from 96
+    bytes to 104 bytes.
+    
+    (I'm not sure if runtime.timer is often allocated directly, but if it
+    is, we get lucky in the same way too. It's exactly 80 bytes in size,
+    which means its in the 96-byte size class, leaving us with some space to
+    work with.)
+    
+    Fixes #69969.
+    Related to #69880 and #69312.
+    
+    Change-Id: I9fd59cb6a69365c62971d1f225490a65c58f3e77
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621616
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go    | 59 +++++++++++++++-----------------------------------
+ src/time/sleep_test.go | 30 +++++++++++++++++++++++--
+ 2 files changed, 46 insertions(+), 43 deletions(-)

@@ -1,24 +1,25 @@
-commit 2be84a8c2bbe7efbc621f1ab84213c5b6ddf4d2f
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Apr 8 07:59:47 2013 +1000
+commit 5e21cb786589d28ad6b31ec9e43f8bf73ff93a82
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 7 11:56:15 2013 -0700
 
-    undo CL 8363045 / a3ce42f9748b
+    test: fix flaky NaN-key map complexity test
     
-    It changes an exported API, and breaks the build.
+    Don't measure wall time in map.go. Keep it portable
+    and only test NaN, but not time.
     
-    ««« original CL description
-    reflect: use unsafe.Pointer in StringHeader and SliceHeader
+    Move time tests to mapnan.go and only measure user CPU time,
+    not wall time. It builds on Darwin and Linux, the primary
+    platforms where people hack on the runtime & in particular
+    maps. The runtime is shared, though, so we don't need it to
+    run on all of the platforms.
     
-    Relates to issue 5193.
+    Fixes flaky build failures like:
+    http://build.golang.org/log/ba67eceefdeaa1142cb6c990a62fa3ffd8fd73f8
     
-    R=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8363045
-    »»»
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/8357051
+    https://golang.org/cl/8479043
 
- src/pkg/reflect/value.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ test/map.go    | 55 +++++++++++++++++++------------------------------
+ test/mapnan.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 34 deletions(-)

@@ -1,19 +1,43 @@
-commit 2faf5bca2e23be26fd0fc3a373bee7a354813861
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 2 11:30:29 2016 -0800
+commit 4f97ec086694e09fa3cab37959f2d491eac03b4d
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Dec 3 13:20:58 2015 -0800
 
-    cmd/compile: introduce linestr helper to simplify line reporting
+    cmd/compile: captureless closures are constants
     
-    Change-Id: Ic9ca792b55cc4ebd0ac6cfa2fbdb58030893bacd
-    Reviewed-on: https://go-review.googlesource.com/20132
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    In particular, we can initialize globals with them at link time instead
+    of generating code for them in an init() function.  Less code, less
+    startup cost.
+    
+    But the real reason for this change is binary size.  This change reduces
+    the binary size of hello world by ~4%.
+    
+    The culprit is fmt.ssFree, a global variable which is a sync.Pool of
+    scratch scan states.  It is initalized with a captureless closure as the
+    pool's New action.  That action in turn references all the scanf code.
+    
+    If you never call any of the fmt.Scanf* routines, ssFree is never used.
+    But before this change, ssFree is still referenced by fmt's init
+    function.  That keeps ssFree and all the code it references in the
+    binary.  With this change, ssFree is initialized at link time.  As a
+    result, fmt.init never mentions ssFree.  If you don't call fmt.Scanf*,
+    ssFree is unreferenced and it and the scanf code are not included.
+    
+    This change is an easy fix for what is generally a much harder problem,
+    the unnecessary initializing of unused globals (and retention of code
+    that they reference).  Ideally we should have separate init code for
+    each global and only include that code if the corresponding global is
+    live.  (We'd need to make sure that the initializing code has no side
+    effects, except on the global being initialized.)  That is a much harder
+    change.
+    
+    Update #6853
+    
+    Change-Id: I19d1e33992287882c83efea6ce113b7cfc504b67
+    Reviewed-on: https://go-review.googlesource.com/17398
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go  | 10 +++++-----
- src/cmd/compile/internal/gc/esc.go  | 24 ++++++++++++------------
- src/cmd/compile/internal/gc/gen.go  |  4 ++--
- src/cmd/compile/internal/gc/lex.go  |  4 ++--
- src/cmd/compile/internal/gc/ssa.go  |  8 ++++----
- src/cmd/compile/internal/gc/subr.go | 20 ++++++++++++--------
- 6 files changed, 37 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/gc/global_test.go | 64 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/sinit.go       | 24 ++++++-----
+ 2 files changed, 77 insertions(+), 11 deletions(-)

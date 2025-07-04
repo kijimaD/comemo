@@ -1,0 +1,24 @@
+commit 5192d41f239a110558aefe14e2cb9201d223db12
+Author: Andy Pan <i@andypan.me>
+Date:   Fri May 24 09:21:30 2024 +0800
+
+    internal/poll,syscall: drop the fallback for accept4 on linux/arm
+    
+    For #67001
+    
+    Change-Id: Ic0b91cd393046c53e41908e8dbbe2ab5fb6b8a74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588216
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/poll/sock_cloexec.go        |  2 +-
+ src/internal/poll/sock_cloexec_accept.go | 51 --------------------------------
+ src/syscall/mkall.sh                     |  2 +-
+ src/syscall/syscall_linux.go             |  4 +++
+ src/syscall/syscall_linux_accept.go      | 34 ---------------------
+ src/syscall/syscall_linux_accept4.go     | 25 ----------------
+ src/syscall/zsyscall_linux_arm.go        | 13 +-------
+ 7 files changed, 7 insertions(+), 124 deletions(-)

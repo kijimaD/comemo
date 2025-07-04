@@ -1,25 +1,12 @@
-commit 29cfb4d3c3a97b6f426d1b899234da905be699aa
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Sep 5 14:23:08 2019 -0400
+commit b5a8dcb0d2e8e2a58f0fdd9743eae9b3a2b39786
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 20 16:50:48 2019 -0700
 
-    crypto/tls: add ExampleConfig_VerifyPeerCertificate
+    doc/go1.13: document changes to gofmt, go/* libs, and fix entry for text/scanner
     
-    Setting InsecureSkipVerify and VerifyPeerCertificate is the recommended
-    way to customize and override certificate validation.
-    
-    However, there is boilerplate involved and it usually requires first
-    reimplementing the default validation strategy to then customize it.
-    Provide an example that does the same thing as the default as a starting
-    point.
-    
-    Examples of where we directed users to do something similar are in
-    issues #35467, #31791, #28754, #21971, and #24151.
-    
-    Fixes #31792
-    
-    Change-Id: Id033e9fa3cac9dff1f7be05c72dfb34b4f973fd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193620
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I2230a97c681406f248b7f2fff45dd80a4b54a4b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183357
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/example_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 53 insertions(+)
+ doc/go1.13.html | 55 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 48 insertions(+), 7 deletions(-)

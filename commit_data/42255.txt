@@ -1,42 +1,20 @@
-commit 30f8074e3510da8c39f879cfdbde600eb876a79e
-Author: Mark Ryan <mark.d.ryan@intel.com>
-Date:   Mon Oct 28 19:12:56 2019 +0100
+commit 992d2e53dc8b9f44609a6377d1a60b4056eab67f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 19 12:19:57 2019 -0500
 
-    cmd/internal/obj/x86: prevent jumps crossing 32 byte boundaries
+    cmd/go: convert TestPackageMainTestImportsArchiveNotBinary to a script test
     
-    This commit adds a new option to the x86 assembler.  If the
-    GOAMD64 environment variable is set to alignedjumps (the
-    default) and we're doing a 64 bit build, the assembler will
-    make sure that neither stand alone nor macro-fused jumps will
-    end on or cross 32 byte boundaries.  To achieve this, functions
-    are aligned on 32 byte boundaries, rather than 16 bytes, and
-    jump instructions are padded to ensure that they do not
-    cross or end on 32 byte boundaries.  Jumps are padded
-    by adding a NOP instruction of the appropriate length before
-    the jump.
+    Updates #28387
+    Updates #30316
     
-    The commit is likely to result in larger binary sizes when
-    GOAMD64=alignedjumps.  On the binaries tested so far, an
-    increase of between 1.4% and 1.5% has been observed.
-    
-    Updates #35881
-    
-    Co-authored-by: David Chase <drchase@google.com>
-    
-    Change-Id: Ief0722300bc3f987098e4fd92b22b14ad6281d91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219357
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I31e04c89f2cc226f9b5110f14c8b80a18e937efb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207960
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/asm/internal/asm/endtoend_test.go |   7 +-
- src/cmd/dist/build.go                     |  11 ++
- src/cmd/dist/buildruntime.go              |   2 +
- src/cmd/go/alldocs.go                     |   3 +
- src/cmd/go/internal/cfg/cfg.go            |   3 +
- src/cmd/go/internal/help/helpdoc.go       |   3 +
- src/cmd/internal/obj/x86/asm6.go          | 219 +++++++++++++++++++++++++++++-
- src/cmd/internal/objabi/util.go           |  10 ++
- src/cmd/link/internal/amd64/obj.go        |   7 +-
- src/internal/cfg/cfg.go                   |   1 +
- 10 files changed, 263 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go                            | 17 -------------
+ src/cmd/go/testdata/script/test_main_archive.txt | 32 ++++++++++++++++++++++++
+ src/cmd/go/testdata/src/main_test/m.go           |  4 ---
+ src/cmd/go/testdata/src/main_test/m_test.go      | 10 --------
+ 4 files changed, 32 insertions(+), 31 deletions(-)

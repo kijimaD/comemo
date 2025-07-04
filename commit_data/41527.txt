@@ -1,34 +1,29 @@
-commit 4978f5e6ea0ba74264b562a3c9ee62dcb63aae45
-Author: Jean de Klerk <deklerk@google.com>
-Date:   Sat Feb 29 17:35:51 2020 -0700
+commit 0d7404c8527dc45469644c0f6b4becfd59c2a4d9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Sep 27 14:49:44 2019 -0400
 
-    time: use values larger than 24 for day for time.Format examples
+    [dev.link] cmd/link, cmd/internal/goobj2: mmap object file in -newobj mode
     
-    Currently, the time.Format docs use 7 Mar 2015 as the day/month/year. In numeric
-    form, that is either 7/3/2015 or 3/7/2015 depending on which part of the world
-    you're from. This is extremely confusing.
+    With the old object file format, we use mmap (if supported) to
+    read object files and back symbol data with mapped read-only
+    memory.
     
-    In fact, the reference time being defined in a very US-centric way is quite
-    confusing for the rest of the world, too [1].
+    Do the same with the new object file format. This also
+    significantly reduces number of syscalls made to read object
+    files.
     
-    We can't change that, but we can make the time.Format docs more comprehendable
-    to the rest of the world without sacrificing by simply choosing a day that is
-    not ambiguous (a value greater than 24 for day). This CL does makes the
-    necessary change.
+    Currently we still do mmap in object file level, not archive
+    level. This is probably ok, as there shouldn't be many archives
+    that contain more than one object. If this is a problem we can
+    change that later.
     
-    Note: this CL moves some of the padding examples into their own example, since
-    those examples do need a <10 day to demonstrate padding.
-    
-    1: Additional context: a very old golang-nuts thread in which Rob expresses some
-    regret about the format being the USA standard, rather than the alternative:
-    https://groups.google.com/forum/m/#!msg/golang-nuts/0nQbfyNzk9E/LWbMgpRQNOgJ.
-    
-    Change-Id: If0a07c5e0dab86f8420cbf59543405eb857aa7f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221612
-    Run-TryBot: Jean de Klerk <deklerk@google.com>
+    Change-Id: Icae3ef14d8ed6adbee1b5b48d420e2af22fd9604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197797
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/time/example_test.go | 92 +++++++++++++++++++++++++++++-------------------
- 1 file changed, 56 insertions(+), 36 deletions(-)
+ src/cmd/internal/goobj2/objfile.go        | 81 +++++++++++++++++++++----------
+ src/cmd/link/internal/ld/lib.go           |  2 +-
+ src/cmd/link/internal/objfile/objfile2.go |  9 +++-
+ 3 files changed, 63 insertions(+), 29 deletions(-)

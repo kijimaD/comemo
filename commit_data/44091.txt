@@ -1,32 +1,26 @@
-commit fa90aaca7d523eaf81c02b48a412cad4ebc57817
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Jan 7 21:45:00 2021 +0700
+commit ea5f9b666ccf7affca596be3ab0dc523ca4444fb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 28 21:30:57 2020 +0000
 
-    cmd/compile: fix late expand_calls leaf type for OpStructSelect/OpArraySelect
+    runtime: use offAddr in more parts of the runtime
     
-    For the example in #43551, before late call expansion, the OpArg type is
-    decomposed to int64. But the late call expansion is currently decompose
-    it to "x.Key" instead.
+    This change uses the new offAddr type in more parts of the runtime where
+    we've been implicitly switching from the default address space to a
+    contiguous view. The purpose of offAddr is to represent addresses in the
+    contiguous view of the address space, and to make direct computations
+    between real addresses and offset addresses impossible. This change thus
+    improves readability in the runtime.
     
-    This CL make expand_calls decompose further for struct { 1-field type }
-    and array [1]elem.
+    Updates #35788.
     
-    This matches the previous rules for early decompose args:
-    
-    (StructSelect (StructMake1 x)) => x
-    (ArraySelect (ArrayMake1 x)) => x
-    
-    Fixes #43551
-    
-    Change-Id: I2f1ebe18cb81cb967f494331c3d237535d2859e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282332
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I4e1c5fed3ed68aa12f49a42b82eb3f46aba82fc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230718
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go |  3 ++-
- test/fixedbugs/issue43551.dir/a.go           | 13 +++++++++++++
- test/fixedbugs/issue43551.dir/b.go           | 14 ++++++++++++++
- test/fixedbugs/issue43551.go                 |  7 +++++++
- 4 files changed, 36 insertions(+), 1 deletion(-)
+ src/runtime/mgcscavenge.go |  14 ++---
+ src/runtime/mpagealloc.go  | 132 +++++++++++++++++++++------------------------
+ src/runtime/mpagecache.go  |  12 ++---
+ src/runtime/mranges.go     |  27 +++++++++-
+ 4 files changed, 99 insertions(+), 86 deletions(-)

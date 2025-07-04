@@ -1,21 +1,23 @@
-commit 97d38f300273a3eb7af100d3943decaa433fd28f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 4 18:18:01 2022 -0700
+commit 99fa49e4b7f74fb21cc811270fe42c9b7fa99668
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 9 16:17:50 2021 -0800
 
-    go/types, types2: use consistent error messages for invalid struct literals
+    lib/time, time/tzdata: update to 2021e
     
-    Fixes #51879.
+    Doing this a little early in the release cycle as there have been some
+    changes in the handling of old timezones. They should continue to
+    work as expected, but more testing time may be useful.
     
-    Change-Id: Ic7ac892b82a0fe4ad6f95ff8ae84e6d30c52c111
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438855
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #22487
+    
+    Change-Id: I3686fed79a052c46112445055044cff5842f2a45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362874
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/types2/expr.go             | 9 ++++++---
- src/go/types/expr.go                                | 9 ++++++---
- src/internal/types/testdata/check/expr3.go          | 2 +-
- src/internal/types/testdata/fixedbugs/issue51877.go | 8 ++++----
- 4 files changed, 17 insertions(+), 11 deletions(-)
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 424214 -> 425837 bytes
+ src/time/tzdata/zipdata.go | 13753 ++++++++++++++++++++++---------------------
+ 3 files changed, 6892 insertions(+), 6865 deletions(-)

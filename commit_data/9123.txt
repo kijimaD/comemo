@@ -1,12 +1,12 @@
-commit 208e6e6dfc542bd3c9a8a1ac520c66683ab871aa
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jul 19 13:18:21 2011 +1000
+commit a5a94f5d57842e0914767cbe78fd821bfd291c9f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 19 11:47:15 2011 +1000
 
-    exp/wingui: make sure it builds again
+    gif: fix local color map and coordinates
     
-    R=golang-dev, r
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/4770041
+    https://golang.org/cl/4759051
 
- src/pkg/exp/wingui/winapi.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/image/gif/reader.go | 33 +++++++++++++++++++--------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

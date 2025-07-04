@@ -1,12 +1,12 @@
-commit 1f4055a0ec47c86ebc35bf6f937797b2f2f1c32e
-Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 18 17:37:09 2013 -0700
+commit db6ddff8429aab51987979a39277ffd6573863fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 18 14:48:54 2013 -0700
 
-    doc/go1.1.html: document io.ErrNoProgress
+    doc: fix another broken link
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8833050
+    https://golang.org/cl/8763045
 
- doc/go1.1.html | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/articles/race_detector.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

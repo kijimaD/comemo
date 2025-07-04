@@ -1,33 +1,30 @@
-commit 568590b0856d457f38404505f96d21032c35f844
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri May 13 16:06:53 2022 -0700
+commit 4480e3b11ab6dcd8d4c6a1e87388f573ff49f429
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jul 29 16:39:49 2021 -0400
 
-    runtime: mark panicshift and panicdivide as //go:yeswritebarrierrec
+    [dev.typeparams] go/types: backport lazy loading changes from CL 336252
     
-    When compiling package runtime, cmd/compile logically has two copies
-    of package runtime: the actual source files being compiled, and the
-    internal description used for emitting compiler-generated calls.
+    When CL 336252 was created (itself a port of CL 335929), types2
+    tests revealed that lazy expansion of instances was not behaving
+    correctly with respect to lazy loading of Named types.
     
-    Notably, CL 393715 will cause the compiler's write barrier validation
-    to start recognizing that compiler-generated calls are actually calls
-    to the corresponding functions from the source package. And today,
-    there are some code paths in nowritebarrierrec code paths that
-    actually end up generating code to call panicshift or panicdivide.
+    This CL ports the fixes from CL 336252 back to go/types.
     
-    In preparation, this CL marks those functions as
-    //go:yeswritebarrierrec. We probably want to actually cleanup those
-    code paths to avoid these calls actually (e.g., explicitly convert
-    shift count expressions to an unsigned integer type). But for now,
-    this at least unblocks CL 393715 while preserving the status quo.
-    
-    Updates #51734.
-    
-    Change-Id: I01f89adb72466c0260a9cd363e3e09246e39cff9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406316
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iffc6c84a708449633153b800dfb98ff57402893c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338369
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/panic.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/go/types/decl.go        |  4 ++--
+ src/go/types/instance.go    | 29 +++++++++++++++------------
+ src/go/types/instantiate.go | 11 +++++++---
+ src/go/types/lookup.go      |  2 +-
+ src/go/types/named.go       | 49 ++++++++++++++++++++++++++-------------------
+ src/go/types/predicates.go  |  2 +-
+ src/go/types/sizeof_test.go |  2 +-
+ src/go/types/subst.go       |  2 +-
+ src/go/types/typestring.go  |  3 +++
+ 9 files changed, 61 insertions(+), 43 deletions(-)

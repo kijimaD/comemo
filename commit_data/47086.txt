@@ -1,22 +1,18 @@
-commit 4f1c9aace00277914e080170237ae381e05683c5
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Oct 27 11:23:06 2021 -0400
+commit 42b9e3a8dfb31f18829c45f0995cbf3c78fc90fb
+Author: Keiichi Hirobe <chalenge.akane@gmail.com>
+Date:   Sun Feb 21 12:22:13 2021 +0900
 
-    go/types: add debugging support for delayed actions
+    context: fix XTestInterlockedCancels
     
-    This is a port of CL 355871 to go/types.
+    The test does not use Done channel, so fix that.
     
-    Change-Id: I2dbc3c625c16b545a271a19606ef34ce04a4a6df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359136
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I795feab2e95de815b8b6ee7a7fd90f19f7af7db1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294749
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Trust: Sameer Ajmani <sameer@golang.org>
+    Trust: Cody Oss <codyoss@google.com>
+    Run-TryBot: Sameer Ajmani <sameer@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/check.go       | 39 +++++++++++++++++++++++++++++++++++----
- src/go/types/decl.go        |  2 +-
- src/go/types/instantiate.go |  2 +-
- src/go/types/interface.go   |  2 +-
- src/go/types/struct.go      |  2 +-
- src/go/types/typexpr.go     |  2 --
- 6 files changed, 39 insertions(+), 10 deletions(-)
+ src/context/context_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

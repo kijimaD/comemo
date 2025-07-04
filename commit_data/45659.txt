@@ -1,25 +1,33 @@
-commit f07e4dae3c5cb608b4f0b9db57d1562d2125243b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 19 15:46:44 2021 +0000
+commit f532f19d94365d803e68568eb82d0dd19c81cc5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 06:55:59 2020 -0500
 
-    syscall: document NewCallback and NewCallbackCDecl limitations
+    os: avoid nil returns from Readdirnames, Readdir, ReadDir
     
-    Currently NewCallback and NewCallbackCDecl may only be called a limited
-    number of times in a single Go process, but this property of the API is
-    not documented. This change fixes that, but does not document the
-    precise limit to avoid making that limit part of the API, leaving us
-    open to increasing or decreasing the limit in the future as needed.
+    The refactoring of this code while adding ReadDir stopped
+    pre-allocating a 100-entry slice for the results.
+    That seemed like a good idea in general, since many
+    directories have nowhere near 100 entries, but it had the
+    side effect of returning a nil slice for an empty directory.
     
-    Although the API avoids documenting a limit, it does guarantee a minimum
-    callback count so users can rely on at least some amount of callbacks
-    working.
+    Some “golden” tests that are too sensitive about nil vs not
+    inside Google broke because Readdirnames(-1) was now
+    returning nil instead of []string{} on an empty directory.
+    It seems likely there are other such tests in the wild, and
+    it doesn't seem worth breaking them.
     
-    Updates #46184.
+    This commit restores the non-nil-ness of the old result,
+    without restoring the excessive preallocation.
     
-    Change-Id: I5129bf5fe301efff73ac112ba1f207ab32058833
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321133
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #42367.
+    
+    Change-Id: I2be72030ac703346e859a97c2d4e456fadfce9b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267637
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/syscall_windows.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/os/dir.go     | 16 ++++++++++++++++
+ src/os/os_test.go | 12 ++++++++++++
+ 2 files changed, 28 insertions(+)

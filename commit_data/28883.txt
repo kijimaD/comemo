@@ -1,18 +1,21 @@
-commit ac1108bdcbd316aa3ffc0bf70d50caa35e7b785f
-Author: Rob Pike <r@golang.org>
-Date:   Sun Oct 16 11:25:37 2016 -0700
+commit 856342d844a66cb15e13d73b60b2d2de3ea56090
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 21 08:37:45 2016 -0700
 
-    fmt: fix documention for %#v on uints
+    syscall: fix dragonfly/amd64 assembly argument sizes
     
-    It's the same as %#x not %x.
+    This is preliminary work to unifying the
+    unix amd64 assembly implementations,
+    which is preliminary work to making the
+    assembly vet-friendly.
     
-    Just a documentation change; tests already cover it.
+    Updates #11041
     
-    Fixes #17322
-    
-    Change-Id: Ia9db229f781f9042ac5c0bb824e3d7a26fb74ec5
-    Reviewed-on: https://go-review.googlesource.com/31254
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic64985124f8fb86cc08898be2ec7fca972ced4ca
+    Reviewed-on: https://go-review.googlesource.com/25113
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/fmt/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/asm_dragonfly_amd64.s | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

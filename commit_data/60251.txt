@@ -1,0 +1,19 @@
+commit 103317217de0ca4b59cc90a09badc744a4fba768
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jun 2 20:58:49 2024 -0700
+
+    os/signal: clarify that non-Go thread may change signal mask
+    
+    Fixes #67773
+    
+    Change-Id: I05c9934a5b2719d22884c8546f4fadaa9978ac67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589755
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/signal/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

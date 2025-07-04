@@ -1,23 +1,25 @@
-commit d62154db837fef880714f710bafbe0af94034b40
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Jan 7 16:01:46 2025 +0000
+commit acc8cb6a5f23d7fb57ea5825decd6bf0ae8723e9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 14 10:33:25 2023 +0700
 
-    weak: don't panic when calling Value on a zero Pointer
+    cmd/compile/internal/types2: mark gotypesalias as undocumented
     
-    Currently weak.Pointer.Value will panic if the weak.Pointer is
-    uninitialized (zero value) which goes against it's documentation. Fix
-    this and add a test. While we're here, also add a test to ensure
-    weak.Make[T](nil) is equivalent to the zero value of weak.Pointer[T].
+    CL 541737 added gotypesalias to control whether Alias types are used.
+    This setting is meant to use by end users through go/types. However,
+    types2 also uses it, but it's an internal package, causing bootstrap
+    failed because of unknown setting.
     
-    Fixes #71153.
+    Marking the setting as undocumented in types2 fixes the problem.
     
-    Change-Id: I4d9196026360bc42a5bfcb33ce449131ec251dba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641095
-    Reviewed-by: David Finkel <david.finkel@gmail.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Fixes #64106
+    
+    Change-Id: If51a63cb7a21d9411cd9cf81bca2530c476d22f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542135
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/weak/pointer.go      |  3 +++
- src/weak/pointer_test.go | 15 +++++++++++++++
- 2 files changed, 18 insertions(+)
+ src/cmd/compile/internal/types2/check.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

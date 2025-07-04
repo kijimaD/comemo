@@ -1,14 +1,33 @@
-commit ab9137dd24e10a9f884475413437cc31e48dbdf7
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Fri Aug 19 11:13:11 2016 -0700
+commit aea224386ea7c10c07490bb6cdef12a51fa9a9cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 20 13:40:55 2016 -0700
 
-    context: test WithCancel with canceled parent
+    math/big: more tests, documentation for Flot gob marshalling
     
-    Change-Id: I32079cc12cfffb8520f0073a8b5119705dc0cd1b
-    Reviewed-on: https://go-review.googlesource.com/27401
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Follow-up to https://golang.org/cl/21755.
+    This turned out to be a bit more than just a few nits
+    as originally expected in that CL.
+    
+    1) The actual mantissa may be shorter than required for the
+       given precision (because of trailing 0's): no need to
+       allocate space for it (and transmit 0's). This can save
+       a lot of space when the precision is high: E.g., for
+       prec == 1000, 16 words or 128 bytes are required at the
+       most, but if the actual number is short, it may be much
+       less (for the test cases present, it's significantly less).
+    
+    2) The actual mantissa may be longer than the number of
+       words required for the given precision: make sure to
+       not overflow when encoding in bytes.
+    
+    3) Add more documentation.
+    
+    4) Add more tests.
+    
+    Change-Id: I9f40c408cfdd9183a8e81076d2f7d6c75e7a00e9
+    Reviewed-on: https://go-review.googlesource.com/22324
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/context/context_test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/math/big/floatmarsh.go      | 34 ++++++++++++++---
+ src/math/big/floatmarsh_test.go | 81 +++++++++++++++++++++++++----------------
+ 2 files changed, 79 insertions(+), 36 deletions(-)

@@ -1,24 +1,15 @@
-commit b7c600d6ba8828dbdc6a047aac240d40b4fc44a7
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Aug 5 18:25:26 2017 +0900
+commit b0e5a0c93ccf5166dab30864df7e5632a5973447
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 11 16:10:09 2017 -0700
 
-    cmd/go, cmd/link: enable buildmode=pie on darwin/amd64
+    spec: clarify size hint for make of maps
     
-    Change some configurations to enable the feature. Also add the test.
-    This CL doesn't include internal linking support which is tentatively
-    disabled due to #18968. We could do that another day.
+    For #19903.
     
-    Fixes #21220
-    
-    Change-Id: I601d2d78446d36332acc70be0d5b9461ac635208
-    Reviewed-on: https://go-review.googlesource.com/54790
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib28d08d45bfad653bcc1446f160b7b4a485529af
+    Reviewed-on: https://go-review.googlesource.com/40393
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/go_test.go              | 58 ++++++++++++++++++++++++++++++++++++++
- src/cmd/go/internal/work/build.go  |  2 ++
- src/cmd/link/internal/ld/config.go |  6 ++++
- src/cmd/link/internal/ld/lib.go    | 11 +++++---
- src/cmd/link/internal/ld/macho.go  |  4 +--
- 5 files changed, 75 insertions(+), 6 deletions(-)
+ doc/go_spec.html | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

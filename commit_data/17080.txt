@@ -1,16 +1,15 @@
-commit a97a91de06b3f071a08314c7cb54eac57c4a624a
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 7 14:03:50 2013 -0700
+commit 326ae8d14e17227086239757ef2f131028997a72
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 8 00:31:52 2013 +0400
 
-    runtime: Record jmpdefer's argument size.
-    Fixes bug 6055.
+    runtime: fix traceback in cgo programs
+    Fixes #6061.
     
-    R=golang-dev, bradfitz, dvyukov, khr
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12536045
+    https://golang.org/cl/12609043
 
- src/pkg/runtime/asm_386.s   |  2 +-
- src/pkg/runtime/asm_amd64.s |  2 +-
- src/pkg/runtime/asm_arm.s   |  2 +-
- test/fixedbugs/issue6055.go | 29 +++++++++++++++++++++++++++++
- 4 files changed, 32 insertions(+), 3 deletions(-)
+ src/pkg/runtime/crash_cgo_test.go | 27 +++++++++++++++++++++++++++
+ src/pkg/runtime/panic.c           |  2 ++
+ src/pkg/runtime/proc.c            | 10 +++++++---
+ 3 files changed, 36 insertions(+), 3 deletions(-)

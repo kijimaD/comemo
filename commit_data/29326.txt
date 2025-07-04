@@ -1,13 +1,21 @@
-commit 627f4d85ba4fa71e5af11ee047ba42196cea1f2c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 2 14:54:46 2016 -0700
+commit 0ab6bb42e197c4c766769bfc4a8807f93cc630b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 9 01:30:49 2016 +0000
 
-    go/types: set up correct type with NewAlias
+    doc: clarify that any C compiler works for cgo
     
-    Change-Id: I4b035b3539c98e5b1442d1009d457cbc199b42ee
-    Reviewed-on: https://go-review.googlesource.com/32637
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Currently the footnote says "gcc is required only if you plan to use cgo",
+    but the footnote was referenced from the text:
+    
+       "use the clang or gcc† that comes with Xcode‡ for cgo support"
+    
+    That seems to imply that clang doesn't get you cgo support on OS X,
+    which isn't true. The update text matches what the install-source.html
+    page says.
+    
+    Change-Id: Ib88464a0d138227d357033123f6675a77d5d777f
+    Reviewed-on: https://go-review.googlesource.com/28786
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/go/types/object.go   | 11 +++++++++--
- src/go/types/resolver.go |  1 +
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

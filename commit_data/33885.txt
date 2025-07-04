@@ -1,20 +1,23 @@
-commit e28a0d397b3118d518a0ef3c4cd68c0577d3d9a6
-Author: Wèi Cōngruì <crvv.mail@gmail.com>
-Date:   Thu Dec 14 10:54:11 2017 +0800
+commit f84a1db19f43df68494f30a67d69e5d4d807b970
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 15 11:38:24 2017 -0700
 
-    os: don't wait for Close if the File was returned by NewFile
+    cmd/link: replace unrolled Cput loops with Cwrite/Cwritestring
     
-    os.NewFile doesn't put the fd into non-blocking mode.
-    In most cases, an *os.File returned by os.NewFile is in blocking mode.
+    Passes toolstash-check -all.
     
-    Updates #7970
-    Updates #21856
-    Updates #23111
-    
-    Change-Id: Iab08432e41f7ac1b5e25aaa8855d478adb7f98ed
-    Reviewed-on: https://go-review.googlesource.com/83995
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1c85a2c0390517f4e9cdbddddbf3c353edca65b3
+    Reviewed-on: https://go-review.googlesource.com/64051
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/poll/fd_unix.go |  1 +
- src/os/pipe_test.go          | 29 +++++++++++++++++++++++------
- 2 files changed, 24 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/amd64/asm.go  | 5 +----
+ src/cmd/link/internal/arm/asm.go    | 5 +----
+ src/cmd/link/internal/arm64/asm.go  | 5 +----
+ src/cmd/link/internal/ld/elf.go     | 8 ++------
+ src/cmd/link/internal/ld/symtab.go  | 7 ++-----
+ src/cmd/link/internal/mips64/asm.go | 5 +----
+ src/cmd/link/internal/ppc64/asm.go  | 5 +----
+ src/cmd/link/internal/x86/asm.go    | 5 +----
+ 8 files changed, 10 insertions(+), 35 deletions(-)

@@ -1,21 +1,19 @@
-commit fc99c4b3f33226a429743a263934a237be3f71c8
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Mar 25 11:30:26 2023 +0000
+commit 61a585a32cc44cb1d8d00d12dcf101a61f145d69
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 3 10:01:35 2022 -0400
 
-    cmd/compile: start using reflect.Value.IsZero
+    os/exec: in Command, update cmd.Path even if LookPath returns an error
     
-    We now require Go 1.17.13 to bootstrap via make.bash,
-    and since reflect.Value.IsZero was added in Go 1.13,
-    we can now use it directly to save a bit of copy pasting.
+    Fixes #52666.
+    Updates #43724.
+    Updates #43947.
     
-    Change-Id: I77eef782cbbf86c72a4505c8b4866c9658914a24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479395
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I72cb585036b7e93cd7adbff318b400586ea97bd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403694
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ir/dump.go | 18 +----------------
- src/cmd/compile/internal/ir/fmt.go  | 40 +------------------------------------
- 2 files changed, 2 insertions(+), 56 deletions(-)
+ src/os/exec/exec.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

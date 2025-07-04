@@ -1,17 +1,14 @@
-commit 50644f2e67e846c3641d5a907733ccc4ca5e60d2
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Sep 19 07:13:27 2016 +1200
+commit 2168f2a68bb438996d14869ff7dd10a47cc0552c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 25 17:29:56 2016 -0700
 
-    cmd/link: move comment somewhere more appropriate
+    math/big: simplify benchmarking code some more
     
-    At least, I assume it's meant to be here. It makes no sense at all where it
-    currently is.
+    Follow-up cleanup to https://golang.org/cl/23424/ .
     
-    Change-Id: Ic6a6c112c3dcf1318256d7d602168c3446b55412
-    Reviewed-on: https://go-review.googlesource.com/29339
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifb05c1ff5327df6bc5f4cbc554e18363293f7960
+    Reviewed-on: https://go-review.googlesource.com/23446
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/math/big/arith_test.go | 48 ++++++++++++++++------------------------------
+ 1 file changed, 17 insertions(+), 31 deletions(-)

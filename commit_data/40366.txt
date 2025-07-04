@@ -1,17 +1,18 @@
-commit 88186e5e232625f9c91d639e0cb90a88c6cf1172
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 18 20:45:33 2019 +0000
+commit 2d32d3675ab88d6a3481b866afca4e2aea55210e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue May 7 23:34:13 2019 -0400
 
-    net/http: don't cache http2.erringRoundTripper connections
+    reflect: add a test for Calling a Method of a direct interface type
     
-    Fixes #34978
+    Gccgo's implementation of direct interface types has bugs that
+    causes reflect Call of method from Type.Method fail. CL 175837
+    and CL 175798 fix the bug. This CL adds a test.
     
-    Change-Id: I3baf1392ba7366ae6628889c47c343ef702ec438
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202078
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4e5f2cb96304c1ac7be04ca6d2851bac52b8eb24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175880
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go      |  9 +++--
- src/net/http/transport_test.go | 75 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 82 insertions(+), 2 deletions(-)
+ src/reflect/all_test.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

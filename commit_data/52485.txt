@@ -1,27 +1,31 @@
-commit 63ef9059a2e920d22522f9be068df357fab3d1f6
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Mar 31 18:29:10 2023 +0000
+commit 68c2e9eedeaa2ad9d9528fbb58adffb0a48365c9
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 4 09:58:56 2022 -0400
 
-    Revert "runtime: get a better g0 stack bound in needm"
+    crypto/elliptic: replace generic P-256 with fiat-crypto
     
-    This reverts CL 479915.
+    For #52182
     
-    Reason for revert: breaks a lot google internal tests.
-    
-    Change-Id: I13a9422e810af7ba58cbf4a7e6e55f4d8cc0ca51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481055
-    Reviewed-by: Chressie Himpel <chressie@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I8d8b4c3d8299fbd59b0bf48e5c8b7b41c533a2cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360114
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
 
- misc/cgo/testcarchive/carchive_test.go     | 54 ------------------------------
- misc/cgo/testcarchive/testdata/libgo9/a.go | 14 --------
- misc/cgo/testcarchive/testdata/main9.c     | 24 -------------
- src/runtime/cgo.go                         |  2 --
- src/runtime/cgo/callbacks.go               |  9 -----
- src/runtime/cgo/gcc_stack_darwin.c         | 21 ------------
- src/runtime/cgo/gcc_stack_unix.c           | 32 ------------------
- src/runtime/cgo/gcc_stack_windows.c        |  7 ----
- src/runtime/proc.go                        | 22 +++---------
- src/runtime/signal_unix.go                 |  4 +--
- 10 files changed, 7 insertions(+), 182 deletions(-)
+ src/crypto/elliptic/internal/fiat/generate.go      |   19 +-
+ src/crypto/elliptic/internal/fiat/p256.go          |  135 ++
+ src/crypto/elliptic/internal/fiat/p256_fiat64.go   | 1400 ++++++++++++++++++++
+ src/crypto/elliptic/internal/fiat/p256_invert.go   |   84 ++
+ src/crypto/elliptic/internal/nistec/generate.go    |    5 +
+ src/crypto/elliptic/internal/nistec/nistec_test.go |   97 +-
+ src/crypto/elliptic/internal/nistec/p256.go        |  288 ++++
+ src/crypto/elliptic/nistec.go                      |   30 +
+ src/crypto/elliptic/p256.go                        |   32 -
+ src/crypto/elliptic/p256_asm.go                    |   20 +-
+ src/crypto/elliptic/p256_generic.go                |  477 -------
+ src/crypto/elliptic/p256_generic_field.go          |  705 ----------
+ src/crypto/elliptic/p256_noasm.go                  |   15 -
+ src/crypto/elliptic/p256_ppc64le.go                |   13 +-
+ src/crypto/elliptic/p256_s390x.go                  |   17 +-
+ 15 files changed, 2045 insertions(+), 1292 deletions(-)

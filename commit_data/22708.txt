@@ -1,24 +1,14 @@
-commit cba882ea9ba9ccfc718d995a0d787280c4009668
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Apr 12 16:41:31 2015 -0700
+commit c45f4b7145ab9bb71380f275261f096a6078b254
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 3 11:02:32 2015 -0700
 
-    crypto/tls: call GetCertificate if Certificates is empty.
+    iostest.bash: warn if GOARCH is not correct
     
-    This change causes the GetCertificate callback to be called if
-    Certificates is empty. Previously this configuration would result in an
-    error.
+    Fixes #10334
     
-    This allows people to have servers that depend entirely on dynamic
-    certificate selection, even when the client doesn't send SNI.
-    
-    Fixes #9208.
-    
-    Change-Id: I2f5a5551215958b88b154c64a114590300dfc461
-    Reviewed-on: https://go-review.googlesource.com/8792
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I468230870ca2afc691ce879707dac34e513e1b9e
+    Reviewed-on: https://go-review.googlesource.com/8442
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/crypto/tls/common.go                | 18 +++++++++++++-----
- src/crypto/tls/handshake_server.go      | 22 +++++++---------------
- src/crypto/tls/handshake_server_test.go | 30 ++++++++++++++++++++++++++++++
- 3 files changed, 50 insertions(+), 20 deletions(-)
+ src/iostest.bash | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,22 +1,29 @@
-commit cca3d1e5533cb40beb9ef55bbc332b733adcc6ba
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jul 23 22:16:46 2020 +0000
+commit 98b6c6aca6fd4185f97dc40137707f4d8df8aa7c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 8 03:08:21 2020 +0700
 
-    runtime: don't flush local_tinyallocs
+    cmd/compile: do not allocate bucket for non-escaping map
     
-    This change makes local_tinyallocs work like the rest of the malloc
-    stats and doesn't flush local_tinyallocs, instead making that the
-    source-of-truth.
+    For map with hint larger than BUCKETSIZE, makemap ignore allocated
+    bucket and allocate buckets itself. So do not allocate bucket in
+    this case, save us the cost of zeroing+assignment to the bucket.
     
-    Change-Id: I3e6cb5f1b3d086e432ce7d456895511a48e3617a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246967
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    name                            old time/op    new time/op    delta
+    NewEmptyMap-12                    3.89ns ± 4%    3.88ns ± 2%    ~     (p=0.939 n=19+20)
+    NewSmallMap-12                    23.3ns ± 3%    23.1ns ± 2%    ~     (p=0.307 n=18+17)
+    NewEmptyMapHintLessThan8-12       6.43ns ± 3%    6.31ns ± 2%  -1.72%  (p=0.000 n=19+18)
+    NewEmptyMapHintGreaterThan8-12     159ns ± 2%     150ns ± 1%  -5.79%  (p=0.000 n=20+18)
+    
+    Benchmark run with commit ab7c174 reverted, see #38314.
+    
+    Fixes #20184
+    
+    Change-Id: Ic021f57454c3a0dd50601d73bbd77b8faf8d93b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227458
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/export_test.go | 7 +++++--
- src/runtime/mcache.go      | 8 +++++---
- src/runtime/mheap.go       | 4 ----
- src/runtime/mstats.go      | 6 ++++--
- 4 files changed, 14 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 24 +++++++++++++++++++-----
+ src/runtime/map_benchmark_test.go   | 19 +++++++++++++++++++
+ 2 files changed, 38 insertions(+), 5 deletions(-)

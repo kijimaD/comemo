@@ -1,53 +1,50 @@
-commit 7ba074fe43a3c1e9a35cd579520d7184d3a20d36
-Author: Kyle Xiao <xiaost7@gmail.com>
-Date:   Thu Sep 12 22:52:56 2024 +0800
+commit 673d64ac7009b41c55b90b33ca346a86351959ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 9 23:47:27 2023 -0400
 
-    reflect: remove calling mapiterkey, mapiterelem
+    cmd/distpack: include directory entries in tar files
     
-    It makes use of the hiter structure which matches runtime.hiter's.
+    Various tools expect tar files to contain entries for directories.
+    I dropped them when writing cmd/distpack because they're not
+    strictly necessary and omitting them saves space, but it also
+    turns out to break some things, so add them back.
     
-    This change mainly improves the performance of Next method of MapIter.
+    We will backport this to release-branch.go1.21 so that Go 1.21.1
+    will include the directory entries. We can't do anything about
+    Go 1.21.0 retroactively.
     
-    goos: darwin
-    goarch: arm64
-    pkg: reflect
-    cpu: Apple M2
-                  │  ./old.txt  │              ./new.txt              │
-                  │   sec/op    │   sec/op     vs base                │
-    MapIterNext-8   61.95n ± 0%   54.95n ± 0%  -11.28% (p=0.000 n=10)
+    % tar tzvf go1.22rsc1.src.tar.gz | sed 10q
+    drwxr-xr-x  0 0      0           0 Aug 10 10:07 go/
+    -rw-r--r--  0 0      0        1337 Aug 10 10:07 go/CONTRIBUTING.md
+    -rw-r--r--  0 0      0        1479 Aug 10 10:07 go/LICENSE
+    -rw-r--r--  0 0      0        1303 Aug 10 10:07 go/PATENTS
+    -rw-r--r--  0 0      0        1455 Aug 10 10:07 go/README.md
+    -rw-r--r--  0 0      0         419 Aug 10 10:07 go/SECURITY.md
+    -rw-r--r--  0 0      0          42 Aug 10 10:07 go/VERSION
+    drwxr-xr-x  0 0      0           0 Aug 10 10:07 go/api/
+    -rw-r--r--  0 0      0        1142 Aug 10 10:07 go/api/README
+    -rw-r--r--  0 0      0       35424 Aug 10 10:07 go/api/except.txt
+    % tar tzvf go1.22rsc1.darwin-amd64.tar.gz | sed 10q
+    drwxr-xr-x  0 0      0           0 Aug 10 10:07 go/
+    -rw-r--r--  0 0      0        1337 Aug 10 10:07 go/CONTRIBUTING.md
+    -rw-r--r--  0 0      0        1479 Aug 10 10:07 go/LICENSE
+    -rw-r--r--  0 0      0        1303 Aug 10 10:07 go/PATENTS
+    -rw-r--r--  0 0      0        1455 Aug 10 10:07 go/README.md
+    -rw-r--r--  0 0      0         419 Aug 10 10:07 go/SECURITY.md
+    -rw-r--r--  0 0      0          42 Aug 10 10:07 go/VERSION
+    drwxr-xr-x  0 0      0           0 Aug 10 10:07 go/api/
+    -rw-r--r--  0 0      0        1142 Aug 10 10:07 go/api/README
+    -rw-r--r--  0 0      0       35424 Aug 10 10:07 go/api/except.txt
+    %
     
-    for the change of `test/escape_reflect.go`:
-    removing mapiterkey, mapiterelem would cause leaking MapIter content
-    when calling SetIterKey and SetIterValue,
-    and this may cause map bucket to be allocated on heap instead of stack.
-    Reproduce:
-    ```
-    {
-      m := map[int]int{1: 2} // escapes to heap after this change
-      it := reflect.ValueOf(m).MapRange()
-      it.Next()
-      var k, v int
-      reflect.ValueOf(&k).Elem().SetIterKey(it)
-      reflect.ValueOf(&v).Elem().SetIterValue(it)
-      println(k, v)
-    }
-    ```
-    This CL would not introduce abi.NoEscape to fix this. It may need futher
-    optimization and tests on hiter field usage and its escape analysis.
+    Fixes #61862.
     
-    Fixes #69416
-    
-    Change-Id: Ibaa33bcf86228070b4a505b9512680791aa59f04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612616
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iecd9ba893015295e88715b031b79a104236b9ced
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518335
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/reflect/map_noswiss.go | 14 +++++++-------
- src/reflect/map_swiss.go   | 14 +++++++-------
- src/reflect/value.go       |  6 ------
- src/runtime/map_noswiss.go |  4 ++--
- test/escape_reflect.go     |  4 ++--
- 5 files changed, 18 insertions(+), 24 deletions(-)
+ src/cmd/distpack/archive.go |  2 +-
+ src/cmd/distpack/pack.go    | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)

@@ -1,14 +1,16 @@
-commit 9b7b574edcff14d916215a72b7a9fc8bb82ab16e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 8 08:53:31 2012 -0800
+commit 3133b14b307103b79117a033ddf1ac9d0f7a24d0
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Thu Mar 8 11:28:04 2012 -0500
 
-    go/parser: use test harness for short tests
+    crypto/x509: allow server gated crypto in windows systemVerify
     
-    R=golang-dev, rsc
+    Also factors out some code into functions to make
+    systemVerify easier to read.
+    
+    R=rsc, agl
     CC=golang-dev
-    https://golang.org/cl/5782044
+    https://golang.org/cl/5781054
 
- src/pkg/go/parser/error_test.go  | 11 ++++--
- src/pkg/go/parser/parser_test.go | 83 +++-------------------------------------
- src/pkg/go/parser/short_test.go  | 75 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 87 insertions(+), 82 deletions(-)
+ src/pkg/crypto/x509/root_windows.go | 165 ++++++++++++++++++++++--------------
+ src/pkg/syscall/ztypes_windows.go   |   4 +-
+ 2 files changed, 104 insertions(+), 65 deletions(-)

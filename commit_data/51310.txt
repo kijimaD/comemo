@@ -1,23 +1,27 @@
-commit 8c17505da792755ea59711fc8349547a4f24b5c5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 16 10:17:17 2022 -0500
+commit 933f6685f7d33f3865d6ef062cbb0944d3f5d2fc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 16 12:55:15 2021 -0800
 
-    testing: in TestRacyOutput, ensure that the Run calls complete before cleanup
+    cmd/compile: unique LinkString for renamed, embedded fields
     
-    Also tweak the failure message added in CL 352349.
+    Using type aliases, it's possible to create structs with embedded
+    fields that have no corresponding type literal notation. However, we
+    still need to generate a unique name for these types to use for linker
+    symbols. This CL introduces a new "struct{ Name = Type }" syntax for
+    use in LinkString formatting to represent these types.
     
-    Updates #18741.
-    Updates #48515.
+    Fixes #50190.
     
-    Change-Id: I46ed84c6f498d7a68414cc3dab3c1cd55da69aa9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451215
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Changkun Ou <mail@changkun.de>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I025ceb09a86e00b7583d3b9885d612f5d6cb44fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372914
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/testing/panic_test.go | 2 +-
- src/testing/sub_test.go   | 4 ++--
- src/testing/testing.go    | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types/fmt.go | 37 +++++++++++++++++++++++++++++++++--
+ test/fixedbugs/issue50190.go          | 21 ++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 2 deletions(-)

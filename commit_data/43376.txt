@@ -1,26 +1,29 @@
-commit d4da735091986868015369e01c63794af9cc9b84
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 6 09:49:20 2020 -0400
+commit 6506cf1981435ab8c6f5102cfb7700a4ac68f5a1
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Fri Mar 20 12:24:35 2020 -0400
 
-    io/fs: move FileInfo, FileMode, PathError, ErrInvalid, ... from os to io/fs
+    [dev.link] cmd/link: make asmb parallel across all platforms
     
-    First step of creating the new io/fs package.
+    Numbers for x86:
     
-    For #41190.
+    Asmb                      54.8ms ±15%    12.1ms ±28%   -78.02%  (p=0.000 n=10+10)
+    TotalTime                  545ms ± 3%     515ms ± 4%    -5.42%  (p=0.000 n=10+10)
     
-    Change-Id: I1339b1abdd533b0f1deab283628088b2f706fb5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243906
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I8fc17f7ccdf83fbd70cf7d27b44f41f9db9c9922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224419
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- api/except.txt       | 228 ++++++++++++++++++++++++++++++---------------------
- api/next.txt         |  88 +++++++++++++++++++-
- src/cmd/api/goapi.go |  20 ++++-
- src/io/fs/fs.go      | 140 +++++++++++++++++++++++++++++++
- src/os/error.go      |  32 ++------
- src/os/types.go      |  91 ++++----------------
- 6 files changed, 406 insertions(+), 193 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   | 11 ++++++-----
+ src/cmd/link/internal/arm/asm.go     | 27 ++++++++++++++-------------
+ src/cmd/link/internal/arm64/asm.go   | 27 ++++++++++++++-------------
+ src/cmd/link/internal/ld/data.go     | 20 ++++----------------
+ src/cmd/link/internal/mips/asm.go    | 21 +++++++++++----------
+ src/cmd/link/internal/mips64/asm.go  | 27 ++++++++++++++-------------
+ src/cmd/link/internal/ppc64/asm.go   | 27 ++++++++++++++++-----------
+ src/cmd/link/internal/riscv64/asm.go | 27 ++++++++++++++-------------
+ src/cmd/link/internal/s390x/asm.go   | 27 ++++++++++++++-------------
+ src/cmd/link/internal/x86/asm.go     | 31 +++++++++++++++++--------------
+ 10 files changed, 124 insertions(+), 121 deletions(-)

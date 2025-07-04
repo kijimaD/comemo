@@ -1,23 +1,17 @@
-commit 0098f8aeaceb5feec7462ae64f8ce91a473360c1
-Author: Keith Randall <khr@google.com>
-Date:   Mon Nov 12 15:49:09 2018 -0800
+commit 6df4c3a44b20b9738ae5699fbc156052522f9f54
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 24 00:24:49 2018 +0000
 
-    runtime: when using explicit argmap, also use arglen
+    net/http: document that Client methods always return *url.Error
     
-    When we set an explicit argmap, we may want only a prefix of that
-    argmap.  Argmap is set when the function is reflect.makeFuncStub or
-    reflect.methodValueCall. In this case, arglen specifies how much of
-    the args section is actually live. (It could be either all the args +
-    results, or just the args.)
+    Updates #9424
     
-    Fixes #28750
-    
-    Change-Id: Idf060607f15a298ac591016994e58e22f7f92d83
-    Reviewed-on: https://go-review.googlesource.com/c/149217
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: If117ba3e7d031f84b30d3a721ef99fe622734de2
+    Reviewed-on: https://go-review.googlesource.com/125575
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/stack.go          |  7 +++++
- test/fixedbugs/issue27695c.go | 65 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 72 insertions(+)
+ src/net/http/client.go      | 40 +++++++++++++++++++++++++++++++++++-----
+ src/net/http/export_test.go | 17 +++++++++++++++++
+ src/net/http/roundtrip.go   |  3 +++
+ src/net/http/server.go      |  2 +-
+ 4 files changed, 56 insertions(+), 6 deletions(-)

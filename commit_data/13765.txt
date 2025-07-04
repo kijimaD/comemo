@@ -1,13 +1,13 @@
-commit 7e414a5b017decee07f3ffa17943adcbb08aa83e
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Fri Sep 7 10:24:55 2012 -0700
+commit 0cab7d52d5ffaa23f31dfcabf61662a6581d1edb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 7 09:11:39 2012 -0700
 
-    net,mime: Minor corrections to documentation comments.
+    faq: another way to solve the closure/variable/range complaint
+    It's easier just to declare a new variable.
     
-    R=r
-    CC=dsymonds, gobot, golang-dev
-    https://golang.org/cl/6495085
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6501103
 
- src/pkg/mime/multipart/multipart.go | 2 +-
- src/pkg/net/mail/message.go         | 3 ++-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ doc/go_faq.html | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

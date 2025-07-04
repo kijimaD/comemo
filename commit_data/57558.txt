@@ -1,22 +1,18 @@
-commit 676d427f77ea255fa6e4cdebf0fb348a27575855
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 27 11:03:58 2024 -0700
+commit 5b8ceb38a17c60d1b396f21418674f7be9ab1ac0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Aug 16 10:59:58 2023 +0000
 
-    go/types, types2: remove Checker.pos from types2 code - not needed anymore
+    log/slog: remove redundant dot in doc
     
-    In go/types, move field down in environment struct, rename it to
-    exprPos, and document use.
-    
-    Updates #69673.
-    
-    Change-Id: I355af1237f8cd731ad9706e6a5fce34b314978cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616316
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ic4fcfe7335dab219790c19ded3bbb7265857404f
+    GitHub-Last-Rev: afc69c79b2f8d71441eb4cabaefe8cca9acc8231
+    GitHub-Pull-Request: golang/go#62062
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519955
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/cmd/compile/internal/types2/check.go | 3 +--
- src/go/types/check.go                    | 6 ++++--
- src/go/types/eval.go                     | 2 +-
- 3 files changed, 6 insertions(+), 5 deletions(-)
+ src/log/slog/handler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

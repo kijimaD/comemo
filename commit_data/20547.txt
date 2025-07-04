@@ -1,14 +1,22 @@
-commit 0211771f2b3a36626646d08b6b8db3d1ad1ebd7a
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 25 17:30:12 2014 -0700
+commit 6c934238c93f8f60775409f1ab410ce9c9ea2357
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 17 08:32:15 2014 -0700
 
-    .hgignore: delete some dregs
-    I'd rather delete the file but I doubt that will be popular.
+    runtime: change minimum stack size to 2K.
     
-    LGTM=adg
-    R=golang-codereviews, adg
+    It will be 8K on windows because it needs 4K for the OS.
+    Similarly, plan9 will be 4K.
+    
+    On linux/amd64, reduces size of 100,000 goroutines
+    from ~819MB to ~245MB.
+    
+    Update #7514
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov, khr, aram
     CC=golang-codereviews
-    https://golang.org/cl/150100043
+    https://golang.org/cl/145790043
 
- .hgignore | 5 -----
- 1 file changed, 5 deletions(-)
+ src/runtime/proc.c  |  8 ++++----
+ src/runtime/stack.h | 21 ++++++++++++---------
+ 2 files changed, 16 insertions(+), 13 deletions(-)

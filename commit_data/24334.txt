@@ -1,15 +1,26 @@
-commit c07ec392ac8bfa92923c01ec4b2319de2e0e6a2b
-Author: Tarmigan Casebolt <tarmigan@gmail.com>
-Date:   Sun Aug 23 19:51:26 2015 -0700
+commit ad84f84cb4bad9b5a666a2c00d5c48a48537f03a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 15 09:05:33 2015 -0700
 
-    go/printer: avoid stomping on err before checking it
+    cmd/link: don't generate .exe extension for external Windows link
     
-    Change-Id: I97ba31e758d3396842ad99a08af696e49a5f1a7d
-    Reviewed-on: https://go-review.googlesource.com/13954
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    On Windows, gcc -o foo will generate foo.exe.  Prevent that from
+    happening by adding a final '.' if necessary so that GCC thinks that
+    the file already has an extension.
+    
+    Also remove the initial output file when doing an external link, and
+    use mayberemoveoutfile, not os.Remove, when building an archive
+    (otherwise we will do the wrong thing for -buildmode=c-archive -o
+    /dev/null).
+    
+    I didn't add a test, as it requires using cgo and -o on Windows.
+    
+    Fixes #11725.
+    
+    Change-Id: I6ea12437bb6b4b9b8ee5c3b52d83509fa2437b2d
+    Reviewed-on: https://go-review.googlesource.com/12243
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/printer/printer.go      |  4 +++-
- src/go/printer/printer_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

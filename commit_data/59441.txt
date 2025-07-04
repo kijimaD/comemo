@@ -1,27 +1,30 @@
-commit f38256eae560c6532c172573e39dd8d4827eff95
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Thu May 8 14:25:25 2025 +0000
+commit be58fd00707a6e90cd868c279e0fd348a9ae7092
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 13 17:46:29 2024 +0000
 
-    cmd/vendor: pull in the x/mod/modfile ignore directive
+    Revert: "cmd/link: add option to enable full RELRO for ELF"
     
-    go get golang.org/x/mod@9d33331
-    go mod tidy
-    go mod vendor
+    This reverts https://go.dev/cl/c/go/+/473495.
     
-    For #42965
+    Reason for revert: breaks some Google-internal tests.
     
-    Change-Id: Ib741c96be53214c35058a564116688e7122a205a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670975
+    This revert will be temporary until we can gather more info on the
+    nature of the failures and hopefully develop an upstream test case,
+    etc.
+    
+    Updates #45681.
+    
+    Change-Id: Ib628ddc53bc5489e4f76c0f4ad809b75e899102c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571415
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 126 ++++++++++++++++-----
- src/cmd/vendor/golang.org/x/mod/modfile/work.go    |   8 +-
- src/cmd/vendor/golang.org/x/mod/module/module.go   |  19 ++--
- src/cmd/vendor/golang.org/x/mod/semver/semver.go   |  30 +++--
- .../vendor/golang.org/x/mod/sumdb/dirhash/hash.go  |   6 +-
- src/cmd/vendor/modules.txt                         |   2 +-
- 8 files changed, 134 insertions(+), 63 deletions(-)
+ src/cmd/go/internal/work/security.go      |   3 +-
+ src/cmd/go/internal/work/security_test.go |   4 -
+ src/cmd/link/doc.go                       |   2 -
+ src/cmd/link/internal/ld/elf.go           |  32 ++-----
+ src/cmd/link/internal/ld/elf_test.go      | 150 ------------------------------
+ src/cmd/link/internal/ld/lib.go           |   8 +-
+ src/cmd/link/internal/ld/main.go          |   1 -
+ src/internal/testenv/testenv.go           |   9 --
+ 8 files changed, 11 insertions(+), 198 deletions(-)

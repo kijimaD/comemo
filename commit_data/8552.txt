@@ -1,18 +1,17 @@
-commit 67b4db9e9eb669fee1716e2f4b2bbbe08fe2e04e
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue May 31 13:41:32 2011 -0400
+commit de15f6165e53cd14829088d342ca6823b07fa748
+Author: Adam Langley <agl@golang.org>
+Date:   Tue May 31 12:58:09 2011 -0400
 
-    gc: check parameter declarations in interface fields
+    encoding/hex: add hex dumping.
     
-    Fixes #1663.
-    Fixes #1871.
+    I found this useful, esp with an io.MultiWriter. But I fear that
+    it may be bloat in such a low-level package so please feel free to
+    decline if you feel likewise.
     
-    R=rsc, lstoakes
+    R=rsc, ality
     CC=golang-dev
-    https://golang.org/cl/4530084
+    https://golang.org/cl/4530088
 
- src/cmd/gc/dcl.c         | 24 ++++++++++++++++++++++++
- src/cmd/gc/go.h          |  1 +
- src/cmd/gc/go.y          |  1 +
- test/fixedbugs/bug342.go | 24 ++++++++++++++++++++++++
- 4 files changed, 50 insertions(+)
+ src/pkg/encoding/hex/hex.go      | 116 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/encoding/hex/hex_test.go |  43 +++++++++++++++
+ 2 files changed, 159 insertions(+)

@@ -1,26 +1,32 @@
-commit bd926e1c65557870d152c42265af7533981fae8a
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Sun Nov 12 22:19:11 2017 +0000
+commit cbc4e5d9c4f2444c5d40ae6333b4e1f4c9cfbd41
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Aug 14 10:16:21 2017 +0200
 
-    crypto, hash: document marshal/unmarshal implementation
+    cmd/compile: generate makemap calls with int arguments
     
-    Unless you go back and read the hash package documentation, it's
-    not clear that all the hash packages implement marshaling and
-    unmarshaling. Document the behaviour specifically in each package
-    that implements it as it this is hidden behaviour and easy to miss.
+    Where possible generate calls to runtime makemap with int hint argument
+    during compile time instead of makemap with int64 hint argument.
     
-    Change-Id: Id9d3508909362f1a3e53872d0319298359e50a94
-    Reviewed-on: https://go-review.googlesource.com/77251
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    This eliminates converting the hint argument for calls to makemap with
+    int64 hint argument for platforms where int64 values do not fit into
+    an argument of type int.
+    
+    A similar optimization for makeslice was introduced in CL
+    golang.org/cl/27851.
+    
+    386:
+    name         old time/op    new time/op    delta
+    NewEmptyMap    53.5ns ± 5%    41.9ns ± 5%  -21.56%  (p=0.000 n=10+10)
+    NewSmallMap     182ns ± 1%     165ns ± 1%   -8.92%  (p=0.000 n=10+10)
+    
+    Change-Id: Ibd2b4c57b36f171b173bf7a0602b3a59771e6e44
+    Reviewed-on: https://go-review.googlesource.com/55142
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/hmac/hmac.go     |  3 +++
- src/crypto/md5/md5.go       |  4 +++-
- src/crypto/sha1/sha1.go     |  4 +++-
- src/crypto/sha256/sha256.go |  5 ++++-
- src/crypto/sha512/sha512.go |  4 ++++
- src/hash/adler32/adler32.go |  7 +++++--
- src/hash/crc32/crc32.go     | 16 ++++++++++------
- src/hash/crc64/crc64.go     |  8 +++++---
- src/hash/fnv/fnv.go         |  4 ++++
- 9 files changed, 41 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 242 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   3 +-
+ src/cmd/compile/internal/gc/walk.go            |  19 +-
+ src/runtime/hashmap.go                         |  19 +-
+ src/runtime/hashmap_fast.go                    |   6 +-
+ test/makemap.go                                |  34 ++++
+ 6 files changed, 191 insertions(+), 132 deletions(-)

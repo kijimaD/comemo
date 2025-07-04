@@ -1,20 +1,17 @@
-commit 5c13cab36b4667cc1a42667b16b8f049016586e0
-Author: Evgeniy Kulikov <tuxuls@gmail.com>
-Date:   Thu Feb 13 12:55:07 2020 +0000
+commit 20bf6a495eabad79b7b275d46fc3e11c620b8212
+Author: Kyle Shannon <kyle@pobox.com>
+Date:   Mon Nov 25 13:51:02 2019 -0700
 
-    crypto/elliptic: implement MarshalCompressed and UnmarshalCompressed
+    lib/time: update tz data to 2019c
     
-    Fixes #34105
+    Updates #22487
     
-    Co-authored-by: Filippo Valsorda <filippo@golang.org>
-    Change-Id: I3470343ec9ce9a0bd5593a04d3ba5816b75d3332
-    GitHub-Last-Rev: 9b38b0a7f8cef7f001fe9126a1cfcb4990f7b996
-    GitHub-Pull-Request: golang/go#35110
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202819
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I32dcd604af84e2000196d64bf69c67f81535290a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208797
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/crypto/elliptic/elliptic.go      | 61 ++++++++++++++++++++++++++----
- src/crypto/elliptic/elliptic_test.go | 72 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 125 insertions(+), 8 deletions(-)
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 781554 -> 781791 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

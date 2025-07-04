@@ -1,16 +1,14 @@
-commit 85266dfd4dd9932672258e0a9f68e3fc96a44ec8
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 22 00:07:13 2012 -0400
+commit 875f34fd4962935d8e0e17d030b91e4c4feb4f08
+Author: Matthew Horsnell <matthew.horsnell@gmail.com>
+Date:   Mon May 21 23:29:30 2012 -0400
 
-    runtime: relax TestGcSys
+    debug/elf: Expose entry point from Header in File struct.
+    Fixes #3470.
     
-    This fixes occasional 64-bit failures.
-    Maybe it will fix the 32-bit failures too,
-    so re-enable on 32-bit for now.
-    
-    R=golang-dev, bradfitz, r, dvyukov
+    R=rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/6218050
+    https://golang.org/cl/6195074
 
- src/pkg/runtime/gc_test.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/pkg/debug/elf/file.go      | 3 +++
+ src/pkg/debug/elf/file_test.go | 4 ++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

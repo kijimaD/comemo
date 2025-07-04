@@ -1,42 +1,29 @@
-commit d9db9e32e924a60bbfbb15cc0dd7cfaaf8a62a3b
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 15 13:29:40 2019 -0400
+commit 020a18c545bf49ffc087ca93cd238195d8dcc411
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Oct 14 22:28:58 2018 +0200
 
-    runtime: fix write barrier on wasm
+    cmd/compile: move slice construction to callers of makeslice
     
-    The current wasm write barrier implementation incorrectly implements
-    the "deletion" part of the barrier. It correctly greys the new value
-    of the pointer, but rather than also greying the old value of the
-    pointer, it greys the object containing the slot (which, since the old
-    value was just overwritten, is not going to contain the old value).
+    Only return a pointer p to the new slices backing array from makeslice.
+    Makeslice callers then construct sliceheader{p, len, cap} explictly
+    instead of makeslice returning the slice.
     
-    This can lead to unmarked, reachable objects.
+    Reduces go binary size by ~0.2%.
+    Removes 92 (~3.5%) panicindex calls from go binary.
     
-    Often, this is masked by other marking activity, but one specific
-    sequence that can lead to an unmarked object because of this bug is:
-    
-    1. Initially, GC is off, object A is reachable from just one pointer
-    in the heap.
-    
-    2. GC starts and scans the stack of goroutine G.
-    
-    3. G copies the pointer to A on to its stack and overwrites the
-    pointer to A in the heap. (Now A is reachable only from G's stack.)
-    
-    4. GC finishes while A is still reachable from G's stack.
-    
-    With a functioning deletion barrier, step 3 causes A to be greyed.
-    Without a functioning deletion barrier, nothing causes A to be greyed,
-    so A will be freed even though it's still reachable from G's stack.
-    
-    This CL fixes the wasm write barrier.
-    
-    Fixes #30871.
-    
-    Change-Id: I8a74ee517facd3aa9ad606e5424bcf8f0d78e754
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167743
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I29b7c3b5fe8b9dcec96e2c43730575071cfe8a94
+    Reviewed-on: https://go-review.googlesource.com/c/141822
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/asm_wasm.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin.go         |  12 +--
+ src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
+ src/cmd/compile/internal/gc/op_string.go       |   4 +-
+ src/cmd/compile/internal/gc/ssa.go             |   6 ++
+ src/cmd/compile/internal/gc/syntax.go          | 119 +++++++++++++------------
+ src/cmd/compile/internal/gc/typecheck.go       |  41 +++++++++
+ src/cmd/compile/internal/gc/walk.go            |  14 ++-
+ src/runtime/runtime-gdb_test.go                |   5 +-
+ src/runtime/slice.go                           |   7 +-
+ 9 files changed, 136 insertions(+), 76 deletions(-)

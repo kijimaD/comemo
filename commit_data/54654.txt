@@ -1,61 +1,18 @@
-commit a8ca649bbee624093392bc5556fb12ddd767bab6
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Apr 11 14:49:29 2023 -0500
+commit b417f62b00276a2ccca3fa7e490f3673a1df8a4c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 7 17:43:24 2022 +0100
 
-    crypto/aes,crypto/cipher: improve gcm performance on ppc64x
+    net/netip: remove unused unexported functions and methods
     
-    This improves performance for AES-GCM. The function
-    counterCrypt is written in assembler so the loop can
-    be unrolled and the stitched approach used for the
-    encryption.
-    
-    This implementation works on ppc64le and ppc64. The use
-    of GOPPC64=power9 generates the best performance,
-    goos: linux
-    goarch: ppc64le
-    pkg: crypto/cipher
-    cpu: POWER10
-                         │ gcmx8.cpu1.out │         gcmx8.new.cpu1.out         │
-                         │     sec/op     │   sec/op     vs base               │
-    AESGCM/Open-128-64        180.5n ± 0%   152.7n ± 1%  -15.43% (p=0.000 n=8)
-    AESGCM/Seal-128-64        166.8n ± 0%   147.2n ± 0%  -11.72% (p=0.000 n=8)
-    AESGCM/Open-256-64        194.9n ± 0%   156.6n ± 1%  -19.65% (p=0.000 n=8)
-    AESGCM/Seal-256-64        183.7n ± 0%   157.0n ± 0%  -14.51% (p=0.000 n=8)
-    AESGCM/Open-128-1350     1769.5n ± 0%   454.5n ± 0%  -74.31% (p=0.000 n=8)
-    AESGCM/Seal-128-1350     1759.0n ± 0%   453.7n ± 0%  -74.21% (p=0.000 n=8)
-    AESGCM/Open-256-1350     2104.0n ± 0%   504.4n ± 1%  -76.03% (p=0.000 n=8)
-    AESGCM/Seal-256-1350     2092.0n ± 0%   503.0n ± 0%  -75.96% (p=0.000 n=8)
-    AESGCM/Open-128-8192     10.054µ ± 0%   1.961µ ± 0%  -80.50% (p=0.000 n=8)
-    AESGCM/Seal-128-8192     10.050µ ± 0%   1.965µ ± 0%  -80.45% (p=0.000 n=8)
-    AESGCM/Open-256-8192     12.080µ ± 0%   2.232µ ± 0%  -81.52% (p=0.000 n=8)
-    AESGCM/Seal-256-8192     12.069µ ± 0%   2.238µ ± 0%  -81.46% (p=0.000 n=8)
-    geomean                   1.566µ        535.5n       -65.80%
-    
-                         │ gcmx8.cpu1.out │          gcmx8.new.cpu1.out           │
-                         │      B/s       │      B/s       vs base                │
-    AESGCM/Open-128-64       338.1Mi ± 0%    399.8Mi ± 1%   +18.27% (p=0.000 n=8)
-    AESGCM/Seal-128-64       366.1Mi ± 0%    414.6Mi ± 0%   +13.28% (p=0.000 n=8)
-    AESGCM/Open-256-64       313.1Mi ± 0%    389.7Mi ± 0%   +24.47% (p=0.000 n=8)
-    AESGCM/Seal-256-64       332.3Mi ± 0%    388.5Mi ± 0%   +16.93% (p=0.000 n=8)
-    AESGCM/Open-128-1350     727.6Mi ± 0%   2832.8Mi ± 0%  +289.33% (p=0.000 n=8)
-    AESGCM/Seal-128-1350     732.0Mi ± 0%   2837.8Mi ± 0%  +287.70% (p=0.000 n=8)
-    AESGCM/Open-256-1350     611.9Mi ± 0%   2552.6Mi ± 0%  +317.18% (p=0.000 n=8)
-    AESGCM/Seal-256-1350     615.3Mi ± 0%   2559.6Mi ± 0%  +315.97% (p=0.000 n=8)
-    AESGCM/Open-128-8192     777.1Mi ± 0%   3983.5Mi ± 0%  +412.63% (p=0.000 n=8)
-    AESGCM/Seal-128-8192     777.3Mi ± 0%   3975.9Mi ± 0%  +411.47% (p=0.000 n=8)
-    AESGCM/Open-256-8192     646.7Mi ± 0%   3500.6Mi ± 0%  +441.27% (p=0.000 n=8)
-    AESGCM/Seal-256-8192     647.3Mi ± 0%   3491.1Mi ± 0%  +439.30% (p=0.000 n=8)
-    geomean                  542.7Mi         1.550Gi       +192.42%
-    
-    Change-Id: I3600831a263ec8a99b5e3bdd495eb36e966d8075
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484575
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I71774ad0197ce654dc56c2fa2fa12f1e6696382e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448395
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/crypto/aes/gcm_ppc64x.go |  32 +--
- src/crypto/aes/gcm_ppc64x.s  | 519 ++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 521 insertions(+), 30 deletions(-)
+ src/net/netip/inlining_test.go |  3 ---
+ src/net/netip/netip.go         |  5 -----
+ src/net/netip/uint128.go       | 11 -----------
+ 3 files changed, 19 deletions(-)

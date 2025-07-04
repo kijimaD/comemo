@@ -1,14 +1,12 @@
-commit 8dc0ba7ae57df78e28ce031dfd0a1521d318fed2
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Fri Apr 8 13:45:56 2011 -0400
+commit 68ed122bf98c912fbd04fd8599106851725e8e06
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 8 13:42:20 2011 -0400
 
-    io: fixes for Read with n > 0, os.EOF
+    bug327: document what's being tested
     
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4271080
+    https://golang.org/cl/4380043
 
- src/pkg/io/io.go      | 20 ++++++++++----------
- src/pkg/io/io_test.go | 33 ++++++++++++++++++++++++++++-----
- src/pkg/io/multi.go   |  6 ++----
- 3 files changed, 40 insertions(+), 19 deletions(-)
+ test/fixedbugs/bug327.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

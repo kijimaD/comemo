@@ -1,15 +1,19 @@
-commit 59934e7ebb25c31647154a559cd2480376ee70cd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jul 1 14:18:03 2018 -0700
+commit cd3aae9b815389a5e2f05066beffdf9678534325
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Mar 14 11:07:06 2018 +0100
 
-    cmd/go: add -flat_namespace to LDFLAGS whitelist
+    test/codegen: port all small memmove tests to codegen
     
-    Fixes #26173
+    This change ports all the remaining tests checking that small memmoves
+    are replaced with MOVs to the new codegen test harness, and deletes
+    them from the asm_test file.
     
-    Change-Id: I032551f63b359c8cbb7296931e1957d2bff8f328
-    Reviewed-on: https://go-review.googlesource.com/121819
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I01c94b441e27a5d61518035af62d62779dafeb56
+    Reviewed-on: https://go-review.googlesource.com/100476
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/security.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/asm_test.go | 50 ---------------------------------
+ test/codegen/movesmall.go               | 25 +++++++++++++++--
+ 2 files changed, 23 insertions(+), 52 deletions(-)

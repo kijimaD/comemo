@@ -1,12 +1,50 @@
-commit 32d1e46058ce94d1959812ede5a51142bb36263f
+commit 8f699a3fb9e5a947e66a5fc962ca5b70631e871c
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 28 12:00:45 2011 -0400
+Date:   Wed Sep 28 12:00:31 2011 -0400
 
-    json: use strings.EqualFold instead of strings.ToLower.
+    regexp: speedups
     
-    R=golang-dev, bradfitz, iant
+    MatchEasy0_1K        500000        4207 ns/op   243.35 MB/s
+    MatchEasy0_1K_Old    500000        4625 ns/op   221.40 MB/s
+    MatchEasy0_1M           500     3948932 ns/op   265.53 MB/s
+    MatchEasy0_1M_Old       500     3943926 ns/op   265.87 MB/s
+    MatchEasy0_32K        10000      122974 ns/op   266.46 MB/s
+    MatchEasy0_32K_Old    10000      123270 ns/op   265.82 MB/s
+    MatchEasy0_32M           10   127265400 ns/op   263.66 MB/s
+    MatchEasy0_32M_Old       10   127123500 ns/op   263.95 MB/s
+    MatchEasy1_1K        500000        5637 ns/op   181.63 MB/s
+    MatchEasy1_1K_Old     10000      100690 ns/op    10.17 MB/s
+    MatchEasy1_1M           200     7683150 ns/op   136.48 MB/s
+    MatchEasy1_1M_Old        10   145774000 ns/op     7.19 MB/s
+    MatchEasy1_32K        10000      239887 ns/op   136.60 MB/s
+    MatchEasy1_32K_Old      500     4508182 ns/op     7.27 MB/s
+    MatchEasy1_32M           10   247103500 ns/op   135.79 MB/s
+    MatchEasy1_32M_Old        1  4660191000 ns/op     7.20 MB/s
+    MatchMedium_1K        10000      160567 ns/op     6.38 MB/s
+    MatchMedium_1K_Old    10000      158367 ns/op     6.47 MB/s
+    MatchMedium_1M           10   162928000 ns/op     6.44 MB/s
+    MatchMedium_1M_Old       10   159699200 ns/op     6.57 MB/s
+    MatchMedium_32K         500     5090758 ns/op     6.44 MB/s
+    MatchMedium_32K_Old     500     5005800 ns/op     6.55 MB/s
+    MatchMedium_32M           1  5233973000 ns/op     6.41 MB/s
+    MatchMedium_32M_Old       1  5109676000 ns/op     6.57 MB/s
+    MatchHard_1K          10000      249087 ns/op     4.11 MB/s
+    MatchHard_1K_Old       5000      364569 ns/op     2.81 MB/s
+    MatchHard_1M              5   256050000 ns/op     4.10 MB/s
+    MatchHard_1M_Old          5   372446400 ns/op     2.82 MB/s
+    MatchHard_32K           200     7944525 ns/op     4.12 MB/s
+    MatchHard_32K_Old       100    11609380 ns/op     2.82 MB/s
+    MatchHard_32M             1  8144503000 ns/op     4.12 MB/s
+    MatchHard_32M_Old         1 11885434000 ns/op     2.82 MB/s
+    
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5127043
+    https://golang.org/cl/5134049
 
- src/pkg/json/decode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/regexp/exec.go             | 72 +++++++++++++++++++++-----------
+ src/pkg/regexp/exec_test.go        | 85 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/regexp/regexp.go           | 12 +++++-
+ src/pkg/regexp/syntax/compile.go   | 11 +++++
+ src/pkg/regexp/syntax/prog.go      | 23 ++++++++++-
+ src/pkg/regexp/syntax/prog_test.go | 30 +++++++-------
+ 6 files changed, 191 insertions(+), 42 deletions(-)

@@ -1,12 +1,26 @@
-commit 7d21123995e2fd6d450660ed4f52762528a440fa
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Jun 15 20:02:44 2017 +0200
+commit 42a915c933e44784e70c9e61e4fe77c133580895
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 20 15:01:20 2017 -0700
 
-    doc: fix typo in go1.9 release notes
+    cmd/internal/obj: convert Debug* Link fields into bools
     
-    Change-Id: I64d32fd308f2b7968dfaf11cdc85ab1952170868
-    Reviewed-on: https://go-review.googlesource.com/45891
+    Change-Id: I9ac274dbfe887675a7820d2f8f87b5887b1c9b0e
+    Reviewed-on: https://go-review.googlesource.com/38383
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.9.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/main.go                 |  2 +-
+ src/cmd/compile/internal/gc/main.go | 10 ++++++----
+ src/cmd/internal/obj/arm/asm5.go    |  2 +-
+ src/cmd/internal/obj/arm/obj5.go    |  4 ++--
+ src/cmd/internal/obj/arm64/asm7.go  |  4 ++--
+ src/cmd/internal/obj/arm64/obj7.go  |  2 +-
+ src/cmd/internal/obj/link.go        |  6 +++---
+ src/cmd/internal/obj/mips/asm0.go   |  2 +-
+ src/cmd/internal/obj/mips/obj0.go   |  4 ++--
+ src/cmd/internal/obj/objfile.go     |  2 +-
+ src/cmd/internal/obj/plist.go       |  4 ++--
+ src/cmd/internal/obj/ppc64/asm9.go  |  2 +-
+ src/cmd/internal/obj/ppc64/obj9.go  |  2 +-
+ src/cmd/internal/obj/s390x/objz.go  |  2 +-
+ 14 files changed, 25 insertions(+), 23 deletions(-)

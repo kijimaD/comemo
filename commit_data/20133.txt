@@ -1,15 +1,14 @@
-commit 4516a60062f54e2b76d9dd53590120d5c368f24c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 25 18:45:29 2014 -0400
+commit 53056c37c2e3720666742f516ef148432313e28a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 11:49:36 2014 +0400
 
-    liblink: introduce way to avoid pc-relative addressing
+    cmd/gc: fix heap buffer overflow
+    Fixes #8528.
     
-    For Solaris. Sigh.
-    
-    LGTM=dave
-    R=aram, iant, dave
+    LGTM=rsc
+    R=rsc, r, iant, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/129540043
+    https://golang.org/cl/128230045
 
- src/liblink/asm6.c | 35 +++++++++++++++++++++++++++++++----
- 1 file changed, 31 insertions(+), 4 deletions(-)
+ src/cmd/gc/bv.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

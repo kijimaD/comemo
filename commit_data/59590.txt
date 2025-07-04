@@ -1,22 +1,17 @@
-commit 1972493904b41a34e35a1f62b18f5d91d84a26bd
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon May 19 15:31:37 2025 -0400
+commit 3f90ba7f1f0ecb230105ad1068ffdc3c2f9a8a97
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Wed Mar 27 23:09:23 2024 +0100
 
-    cmd/doc: show page for the requested object
+    go/ast: more godoc links
     
-    This fixes a bug where we start pkgsite for every requested object,
-    rather than the one that we would have printed the documentation for.
-    To make things simple, we'll run the logic that prints the
-    documentation, but with an io.Discard writer. Then we can tell if the
-    documentation was found based on the return values of those functions.
-    
-    For #68106
-    
-    Change-Id: Ibf2ab1720f381d7214fc9239b9c2e915c91f7f7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674555
+    Change-Id: I1290ad66d3c758c3b89caf0a217cb3d5358c5dd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574696
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/doc/main.go | 23 ++++++++++++++++-------
- 1 file changed, 16 insertions(+), 7 deletions(-)
+ src/go/ast/ast.go   | 9 ++++++---
+ src/go/ast/print.go | 4 ++--
+ src/go/ast/scope.go | 4 ++--
+ 3 files changed, 10 insertions(+), 7 deletions(-)

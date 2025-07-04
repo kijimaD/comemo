@@ -1,21 +1,18 @@
-commit e3e885bb481731370573e99ac20fd93ed652ae9a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Dec 1 14:49:54 2012 +0900
+commit 253ed02918f2909de500ca36d4867a87877666f6
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Nov 30 11:41:50 2012 -0800
 
-    net: allow "" as a hint wildcard to Resolve{IP,UDP,TCP}Addr
+    net: update docs and sync API for Plan 9
     
-    Also fixes comments on ResolveIPAddr.
-    
-    Fixes #4476.
-    
-    R=bradfitz, golang-dev
+    R=golang-dev, dave, mikioh.mikioh, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6854129
+    https://golang.org/cl/6674043
 
- src/pkg/net/ipraw_test.go | 3 +++
- src/pkg/net/iprawsock.go  | 6 ++++--
- src/pkg/net/tcp_test.go   | 3 +++
- src/pkg/net/tcpsock.go    | 2 ++
- src/pkg/net/udp_test.go   | 3 +++
- src/pkg/net/udpsock.go    | 2 ++
- 6 files changed, 17 insertions(+), 2 deletions(-)
+ src/pkg/net/file_plan9.go      |  4 +--
+ src/pkg/net/iprawsock_plan9.go | 64 ++---------------------------------------
+ src/pkg/net/net.go             | 12 ++++++++
+ src/pkg/net/sock_posix.go      | 12 --------
+ src/pkg/net/tcpsock_plan9.go   |  4 +--
+ src/pkg/net/udpsock_plan9.go   | 11 +++----
+ src/pkg/net/unixsock_plan9.go  | 65 ++----------------------------------------
+ 7 files changed, 27 insertions(+), 145 deletions(-)

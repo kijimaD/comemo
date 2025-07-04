@@ -1,32 +1,40 @@
-commit 79ca434ac608d0817a5807d1c7b2138912ed55ce
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Sep 7 17:08:56 2023 -0700
+commit 167c8b73bf92bdfed147e53b030331ac9260e0f6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 11 10:52:42 2023 -0400
 
-    testing: add Chdir
+    net/http/fcgi: eliminate goroutine leaks in tests
     
-    Some tests need to use os.Chdir, but the use is complicated because
-     - they must change back to the old working directory;
-     - they must not use t.Parallel.
+    Also fix a (minor) double-Close error in Serve that was exposed by the
+    test fix.
     
-    Add Chdir that covers these cases, and sets PWD environment variable
-    to the new directory for the duration of the test for Unix platforms.
-    Unify the panic message when t.Parallel is used together with t.Setenv
-    or t.Chdir.
+    Serve accepts a net.Listener, which produces net.Conn instances.
+    The documentation for net.Conn requires its methods to be safe for
+    concurrent use, so most implementations likely allow Close to be
+    called multiple times as a side effect of making it safe to call
+    concurrently with other methods. However, the net.Conn interface is a
+    superset of the io.Closer interface, io.Closer explicitly leaves the
+    behavior of multiple Close calls undefined, and net.Conn does not
+    explicitly document a stricter requirement.
     
-    Add some tests.
+    Perhaps more importantly, the test for the fcgi package calls
+    unexported functions that accept an io.ReadWriteCloser (not a
+    net.Conn), and at least one of the test-helper ReadWriteCloser
+    implementations expects Close to be called only once.
     
-    For #62516.
+    The goroutine leaks were exposed by a racy arbitrary timeout reported
+    in #61271. Fixing the goroutine leak exposed the double-Close error:
+    one of the leaked goroutines was blocked on reading from an unclosed
+    pipe. Closing the pipe (to unblock the goroutine) triggered the second
+    Close call.
     
-    Change-Id: Ib050d173b26eb28a27dba5a206b2d0d877d761c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529895
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Fixes #61271.
+    
+    Change-Id: I5cfac8870e4bb4f13adeee48910d165dbd4b76fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508815
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/62516.txt                          |   4 +
- doc/next/6-stdlib/99-minor/testing/62516.md |   2 +
- src/testing/export_test.go                  |   2 +
- src/testing/testing.go                      |  95 ++++++++++++----
- src/testing/testing_test.go                 | 171 ++++++++++++++++++++++------
- 5 files changed, 221 insertions(+), 53 deletions(-)
+ src/net/http/fcgi/fcgi.go      | 13 +++++++---
+ src/net/http/fcgi/fcgi_test.go | 57 +++++++++++++++++++++---------------------
+ 2 files changed, 38 insertions(+), 32 deletions(-)

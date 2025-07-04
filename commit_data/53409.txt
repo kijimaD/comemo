@@ -1,17 +1,21 @@
-commit 01e703c2f6bcdc02d95e37b8f6bf21ff2c91196d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed May 31 17:12:58 2023 -0400
+commit 4a4e206884c64397c0b62e58be876f457b4cd477
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 15 09:58:30 2022 +0700
 
-    doc/go1.21: mention improvement to C-to-Go calls
+    test: fix issue53702.go for noopt builder
     
-    For #51676.
-    For #58645.
+    The test requires inlining happens.
     
-    Change-Id: I9045051b5a25c6dfc833eef13e6c105a0d8ae763
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499716
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Updates #53702
+    
+    Change-Id: I0d93b5e29e271ace4098307b74c40c0e06d975e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423834
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- doc/go1.21.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ test/run.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

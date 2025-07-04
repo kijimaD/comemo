@@ -1,13 +1,30 @@
-commit 23aefcd9aee4ad7fe3d4139c60fc773b0ae23953
+commit e6ad24cde71e15ef078963bdd1b992c0b68e563e
+Merge: 431e071eed c8aec4095e
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 9 16:45:27 2018 -0500
+Date:   Fri Sep 22 14:27:50 2017 -0400
 
-    doc/go1.10: fix more TODOs
+    [dev.boringcrypto] all: merge go1.9 into dev.boringcrypto
     
-    Change-Id: I7be69a543841343a6ccbb335c7277009528fa0da
-    Reviewed-on: https://go-review.googlesource.com/87024
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Previously we were at Go 1.9 rc2.
+    
+    Change-Id: I9bea028d7078676b0f1f1408e45e7e1d5e349d23
 
- doc/go1.10.html | 47 +++++++++++++++++++++++++++--------------------
- 1 file changed, 27 insertions(+), 20 deletions(-)
+ doc/contrib.html                                   |   1 +
+ doc/devel/release.html                             |   9 +-
+ doc/go1.9.html                                     |  11 +-
+ doc/install-source.html                            |   4 +-
+ src/cmd/compile/internal/gc/go.go                  |   4 +
+ src/cmd/compile/internal/gc/ssa.go                 |   4 +
+ src/cmd/compile/internal/gc/testdata/arithConst.go | 680 +++++++++++++++++++++
+ .../internal/gc/testdata/gen/arithConstGen.go      |   2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   2 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  41 ++
+ src/cmd/compile/internal/x86/387.go                |   4 +-
+ src/cmd/dist/deps.go                               |  18 +-
+ src/runtime/pprof/pprof_test.go                    |  35 +-
+ src/runtime/profbuf.go                             |   2 +-
+ src/runtime/proflabel.go                           |  17 +-
+ src/runtime/race/output_test.go                    |  21 +
+ src/runtime/sys_linux_386.s                        |   2 +-
+ src/testing/testing.go                             |   3 +-
+ 18 files changed, 826 insertions(+), 34 deletions(-)

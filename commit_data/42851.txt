@@ -1,23 +1,25 @@
-commit 234e37bcda2b5efdd685ad11d1bb3d336415648e
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Aug 11 13:21:14 2020 -0400
+commit 638df87fa4f927763f99ebf0c6bc9c4a5380d1f9
+Author: vovapi <evgrafov.vladimir@gmail.com>
+Date:   Thu Feb 20 19:29:22 2020 +0000
 
-    go/types: remove need to enumerate fixedbugs test files
+    hash/maphash: don't discard data on random seed init
     
-    This is a port of CL 244628, updated to move some existing regression
-    tests into the fixedbugs directory, and to use subtests. Also,
-    'TestFixed' is renamed to 'TestFixedBugs'.
+    Hash initializes seed on the first usage of seed or state with initSeed.
+    initSeed uses SetSeed which discards accumulated data.
+    This causes hash to return different sums for the same data in the first use
+    and after reset.
+    This CL fixes this issue by separating the seed set from data discard.
     
-    Change-Id: I43aac3f75f2bd850567d08e8b008d91aeb717064
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247904
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Fixes #37315
+    
+    Change-Id: Ic7020702c2ce822eb700af462e37efab12f72054
+    GitHub-Last-Rev: 48b2f963e86c1b37d49b838a050cc4128bb01266
+    GitHub-Pull-Request: golang/go#37328
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220259
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/check_test.go                         | 32 ++++++++++++++++++----
- .../types/{testdata => fixedbugs}/issue23203a.src  |  0
- .../types/{testdata => fixedbugs}/issue23203b.src  |  0
- .../types/{testdata => fixedbugs}/issue26390.src   |  2 ++
- .../types/{testdata => fixedbugs}/issue28251.src   |  0
- src/go/types/{testdata => fixedbugs}/issue6977.src |  0
- 6 files changed, 28 insertions(+), 6 deletions(-)
+ src/hash/maphash/maphash.go      |  9 +++++++--
+ src/hash/maphash/maphash_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 2 deletions(-)

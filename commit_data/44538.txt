@@ -1,17 +1,13 @@
-commit 44721f4565858526545c69b4846daeea40843a98
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Mar 4 22:31:43 2021 +0700
+commit 5c9b540378ed81fd45cc13f0a610bb29140e28ff
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jul 30 18:00:56 2020 -0400
 
-    test: enable "-d=panic" by default for errorcheck*
+    [dev.link] cmd/internal/goobj: delete old object file reader
     
-    Fixes #43311
-    
-    Change-Id: I134d6c0524c198998a3c093dd3a8144052e8f7a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298715
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ieebab205e2cea2b4665c830b7424d543812787ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246441
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- test/run.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/internal/goobj/read.go | 205 +----------------------------------------
+ 1 file changed, 2 insertions(+), 203 deletions(-)

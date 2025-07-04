@@ -1,15 +1,18 @@
-commit 566d432f54b4692b20a09317293e80e41d9bd3da
+commit 5626bd9e383f692c4f52049a6a5ba4b7785fa6f9
 Author: Adam Langley <agl@golang.org>
-Date:   Sat Feb 5 13:55:37 2011 -0500
+Date:   Sat Feb 5 13:54:25 2011 -0500
 
-    asn1: marshal true as 255, not 1.
+    crypto/tls: load a chain of certificates from a file.
     
-    OS X, at least, appears to test |byte == 255|, not |byte != 0| to
-    establish if a bool is true or false.
+    Many recently issued certificates are chained: there's one or more
+    intermediate certificates between the host certificate and the root CA
+    certificate. This change causes the code to load any number of
+    certificates from the certificate file. This matches the behaviour of
+    common webservers, and the output of OpenSSL's command line tools.
     
-    R=golang-dev, r
+    R=golang-dev, r2
     CC=golang-dev
-    https://golang.org/cl/4128064
+    https://golang.org/cl/4119057
 
- src/pkg/asn1/marshal.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/tls/tls.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

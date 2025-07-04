@@ -1,16 +1,14 @@
-commit ac2a1f8796101459a1700d02093745ffe1c821f4
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Aug 11 12:49:40 2020 -0400
+commit 7ee3b63c8bab7d1e6d3b8df21a465aecd2e08447
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 7 10:55:35 2020 -0800
 
-    go/types: clean up test support code and remove global variables
+    runtime: mark testCallersEqual as a test helper
     
-    This is a straightforward port of CL 244627.
-    
-    Change-Id: Ide980957430b35e22a6e22818b0ce9de410988af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247902
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I25e6fb733618b0a7af8adc69be85f3503810acf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213658
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/types/stdlib_test.go | 51 ++++++++++++++++++++++++++-------------------
- 1 file changed, 29 insertions(+), 22 deletions(-)
+ src/runtime/callers_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

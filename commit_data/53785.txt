@@ -1,26 +1,26 @@
-commit 598958f0f247fa24b8ed4dfcd454a1958f212666
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 26 11:08:03 2023 -0700
+commit f45c2d7e47e6dcfb69876092037257562813cc37
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 2 13:32:40 2022 +0700
 
-    maps: remove Keys and Values
+    go/types,types2: move notinheap tests to fixedbugs directory
     
-    Preserve the names in case we want them to return an iterator.
-    Keep the efficient runtime implementations for now,
-    as we will probably want them under some name, perhaps KeysSlice
-    and ValuesSlice.
+    So they can be added to ignored list, since the tests now require
+    cgo.Incomplete, which is not recognized by go/types and types2.
     
-    Fixes #61538
+    Updates #46731
     
-    Change-Id: I6b03010bf071fb4531cb2f967dad46425962fcb8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513476
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I9f24e3c8605424d1f5f42ae4409437198f4c1326
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427142
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- api/go1.21.txt        |   2 -
- src/maps/maps.go      |  28 --------------
- src/maps/maps_test.go | 100 --------------------------------------------------
- 3 files changed, 130 deletions(-)
+ src/cmd/compile/internal/types2/stdlib_test.go | 2 ++
+ src/go/types/stdlib_test.go                    | 2 ++
+ test/{ => fixedbugs}/notinheap.go              | 0
+ test/{ => fixedbugs}/notinheap2.go             | 0
+ test/{ => fixedbugs}/notinheap3.go             | 0
+ test/run.go                                    | 2 +-
+ 6 files changed, 5 insertions(+), 1 deletion(-)

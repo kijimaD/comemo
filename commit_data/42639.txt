@@ -1,18 +1,17 @@
-commit f92337422ef2ca27464c198bb3426d2dc4661653
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Aug 1 12:55:47 2020 -0700
+commit 845a91dc491095e042020a60143e86eedc4cfd91
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jan 29 17:18:13 2020 -0500
 
-    runtime/race: fix ppc64le build
+    doc/go1.14: edit "Go command" section, move zone CPU cap note
     
-    The .syso test also fails for ppc64le. Not sure why. For now, just
-    disable the test for that architecture. The test really only needs to
-    run on a single builder of any arch.
+    Minor edits to text on go command changes.
     
-    Change-Id: I346cdc01ada09d43c4c504fbc30be806f59d5422
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246358
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Also, moved a note about runtime respecting zone CPU caps from
+    Native Client section to Runtime section.
+    
+    Change-Id: Ic21e59d7ffecb4b5676a841e7f3743203a82d266
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216878
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/race/syso_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/go1.14.html | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)

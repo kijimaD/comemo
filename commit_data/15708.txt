@@ -1,15 +1,19 @@
-commit 019754ed4036f9ddc7514c78548fe77a606464db
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 12 00:29:36 2013 -0400
+commit 864278ad90383182456feb79df3cd62fe4f9cf4d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 11 18:51:01 2013 -0700
 
-    encoding/xml: fix spurious "no semicolon" in error
+    net/http: bit more docs on Client vs Transport
     
-    Noticed while doing other XML investigations.
+    This isn't as bad as it used to be, but add a bit
+    more detail to close the issue.
     
-    R=golang-dev, r
+    Fixes #3359
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7550045
+    https://golang.org/cl/7606044
 
- src/pkg/encoding/xml/xml.go      |  2 +-
- src/pkg/encoding/xml/xml_test.go | 13 ++++---------
- 2 files changed, 5 insertions(+), 10 deletions(-)
+ src/pkg/net/http/client.go    | 12 ++++++++----
+ src/pkg/net/http/response.go  |  3 +++
+ src/pkg/net/http/transport.go | 23 ++++++++++++++++++-----
+ 3 files changed, 29 insertions(+), 9 deletions(-)

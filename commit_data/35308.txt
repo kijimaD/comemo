@@ -1,24 +1,26 @@
-commit cc0aaff40e02192356ccb65d8acf571d12f74a95
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon May 7 18:10:39 2018 -0400
+commit dce0eb2dd294536ec7f774fdde8ff3cefa2dab63
+Merge: 924ef1c8ea 1dcb5836ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 7 10:37:00 2018 -0500
 
-    cmd/compile: fix Wasm rule file name
+    [release-branch.go1.10] all: merge master into release-branch.go1.10, for go1.10rc2
     
-    The rule generator expects the rule file name matches the arch's
-    name defined in
-    https://go.googlesource.com/go/+/b1df8d6ffa2c4c5be567934bd44432fff8f3c4a7/src/cmd/compile/internal/ssa/gen/WASMOps.go#197
+    This adds the go get security fix.
     
-    Rename the file to match. Also rename WASMOps.go for consistency.
+    * 1dcb5836 cmd/go: accept only limited compiler and linker flags in #cgo directives
     
-    Fixes #25282.
-    
-    Change-Id: I35c4bb2659fe67650933eb0ebf95778974511385
-    Reviewed-on: https://go-review.googlesource.com/111975
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib2caf2039d2cefabe3afa0bb4dcc4c0dc8d664ff
 
- src/cmd/compile/internal/ssa/gen/{WASM.rules => Wasm.rules} | 0
- src/cmd/compile/internal/ssa/gen/{WASMOps.go => WasmOps.go} | 0
- 2 files changed, 0 insertions(+), 0 deletions(-)
+ misc/cgo/errors/src/err1.go               |   2 +-
+ src/cmd/cgo/doc.go                        |  16 +-
+ src/cmd/compile/internal/gc/noder.go      |  16 ++
+ src/cmd/dist/build.go                     |   2 +-
+ src/cmd/go/alldocs.go                     |  31 ++--
+ src/cmd/go/go_test.go                     | 151 ++++++++++++++++++-
+ src/cmd/go/internal/envcmd/env.go         |   7 +-
+ src/cmd/go/internal/help/helpdoc.go       |  31 ++--
+ src/cmd/go/internal/load/pkg.go           |  94 ++++++++++--
+ src/cmd/go/internal/work/exec.go          |  90 +++++++++--
+ src/cmd/go/internal/work/security.go      | 160 ++++++++++++++++++++
+ src/cmd/go/internal/work/security_test.go | 240 ++++++++++++++++++++++++++++++
+ 12 files changed, 780 insertions(+), 60 deletions(-)

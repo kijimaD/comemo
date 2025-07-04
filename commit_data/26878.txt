@@ -1,18 +1,14 @@
-commit 24fc3234428e138e693584185fab4146de6088db
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Mon Apr 11 17:35:55 2016 +0300
+commit 998aaf8a64b7d90269815a2ae9d778da519d0a87
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 1 20:54:58 2016 +1100
 
-    cmd/internal/obj: split plist flushing from object writing
+    cmd/vet: add a README explaining the criteria for new checks
     
-    Only splits into separate files, no other changes.
+    Correctness, Frequency, Precision.
     
-    Change-Id: Icc0da2c5f18e03e9ed7c0043bd7c790f741900f2
-    Reviewed-on: https://go-review.googlesource.com/21804
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7f202c220aef8512d611dc04a4370b4a237f217c
+    Reviewed-on: https://go-review.googlesource.com/20003
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/link.go    |  21 ----
- src/cmd/internal/obj/objfile.go | 187 ----------------------------------
- src/cmd/internal/obj/plist.go   | 218 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 218 insertions(+), 208 deletions(-)
+ src/cmd/vet/README | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

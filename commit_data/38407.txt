@@ -1,21 +1,25 @@
-commit f6695a15e15713cdac16978837d8b01ef4999279
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 13 20:06:37 2019 -0400
+commit 6a6cbb995c915a0edc0d0e95130b746ef7f8815a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 9 17:03:48 2018 -0400
 
-    crypto/x509: move debug prints to standard error
+    cmd/go/internal/modload: use vendorMap in findModule
     
-    Standard output is reserved for actual program output.
-    Debug print should be limited in general (here they are
-    enabled by an environment variable) and always go to
-    standard error.
+    The build list is very incomplete in vendor mode,
+    so we can't rely on it in general.
+    findModule may be called in modload.PackageModuleInfo, which
+    load.LoadImport invokes relatively early during a build.
     
-    Came across by accident.
+    Before this change, the accompanying test failed at 'go build
+    -mod=vendor' with the message:
     
-    Change-Id: I1490be71473520f049719572b3acaa0ea9f9e5c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167502
-    Run-TryBot: Russ Cox <rsc@golang.org>
+            build diamondpoint: cannot find module for path diamondpoint
+    
+    Change-Id: I5e667d8e406872be703510afeb079f6cbfdbd3c8
+    Reviewed-on: https://go-review.googlesource.com/c/140861
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/x509/root_darwin.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/modload/build.go      |  4 +++
+ src/cmd/go/testdata/script/mod_vendor.txt | 48 +++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)

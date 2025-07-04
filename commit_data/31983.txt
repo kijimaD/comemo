@@ -1,14 +1,18 @@
-commit bb3be403e79731b208c41bd170a6a87642d988da
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Dec 15 06:19:49 2016 +0900
+commit 3f4f119b5e5a48c558c2b318b32f036e1062b108
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 28 15:01:18 2017 -0700
 
-    net: clarify the length limit for service name
+    cmd/compile/internal/gc: npos(p, nod(o, l, r)) -> nodl(p, o, l, r)
     
-    Change-Id: If5495f66d175bdacebd599abf1e064d2343669c2
-    Reviewed-on: https://go-review.googlesource.com/34430
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Prepared with gofmt -r.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I8a4f7a8c365dfe464dfc5868a18c67d56af37749
+    Reviewed-on: https://go-review.googlesource.com/38739
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 50 +++++++++++++++++-----------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

@@ -1,23 +1,22 @@
-commit b18b05881691861c4279a50010829150f1684fa9
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Dec 4 10:17:34 2023 -0800
+commit 0b3f58c48e3298e49e27f80dc748f0652339d63e
+Author: hopehook <hopehook@qq.com>
+Date:   Tue Jan 3 16:23:16 2023 +0800
 
-    crypto/x509: gate Policies marshaling with GODEBUG
+    bytes, strings: add ContainsFunc
     
-    Use a GODEBUG to choose which certificate policy field to use. If
-    x509usepolicies=1 is set, use the Policies field, otherwise use the
-    PolicyIdentifiers field.
+    Fixes #54386.
     
-    Fixes #64248
-    
-    Change-Id: I3f0b56102e0bac4ebe800497717c61c58ef3f092
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546916
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I78747da337ed6129e4f7426dd0483a644bed82e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460216
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- doc/godebug.md                 |  9 +++++++++
- src/crypto/x509/x509.go        | 42 +++++++++++++++++++++++++++++++++--------
- src/crypto/x509/x509_test.go   | 43 ++++++++++++++++++++++++++++++++++++++++++
- src/internal/godebugs/table.go |  1 +
- src/runtime/metrics/doc.go     |  5 +++++
- 5 files changed, 92 insertions(+), 8 deletions(-)
+ api/next/54386.txt          |  2 ++
+ src/bytes/bytes.go          |  5 +++++
+ src/bytes/bytes_test.go     | 11 +++++++++++
+ src/strings/strings.go      |  5 +++++
+ src/strings/strings_test.go | 11 +++++++++++
+ 5 files changed, 34 insertions(+)

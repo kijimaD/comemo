@@ -1,21 +1,23 @@
-commit e351a1600514b6a4ae18c4b44e883b049c314ebd
-Author: Ben Shi <powerman1st@163.com>
-Date:   Tue Jul 24 03:47:39 2018 +0000
+commit cd682f3832629e600e497c4a9b37209f4aeed5dc
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Sat Mar 24 18:07:58 2018 +0200
 
-    cmd/internal/obj/arm64: reject incorrect form of LDP/STP
+    runtime: improve Windows gdb tests
     
-    "LDP (R0), (F0, F1)" and "STP (F1, F2), (R0)" are
-    silently accepted by the arm64 assembler without
-    any error message. And this CL fixes that bug.
+    This ensures that gdb tests run on Windows by ignoring any line ending.
     
-    fixes #26556.
+    Works with gdb 7.7, however with gdb 7.9 and 7.12 gets an error
+    error:
     
-    Change-Id: Ib6fae81956deb39a4ffd95e9409acc8dad3ab2d2
-    Reviewed-on: https://go-review.googlesource.com/125637
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+        internal-error: buildsym_init: Assertion `free_pendings == NULL'
+        failed.
+    
+    Updates #21380
+    
+    Change-Id: I6a6e5b2a1b5efdca4dfce009fcb9c134c87497d6
+    Reviewed-on: https://go-review.googlesource.com/102419
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/arm64error.s |  2 ++
- src/cmd/internal/obj/arm64/asm7.go             | 10 ++++++++++
- 2 files changed, 12 insertions(+)
+ src/runtime/runtime-gdb_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

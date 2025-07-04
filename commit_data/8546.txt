@@ -1,14 +1,21 @@
-commit c4206cb231e02380b68f6e954014cdf3533196d5
-Author: Alexey Borzenkov <snaury@gmail.com>
-Date:   Tue May 31 10:11:47 2011 -0400
+commit 463f478dbb2a502b265c08e0eff1b3334a1bfcf9
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon May 30 22:28:59 2011 -0300
 
-    runtime: save cdecl registers in Windows SEH handler
+    filepath: Abs must always return a clean path
     
-    Fixes #1779
+    When I was first coding Abs, I wondered if people wouldn't
+    expect the path to be consistently clean, even if the path
+    passed in was already absolute.
     
-    R=golang-dev, rsc
+    CL 4524078 has a potential problem based on exactly that
+    assumption, so it feels like this behavior is indeed the
+    most useful and least surprising.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4566041
+    https://golang.org/cl/4548074
 
- src/pkg/runtime/windows/386/sys.s | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/pkg/path/filepath/path.go      | 2 +-
+ src/pkg/path/filepath/path_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

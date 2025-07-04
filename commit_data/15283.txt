@@ -1,35 +1,14 @@
-commit 6d888f1e1b81bd2545e5da710d37a5a0ddce71d5
+commit 0c3b17a55aebb2f9ea481269b67a2a0099674101
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 15 13:37:43 2013 -0800
+Date:   Fri Feb 15 14:48:58 2013 -0500
 
-    build: clang support
+    runtime: allow mem profiles with GOGC=off
     
-    This works with at least one version of clang
-    that existed at one moment in time.
-    No guarantees about clangs past or future.
+    Fixes #3586.
     
-    To try:
-            CC=clang all.bash
-    
-    It does not work with the Xcode clang,
-    because that clang fails at printing a useful answer
-    to:
-            clang -print-libgcc-file-name
-    The clang that works prints a full path name for
-    that command, not just "libgcc.a".
-    
-    Fixes #4713.
-    
-    R=iant, minux.ma
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7323068
+    https://golang.org/cl/7304098
 
- include/libc.h            |  2 +-
- misc/cgo/testso/test.bash |  2 +-
- src/cmd/cgo/gcc.go        | 34 +++++++++++++++++++++++---------
- src/cmd/dist/build.c      |  8 ++++++--
- src/cmd/go/build.go       | 50 +++++++++++++++++++++++++++--------------------
- src/cmd/go/env.go         |  1 +
- src/make.bash             |  5 ++++-
- src/run.bash              |  8 ++++++--
- 8 files changed, 73 insertions(+), 37 deletions(-)
+ src/pkg/runtime/mprof.goc | 34 ++++++++++++++++++++++++++++------
+ 1 file changed, 28 insertions(+), 6 deletions(-)

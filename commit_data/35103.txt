@@ -1,24 +1,22 @@
-commit 70c5839fe0e2149d505c0e28c42e133d4bc01503
-Author: quasilyte <quasilyte@gmail.com>
-Date:   Sat Apr 14 12:17:09 2018 +0300
+commit 94d7c884c38561dba467feef3acf6ada50713e59
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 21:46:03 2017 -0500
 
-    cmd/internal/obj/x86: forbid mem args for MOV_DR and MOV_CR
+    testing: do not crash when m.Run is called twice and -test.testlogfile is used
     
-    Memory arguments for debug/control register moves are a
-    minefield for programmer: not useful, but can lead to errors.
+    Tests exist that call m.Run in a loop‽
+    Now we have one too.
     
-    See referenced issue for detailed explanation.
+    Fixes #23129.
     
-    Fixes #24981
-    
-    Change-Id: I918e81cd4a8b1dfcfc9023cdfc3de45abe29e749
-    Reviewed-on: https://go-review.googlesource.com/107075
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: I8cbecb724f239ae14ad45d75e67d12c80e41c994
+    Reviewed-on: https://go-review.googlesource.com/83956
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/386enc.s         | 10 ++++
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 10 ++++
- src/cmd/asm/internal/asm/testdata/amd64error.s     | 21 +++++++
- src/cmd/internal/obj/x86/asm6.go                   | 68 +++++++++++-----------
- 4 files changed, 75 insertions(+), 34 deletions(-)
+ src/cmd/go/go_test.go                               | 12 ++++++++++++
+ src/cmd/go/testdata/src/multimain/multimain_test.go | 16 ++++++++++++++++
+ src/testing/internal/testdeps/deps.go               | 18 +++++++++++++-----
+ src/testing/testing.go                              | 19 ++++++++++++++++++-
+ 4 files changed, 59 insertions(+), 6 deletions(-)

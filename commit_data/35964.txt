@@ -1,17 +1,20 @@
-commit 33c7f88eafde1a15b8c60e208d526b436cc6d02e
-Author: Keith Rarick <kr@xph.us>
-Date:   Wed Jul 11 23:08:21 2018 -0700
+commit c0ce2925bd975f24d9983d596d84e6b2145cb43a
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Mar 25 22:36:33 2018 +0530
 
-    time: fix typo in Truncate example
+    net/http: use top-level font media type
     
-    The existing example code uses variable name d, but
-    prints t in its output. It's needlessly confusing.
+    RFC 8081 declares a top level font media type for all types of fonts.
+    Updating the mime types in sniffer to reflect the new changes.
     
-    Change-Id: I67bef3c732e84d2d89819f96b4b62663630fd69e
-    Reviewed-on: https://go-review.googlesource.com/123516
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #24524
+    
+    Change-Id: Iba6cef4c5974e9930e14705720d42550ee87ba56
+    Reviewed-on: https://go-review.googlesource.com/102458
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/example_test.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/net/http/sniff.go      | 10 +++++-----
+ src/net/http/sniff_test.go | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)

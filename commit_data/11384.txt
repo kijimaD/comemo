@@ -1,12 +1,14 @@
-commit 2355d18e3cc781c9e61208db7ac0bec6a8ebea87
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 25 15:26:19 2012 -0500
+commit ceb59b069e0dfa54be9d57ece3c966da737d8be9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 25 14:46:10 2012 -0500
 
-    gofix: add -debug flag for quicker diagnosis of internal errors
+    codereview: more fixes
     
-    R=rsc, r
+    Python and Mercurial are a matched pair.
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5564055
+    https://golang.org/cl/5570065
 
- src/cmd/gofix/main.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ lib/codereview/codereview.py | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

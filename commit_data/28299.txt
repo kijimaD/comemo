@@ -1,26 +1,17 @@
-commit fca3dd3718080563f4bc6c4c8b6fbe681a1602fa
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Sep 10 14:04:46 2016 +1000
+commit a71584975dedd4f4975d65047ec7660191a49613
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Thu May 12 15:00:10 2016 +0300
 
-    syscall: avoid convT2I allocs for ERROR_IO_PENDING instead of WSAEINPROGRESS
+    reflect: fix vet warnings
     
-    CL 28484 mistakenly assumed that WSARecv returns WSAEINPROGRESS
-    when there is nothing to read. But the error is ERROR_IO_PENDING.
-    Fix that mistake.
+    Updated #11041
     
-    I was about to write a test for it. But I have found
-    TestTCPReadWriteAllocs in net package that does nearly what I need,
-    but was conveniently disabled. So enable and extend the test.
-    
-    Fixes #16988
-    
-    Change-Id: I55e5cf8998a9cf29e92b398d702280bdf7d6fc85
-    Reviewed-on: https://go-review.googlesource.com/28990
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4a110ba8fefb367a1049b4a65dd20c39eb890ea2
+    Reviewed-on: https://go-review.googlesource.com/23080
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/tcpsock_test.go          | 29 +++++++++++++++++++++++++----
- src/syscall/mksyscall_windows.go | 10 +++-------
- src/syscall/zsyscall_windows.go  | 10 +++-------
- 3 files changed, 31 insertions(+), 18 deletions(-)
+ src/reflect/all_test.go | 8 ++++----
+ src/reflect/type.go     | 1 -
+ 2 files changed, 4 insertions(+), 5 deletions(-)

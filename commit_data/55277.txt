@@ -1,17 +1,25 @@
-commit 4daf924f6323c735ae4ff3d731c5e825fc632c2d
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Dec 12 10:52:57 2023 -0800
+commit f85c282a18bbe7197ba645fff58ba5e0065962ca
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Jan 25 12:48:54 2023 -0500
 
-    doc/go1.22: remove reference to #60107
+    internal/testpty: fix error handling
     
-    This was implemented in Go 1.21.
+    When calling a c library function, you discover that an error has
+    occurred, typically by looking at the return value of the function. Only
+    after that can you use errno to figure out the cause of the error.
     
-    Change-Id: Ic434670938589f10f367b1f893c4427e6f0b991c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549196
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Nothing about cgo changes that story -- you still have to look at the
+    result before checking the error that represents errno. If not you can
+    get false errors if the function happens to leak a non-zero errno.
+    
+    Fix testpty to check errors correctly.
+    
+    Change-Id: Idb95f8dd6a8ed63f653190c2e722e742cf50542b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463397
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.22.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/internal/testpty/pty_cgo.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

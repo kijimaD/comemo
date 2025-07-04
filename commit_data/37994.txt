@@ -1,16 +1,21 @@
-commit 8827147932314ab623cc65e071c5b48b2d76e37b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 19 13:53:39 2019 -0500
+commit fdefabadf0a2cb99accb2afe49eafce0eaeb53a7
+Author: Vladimir Varankin <vladimir@varank.in>
+Date:   Sat Sep 22 22:49:45 2018 +0000
 
-    cmd/nm: fix testGoLib helper to be module-agnostic
+    net/http: use Header.clone rather then duplicating functionality
     
-    Updates #30228
+    cloneHeader duplicates what Header.clone() method is doing. It's
+    used in a single place, which can be replaced with the use of the
+    method.
     
-    Change-Id: I3c7864e6725312df5ec978cdc130ccfe8fc2e738
-    Reviewed-on: https://go-review.googlesource.com/c/162836
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6e8bbd6c95063f31ca3695f13fa7478873230525
+    GitHub-Last-Rev: eb08aeae9b4257df5cf08d6d30903ddeec6b6242
+    GitHub-Pull-Request: golang/go#27817
+    Reviewed-on: https://go-review.googlesource.com/136762
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/nm/nm_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/net/http/client.go |  2 +-
+ src/net/http/header.go | 10 ----------
+ 2 files changed, 1 insertion(+), 11 deletions(-)

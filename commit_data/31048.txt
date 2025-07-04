@@ -1,18 +1,18 @@
-commit 315858371337af5898307136d142f9457f6d0c1c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 7 14:38:54 2017 -0700
+commit d7cabd40dd92e5364969273229373d515bee14e8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 17 11:40:04 2017 -0800
 
-    cmd/compile/internal/types: remove Cmptmp
+    [dev.typealias] go/types: clarified doc string
     
-    It's unused and redundant with types.Type.Compare.
+    Also: removed internal TODO and added better comment
     
-    Change-Id: I8d93473e9cee61650cb0c19a402316a3d418160e
-    Reviewed-on: https://go-review.googlesource.com/40011
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #18644.
+    
+    Change-Id: I3e3763d3afdad6937173cdd32fc661618fb60820
+    Reviewed-on: https://go-review.googlesource.com/35245
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/main.go     |   1 -
- src/cmd/compile/internal/gc/types.go    | 186 --------------------------------
- src/cmd/compile/internal/types/utils.go |   2 -
- 3 files changed, 189 deletions(-)
+ src/go/types/object.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

@@ -1,17 +1,28 @@
-commit 64214792e214bbacb8c00ffea92a7131e30fa59e
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 8 15:59:00 2016 -0700
+commit 6f59ccb052534f3293e9e0b0e02f35578901ef3c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jan 15 14:57:41 2016 +0900
 
-    cmd/compile: allow unsafe.Pointer(nil) as static data
+    runtime: don't always unblock all signals on dragonfly, freebsd and openbsd
     
-    Fixes #16306
+    https://golang.org/cl/10173 intrduced msigsave, ensureSigM and
+    _SigUnblock but didn't enable the new signal save/restore mechanism for
+    SIG{HUP,INT,QUIT,ABRT,TERM} on DragonFly BSD, FreeBSD and OpenBSD.
     
-    Change-Id: If8e2f411fe9a5a5c198f10765fee7261ba8feaf2
-    Reviewed-on: https://go-review.googlesource.com/24836
-    Run-TryBot: Keith Randall <khr@golang.org>
+    At present, it looks like they have the implementation. This change
+    enables the new mechanism on DragonFly BSD, FreeBSD and OpenBSD the same
+    as Darwin, NetBSD.
+    
+    Change-Id: Ifb4b4743b3b4f50bfcdc7cf1fe1b59c377fa2a41
+    Reviewed-on: https://go-review.googlesource.com/18657
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go |  2 +-
- test/fixedbugs/issue16306.go         | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ misc/cgo/test/cgo_linux_test.go                        |  9 ++++-----
+ misc/cgo/test/cgo_unix_test.go                         |  1 +
+ misc/cgo/test/{sigprocmask_linux.c => sigprocmask.c}   |  2 ++
+ misc/cgo/test/{sigprocmask_linux.go => sigprocmask.go} |  4 +++-
+ src/runtime/signal_dragonfly.go                        | 14 +++++++-------
+ src/runtime/signal_freebsd.go                          | 14 +++++++-------
+ src/runtime/signal_openbsd.go                          | 14 +++++++-------
+ 7 files changed, 31 insertions(+), 27 deletions(-)

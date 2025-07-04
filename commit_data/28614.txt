@@ -1,21 +1,19 @@
-commit e4dafa32620e80e4e39937d8e2033fb2ee6085f8
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Sep 30 16:54:54 2016 -0700
+commit ccd9a55609fcc8814146a7c61898b47e3a7aea7d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jun 11 19:36:17 2016 +0900
 
-    crypto/x509: fix name constraints handling.
+    os: use waitid to avoid wait/kill race on darwin
     
-    This change brings the behaviour of X.509 name constraints into line
-    with NSS[1]. In this area, the behavior specified by the RFC and by NIST
-    differs and this code follows the NIST behaviour.
+    This change is a followup to https://go-review.googlesource.com/23967
+    for Darwin.
     
-    [1] https://github.com/servo/nss/blob/master/lib/certdb/genname.c
+    Updates #13987.
+    Updates #16028.
     
-    Fixes #16347, fixes #14833.
-    
-    Change-Id: I5acd1970041291c2e3936f5b1fd36f2a0338e613
-    Reviewed-on: https://go-review.googlesource.com/30155
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib1fb9f957fafd0f91da6fceea56620e29ad82b00
+    Reviewed-on: https://go-review.googlesource.com/24020
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/verify.go      | 34 ++++++++++++++++++++++++++++------
- src/crypto/x509/verify_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 6 deletions(-)
+ src/os/wait_unimp.go                     | 2 +-
+ src/os/{wait_linux.go => wait_waitid.go} | 9 +++++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)

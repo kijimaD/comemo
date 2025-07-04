@@ -1,22 +1,14 @@
-commit 1535727e57f633a0570faa5016b8f34053760b71
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Aug 6 18:37:34 2013 -0700
+commit a4ebad79b4168cdf395b245f8e3c8bb3c985daf9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 7 09:35:06 2013 +1000
 
-    net/http: do not send redundant Connection: close header in HTTP/1.0 responses
-    
-    HTTP/1.0 connections are closed implicitly, unless otherwise specified.
-    
-    Note that this change does not test or fix "request too large" responses.
-    Reasoning: (a) it complicates tests and fixes, (b) they should be rare,
-    and (c) this is just a minor wire optimization, and thus not really worth worrying
-    about in this context.
-    
-    Fixes #5955.
+    all: fix up language in a couple of comments
+    Leftovers from 11699043
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12435043
+    https://golang.org/cl/12558046
 
- src/pkg/net/http/serve_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/server.go     |  8 ++++--
- 2 files changed, 64 insertions(+), 2 deletions(-)
+ src/pkg/go/ast/ast.go        | 2 +-
+ src/pkg/html/template/css.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

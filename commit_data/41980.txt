@@ -1,18 +1,15 @@
-commit 843453d09e1a4dc9631056e9e3f4199f87106a48
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 16 16:49:10 2020 -0700
+commit 6cbd737c8e4a5aa5a8e85895c5ee6ff53a358622
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 18 23:16:16 2019 -0700
 
-    cmd/compile: fix misassumption about n.Left.Bounded()
+    runtime/pprof: update example comment to check error on Close
     
-    n.Bounded() is overloaded for multiple meanings based on n.Op. We
-    can't safely use n.Left.Bounded() without checking n.Left.Op.
+    Programs should always check the error return of Close for a file opened
+    for writing. Update the example code in the comment to mention this.
     
-    Change-Id: I71fe4faa24798dfe3a5705fa3419a35ef93b0ce2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228677
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I2ff6866ff1fe23b47c54268ac8e182210cc876c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202137
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/pprof/pprof.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

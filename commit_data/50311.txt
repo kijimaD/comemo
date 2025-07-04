@@ -1,25 +1,17 @@
-commit 4e7e7ae1406c70d9cc0809ec11105a55a60a0b70
-Author: Eliza Weisman <eliza@buoyant.io>
-Date:   Wed Aug 31 19:16:18 2022 +0000
+commit 640a49b8d45760b7c965fc1529dffc8e000cc846
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Oct 15 15:05:36 2021 -0700
 
-    net/http: don't time out idle server connections after ReadHeaderTimeout
+    test: add a test for parameterized embedded field
     
-    Consistently wait for idle connections to become readable before
-    starting the ReadHeaderTimeout timer. Previously, connections with no
-    idle timeout skipped directly to reading headers, so the
-    ReadHeaderTimeout also included time spent idle.
+    Make sure that an embedded field like "MyStruct[T]" works and can be
+    referenced via the name MyStruct.
     
-    Fixes #54784
-    
-    Change-Id: Iff1a876f00311d03dfa0fbef5b577506c62f7c41
-    GitHub-Last-Rev: 09332743ad6d5a9eb1137adaade2810c583d38ca
-    GitHub-Pull-Request: golang/go#54785
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426895
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: I8be1f1184dd42c4e54e4144aff2fd85e30af722f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356312
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/serve_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     | 14 ++++++++++---
- 2 files changed, 63 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/typecheck/subr.go |  3 --
+ test/typeparam/genembed2.go                | 46 ++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 3 deletions(-)

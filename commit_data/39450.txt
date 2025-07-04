@@ -1,35 +1,24 @@
-commit 4ea7aa7cf3755533634904d934c89f93d461d642
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Jun 25 14:48:04 2019 -0400
+commit 9d40fadb1c3245a318b155ee3e19a4de139401dc
+Author: lukechampine <luke.champine@gmail.com>
+Date:   Thu Feb 28 19:03:18 2019 +0000
 
-    cmd/compile, runtime: use R20, R21 in ARM64's Duff's devices
+    fmtsort: sort interfaces deterministically
     
-    Currently we use R16 and R17 for ARM64's Duff's devices.
-    According to ARM64 ABI, R16 and R17 can be used by the (external)
-    linker as scratch registers in trampolines. So don't use these
-    registers to pass information across functions.
+    Previously, the result of sorting a map[interface{}] containing
+    multiple concrete types was non-deterministic. To ensure consistent
+    results, sort first by type name, then by concrete value.
     
-    It seems unlikely that calling Duff's devices would need a
-    trampoline in normal cases. But it could happen if the call
-    target is out of the 128 MB direct jump limit.
+    Fixes #30398
     
-    The choice of R20 and R21 is kind of arbitrary. The register
-    allocator allocates from low-numbered registers. High numbered
-    registers are chosen so it is unlikely to hold a live value and
-    forces a spill.
-    
-    Fixes #32773.
-    
-    Change-Id: Id22d555b5afeadd4efcf62797d1580d641c39218
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183842
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I10fd4b6a74eefbc87136853af6b2e689bc76ae9d
+    GitHub-Last-Rev: 1b07f0c275716e1b2834f74f9c67f897bae82882
+    GitHub-Pull-Request: golang/go#30406
+    Reviewed-on: https://go-review.googlesource.com/c/163745
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/arm64/ggen.go       |   6 +-
- src/cmd/compile/internal/arm64/ssa.go        |   2 +-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  16 +-
- src/cmd/compile/internal/ssa/opGen.go        |  10 +-
- src/cmd/internal/obj/arm64/a.out.go          |   4 +-
- src/runtime/duff_arm64.s                     | 384 +++++++++++++--------------
- src/runtime/mkduff.go                        |  18 +-
- 7 files changed, 220 insertions(+), 220 deletions(-)
+ src/internal/fmtsort/sort.go      |  2 +-
+ src/internal/fmtsort/sort_test.go | 42 +++++++++++++++++++++++++++++++++++----
+ 2 files changed, 39 insertions(+), 5 deletions(-)

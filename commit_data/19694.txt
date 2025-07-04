@@ -1,19 +1,26 @@
-commit 9c3141145a4bb241bef6d3aec5d332451d6d63c7
+commit 0a2083edd7a31f2248da1cdaca6e39466a9fb05b
 Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Wed Jul 9 12:34:06 2014 +0200
+Date:   Wed Jul 9 12:33:13 2014 +0200
 
-    syscall: use the nsec system call instead of /dev/bintime on Plan 9
+    debug/plan9obj, cmd/addr2line: on Plan 9 use a.out header
+    size instead of abusing text symbol
     
-    Also remove arch-specific Go files in the Plan 9 syscall package
+    cmd/addr2line needs to know the virtual address of the start
+    of the text segment (load address plus header size). For
+    this, it used the text symbol added by the linker. This is
+    wrong on amd64. Header size is 40 bytes, not 32 like on 386
+    and arm. Function alignment is 16 bytes causing text to be
+    at 0x200030.
+    
+    debug/plan9obj now exports both the load address and the
+    header size; cmd/addr2line uses this new information and
+    doesn't rely on text anymore.
     
     LGTM=0intro
-    R=0intro, dave
-    CC=ality, golang-codereviews, jas, mischief, rsc
-    https://golang.org/cl/112720043
+    R=0intro, gobot, ality
+    CC=ality, golang-codereviews, jas, mischief
+    https://golang.org/cl/106460044
 
- src/pkg/syscall/syscall_plan9.go       | 29 +++++-------
- src/pkg/syscall/syscall_plan9_386.go   | 32 -------------
- src/pkg/syscall/syscall_plan9_amd64.go | 14 ------
- src/pkg/syscall/zsysnum_plan9_386.go   | 82 +++++++++++++++++----------------
- src/pkg/syscall/zsysnum_plan9_amd64.go | 83 +++++++++++++++++-----------------
- 5 files changed, 96 insertions(+), 144 deletions(-)
+ src/cmd/addr2line/main.go      |  6 +-----
+ src/pkg/debug/plan9obj/file.go | 27 +++++++++++++++------------
+ 2 files changed, 16 insertions(+), 17 deletions(-)

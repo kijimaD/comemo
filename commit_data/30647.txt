@@ -1,14 +1,31 @@
-commit 0fd6df352205e2781ab34349527cf677b6c1283f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Nov 7 10:28:46 2016 -0800
+commit d0b3c169acda68040d051c27627c08da4e3377bd
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 4 11:13:27 2016 -0400
 
-    cmd/compile: simplify printing of constant bools
+    cmd/trace: fix goroutine view
     
-    Change-Id: I9339e83e39075826bf5819e55804a94208fe84ae
-    Reviewed-on: https://go-review.googlesource.com/38140
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently, trace processing interleaves state/statistics updates and
+    emitting trace viewer objects. As a result, if events are being
+    filtered, either by time or by goroutines, we'll miss those
+    state/statistics updates. At best, this leads to bad statistics;
+    however, since we're now strictly checking G state transitions, it
+    usually leads to a failure to process the trace if there is any
+    filtering.
+    
+    Fix this by separating state updates from emitting trace object. State
+    updates are done before filtering, so we always have correct state
+    information and statistics. Trace objects are only emitted if we pass
+    the filter. To determine when we need to emit trace counters, rather
+    than duplicating the knowledge of which events might modify
+    statistics, we keep track of the previously emitted counters and emit
+    a trace counter object whenever these have changed.
+    
+    Fixes #17719.
+    
+    Change-Id: Ic66e3ddaef60d1acaaf2ff4c62baa5352799cf99
+    Reviewed-on: https://go-review.googlesource.com/32810
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/trace/trace.go      | 143 +++++++++++++++++++++++++-------------------
+ src/cmd/trace/trace_test.go |  39 ++++++++++++
+ 2 files changed, 121 insertions(+), 61 deletions(-)

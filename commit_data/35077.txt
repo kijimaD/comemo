@@ -1,14 +1,12 @@
-commit f6ca6eddaa0ce78093094b3485aa21669c6c76b4
-Author: Aman Gupta <aman@tmm1.net>
-Date:   Tue Apr 17 14:28:00 2018 -0700
+commit 2fb9fe48c63ed0b7eee36d0d8c2d494ad70602b0
+Author: Stanislav Afanasev <php.progger@gmail.com>
+Date:   Mon Dec 11 23:45:19 2017 +0300
 
-    net: document caveats for (*syscall.RawConn).Write on Windows
+    doc/contrib.html: fix outdated link
     
-    Change-Id: I6e1fa67dc9d4d151c90eb19a6f736e4daa7d4fb3
-    Reviewed-on: https://go-review.googlesource.com/107615
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6d94a14a781a2fbeb90db35ae3490ce2ac5f8ed1
+    Reviewed-on: https://go-review.googlesource.com/83315
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/poll/fd_windows.go | 10 ++++++----
- src/net/rawconn.go              |  6 ++++++
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ doc/contrib.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

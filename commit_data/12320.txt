@@ -1,15 +1,13 @@
-commit 9316070419ac6fd732d4d163c11585e90dbc6099
+commit 9996f7f17adca8af6b34c4df6870e88d289a65a9
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 1 18:26:53 2012 -0500
+Date:   Thu Mar 1 18:17:28 2012 -0500
 
-    go/build: document GOPATH
+    doc: describe API changes to go/build
     
-    Fixes #2332.
-    
-    R=golang-dev, remyoudompheng, gri, r, r
+    R=golang-dev, gri, r
     CC=golang-dev
-    https://golang.org/cl/5710055
+    https://golang.org/cl/5711059
 
- src/cmd/go/help.go        |  3 +++
- src/pkg/go/build/build.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 51 insertions(+), 1 deletion(-)
+ doc/go1.html | 16 ++++++++++++++++
+ doc/go1.tmpl | 16 ++++++++++++++++
+ 2 files changed, 32 insertions(+)

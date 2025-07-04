@@ -1,23 +1,30 @@
-commit 9f66b41beea82cc613cad9138c10a50f2b3ea137
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Jun 16 01:22:07 2018 +0200
+commit af4d60428f6dc5eab10b6de23235f61cceee8bc3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 11 12:09:18 2018 +1000
 
-    cmd/compile: avoid implicit bounds checks after explicit checks for append
+    internal/poll: specify current file position when calling TransmitFile
     
-    The generated code for the append builtin already checks if the appended
-    to slice is large enough and calls growslice if that is not the case.
-    Trust that this ensures the slice is large enough and avoid the
-    implicit bounds check when slicing the slice to its new size.
+    Current SendFile implementation assumes that TransmitFile starts from
+    the current file position. But that appears not true for Windows 10
+    Version 1803.
     
-    Removes 365 panicslice calls (-14%) from the go binary which
-    reduces the binary size by ~12kbyte.
+    TransmitFile documentation
     
-    Change-Id: I1b88418675ff409bc0b956853c9e95241274d5a6
-    Reviewed-on: https://go-review.googlesource.com/c/119315
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    https://msdn.microsoft.com/en-us/library/windows/desktop/ms740565(v=vs.85).aspx
+    
+    suggests, "You can use the lpOverlapped parameter to specify a 64-bit
+    offset within the file at which to start the file data transfer by
+    setting the Offset and OffsetHigh member of the OVERLAPPED structure."
+    
+    Do as it advises.
+    
+    Fixes #25722
+    
+    Change-Id: I241d3bf76d0d5590d4df27c6f922d637068232fb
+    Reviewed-on: https://go-review.googlesource.com/117816
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go  | 22 ++++++++++++----------
- src/cmd/compile/internal/gc/walk.go |  3 +++
- 2 files changed, 15 insertions(+), 10 deletions(-)
+ src/internal/poll/sendfile_windows.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

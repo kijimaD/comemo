@@ -1,13 +1,16 @@
-commit 1a761fd002ccdfb2bb0a24362247895052c105f5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 8 16:12:21 2012 +1100
+commit 7201ba2171a9b15d3de3f705335d37afc7e7c85a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 7 23:46:47 2012 -0500
 
-    A+C: add Andrew Pritchard (Individual CLA)
+    regexp: allow substitutions in Replace, ReplaceString
+    Add Expand, ExpandString for access to the substitution functionality.
     
-    R=golang-dev, dsymonds
+    Fixes #2736.
+    
+    R=r, bradfitz, r, rogpeppe, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5646049
+    https://golang.org/cl/5638046
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/regexp/all_test.go |  88 +++++++++++++-
+ src/pkg/regexp/regexp.go   | 280 +++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 304 insertions(+), 64 deletions(-)

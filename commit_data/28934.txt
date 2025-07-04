@@ -1,26 +1,27 @@
-commit 5378dd77684e2eee5f05aab4b77497bb635fd544
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 19 09:11:16 2016 -0400
+commit 659dd4f1d7ed4e040d32346fa18c4ae3311ed81a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 16 14:17:33 2016 -0400
 
-    text/template: add support for reflect.Value args, results in funcs
+    cmd/compile: add more ARM64 optimizations
     
-    Add support for passing reflect.Values to and returning reflect.Values from
-    any registered functions in the FuncMap, much as if they were
-    interface{} values. Keeping the reflect.Value instead of round-tripping
-    to interface{} preserves addressability of the value, which is important
-    for method lookup.
+    - Use machine instructions for uint64<->float conversions
+    - Do not enforce alignment on Zero/Move
+            ARM64 supports unaligned load/stores, but only aligned offset
+            or small offset can be encoded into instructions.
+    - Do combined loads
     
-    Change index and a few other built-in functions to use reflect.Values,
-    making a loop using explicit indexing now match the semantics that
-    range has always had.
-    
-    Fixes #14916.
-    
-    Change-Id: Iae1a2fd9bb426886a7fcd9204f30a2d6ad4646ad
-    Reviewed-on: https://go-review.googlesource.com/31462
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iffca7dd0f13070b17b784861ce5a30af584680eb
+    Reviewed-on: https://go-review.googlesource.com/27086
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/text/template/exec.go      | 28 ++++++++++++---
- src/text/template/exec_test.go | 23 ++++++++++++
- src/text/template/funcs.go     | 81 +++++++++++++++++++++---------------------
- 3 files changed, 88 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/arm64/prog.go         |   69 +-
+ src/cmd/compile/internal/arm64/ssa.go          |   51 +-
+ src/cmd/compile/internal/gc/ssa.go             |   13 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  435 +++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |    7 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |    4 +
+ src/cmd/compile/internal/ssa/opGen.go          |   68 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |   12 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 2462 ++++++++++++++++--------
+ src/cmd/internal/obj/arm64/asm7.go             |    7 +-
+ 10 files changed, 2167 insertions(+), 961 deletions(-)

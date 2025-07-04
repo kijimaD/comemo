@@ -1,13 +1,12 @@
-commit bda36cf3abbba9ce5163404b00cf55f192f59c21
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 18 11:34:19 2011 -0700
+commit 975ba88e0e6c0de73d9c80de67013256be75b49e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 18 14:08:12 2011 -0400
 
-    fmt: fix minor documentation nits
+    cgo: use packed struct to fix Windows behavior
     
-    R=r, rsc
+    R=golang-dev, mattn.jp, jcowgar, iant
     CC=golang-dev
-    https://golang.org/cl/4556041
+    https://golang.org/cl/4535080
 
- src/pkg/fmt/doc.go   | 2 +-
- src/pkg/fmt/print.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/cgo/out.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

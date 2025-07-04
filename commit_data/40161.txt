@@ -1,21 +1,12 @@
-commit 72dc9ab1919e9fac9f3e63a109232cd79a050255
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Sun Oct 6 23:03:28 2019 -0700
+commit 3d6316623205c48935aec18bedb0c70c703600a7
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Tue Apr 23 14:16:05 2019 +0200
 
-    cmd/compile: reuse dead register before reusing register holding constant
+    A: Add Maya Rashish (individual CLA)
     
-    For commuting ops, check whether the second argument is dead before
-    checking if the first argument is rematerializeable. Reusing the register
-    holding a dead value is always best.
-    
-    Fixes #33580
-    
-    Change-Id: I7372cfc03d514e6774d2d9cc727a3e6bf6ce2657
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199559
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I1380229c250a6100dc7e0bcf59be8df425a3efac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173399
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 24 +++++++++++-------------
- test/codegen/issue33580.go               | 25 +++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 13 deletions(-)
+ AUTHORS | 1 +
+ 1 file changed, 1 insertion(+)

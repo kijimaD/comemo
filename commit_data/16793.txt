@@ -1,25 +1,18 @@
-commit a83748596c009db47bcd35a69531e485e2c7f924
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 17 12:47:18 2013 -0400
+commit 85a7c090c4f831b6d29556c36bbe0a6cd8e8da6d
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Jul 17 11:04:34 2013 +0200
 
-    runtime: use new frame argument size information
+    cmd/8g: Make clearfat non-interleaved with pointer calculations.
     
-    With this CL, I believe the runtime always knows
-    the frame size during the gc walk. There is no fallback
-    to "assume entire stack frame of caller" anymore.
+    clearfat (used to zero initialize structures) will use AX for x86 block ops. If we write to AX while calculating the dest pointer, we will fill the structure with incorrect values.
+    Since 64-bit arithmetic uses AX to synthesize a 64-bit register, getting an adress by indexing with 64-bit ops can clobber the register.
     
-    R=golang-dev, khr, cshapiro, dvyukov
+    Fixes #5820.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/11374044
+    https://golang.org/cl/11383043
 
- src/pkg/runtime/arch_386.h      |  3 +-
- src/pkg/runtime/arch_amd64.h    |  3 +-
- src/pkg/runtime/arch_arm.h      |  3 +-
- src/pkg/runtime/panic.c         |  7 ++-
- src/pkg/runtime/proc.c          |  9 ++++
- src/pkg/runtime/runtime.h       |  1 +
- src/pkg/runtime/softfloat_arm.c |  5 ++-
- src/pkg/runtime/symtab.c        | 62 +++++++++++++++++---------
- src/pkg/runtime/traceback_arm.c | 96 ++++++++++++++++++++++++-----------------
- src/pkg/runtime/traceback_x86.c | 80 ++++++++++++++++++++++------------
- 10 files changed, 177 insertions(+), 92 deletions(-)
+ src/cmd/8g/ggen.c           |  2 +-
+ test/fixedbugs/issue5820.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

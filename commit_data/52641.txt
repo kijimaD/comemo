@@ -1,38 +1,39 @@
-commit f58c6cccc44752146aabcd50a30865e34817a4b4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 12 12:41:45 2023 -0700
+commit 08d6c4c2b96eb3e5012af9b346dc5b325e956844
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 13 15:30:03 2022 +0000
 
-    cmd/compile: fix reproducible build of aliased generic types
+    runtime: account for idle mark time in the GC CPU limiter
     
-    Due to a missing "&& !alias" check, the unified linker was treating
-    type aliases the same as defined types for the purpose of exporting
-    method bodies. The methods will get exported anyway alongside the
-    aliased type, so this mistake is normally harmless.
+    Currently the GC CPU limiter doesn't account for idle application time
+    at all. This means that the GC could start thrashing, for example if the
+    live heap exceeds the max heap set by the memory limit, but the limiter
+    will fail to kick in when there's a lot of available idle time. User
+    goroutines will still be assisting at a really high rate because of
+    assist pacing rules, but the GC CPU limiter will fail to kick in because
+    the actual fraction of GC CPU time will be low if there's a lot of
+    otherwise idle time (for example, on an overprovisioned system).
     
-    However, if multiple type aliases instantiated the same generic type
-    but with different type arguments, this could result in the
-    same (generic) method body being exported multiple times under
-    different symbol names. Further, because bodies aren't expected to be
-    exported multiple times, we were sorting them simply based on index.
-    And consequently, the sort wasn't total and is sensitive to the map
-    iteration order used while ranging over linker.bodies.
+    Luckily, that idle time is usually eaten up entirely by idle mark
+    workers, at least during the GC cycle. And in these cases where we're
+    GCing continuously, that's all of our idle time. So we can take idle
+    mark work time and subtract it from the mutator time accumulated in the
+    GC CPU limiter, and that will give us a more accurate picture of how
+    much CPU is being spent by user goroutines on GC. This will allow the GC
+    CPU limiter to kick in, and reduce the impact of the thrashing.
     
-    The fix is simply to add the missing "&& !alias" check, so that we
-    don't end up with duplicate bodies in the first place.
+    There is a corner case here if the idle mark workers are disabled, for
+    example for the periodic GC, but in the case of the periodic GC, I don't
+    think it's possible for us to be thrashing at all, so it doesn't really
+    matter.
     
-    Thanks rsc@ for providing a minimal repro case.
+    Fixes #52890.
     
-    Fixes #59571.
-    
-    Change-Id: Iaa55968cc7110b601e2f0f9b620901c2d55f7014
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484155
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie133a7d1f89b603434b415d51eb8733c2708a858
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405898
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/noder/linker.go        |  2 +-
- src/cmd/go/testdata/script/build_issue59571.txt | 40 +++++++++++++++++++++++++
- 2 files changed, 41 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go      |  7 ++++++-
+ src/runtime/mgclimit.go | 38 +++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 43 insertions(+), 2 deletions(-)

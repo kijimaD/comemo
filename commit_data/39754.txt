@@ -1,28 +1,37 @@
-commit 2afe9d4dece86f523dc9e75696bffa158dcbd976
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed Jul 31 14:33:57 2019 +0200
+commit ca36af215f78b670000b31e7573f0fcf0c5de594
+Author: Keith Randall <khr@google.com>
+Date:   Fri Jan 4 17:34:33 2019 -0800
 
-    runtime: don't forward SIGPIPE on macOS
+    cmd/compile: better write barrier removal when initializing new objects
     
-    macOS and iOS deliver SIGPIPE signals to the main thread and not
-    the thread that raised it by writing to a closed socket or pipe.
+    When initializing a new object, we're often writing
+    1) to a location that doesn't have a pointer to a heap object
+    2) a pointer that doesn't point to a heap object
     
-    SIGPIPE signals can be suppressed for sockets with the SO_NOSIGPIPE
-    option, but there is no similar option for pipes. We have no other
-    choice but to never forward SIGPIPE on macOS.
+    When both those conditions are true, we can avoid the write barrier.
     
-    This is a fixup of reverted CL 188297.
+    This CL detects case 1 by looking for writes to known-zeroed
+    locations.  The results of runtime.newobject are zeroed, and we
+    perform a simple tracking of which parts of that object are written so
+    we can determine what part remains zero at each write.
     
-    Fixes #33384
+    This CL detects case 2 by looking for addresses of globals (including
+    the types and itabs which are used in interfaces) and for nil pointers.
     
-    Change-Id: I09b258b078857ad3b22025bc2902d1b12d2afd92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191785
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Makes cmd/go 0.3% smaller. Some particular cases, like the slice
+    literal in #29573, can get much smaller.
+    
+    TODO: we can remove actual zero writes also with this mechanism.
+    
+    Update #29573
+    
+    Change-Id: Ie74a3533775ea88da0495ba02458391e5db26cb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/156363
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/testcarchive/carchive_test.go | 34 +++++++++++++++++++++++--------
- misc/cgo/testcarchive/testdata/main2.c | 37 ++++++++++++++++++++--------------
- misc/cgo/testcarchive/testdata/main3.c | 21 +++++++++++++++++++
- src/runtime/signal_unix.go             |  7 +++++++
- 4 files changed, 76 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go         |   3 +-
+ src/cmd/compile/internal/ssa/writebarrier.go | 127 ++++++++++++++++++++++++---
+ test/writebarrier.go                         |  28 ++++++
+ 3 files changed, 145 insertions(+), 13 deletions(-)

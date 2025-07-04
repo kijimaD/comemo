@@ -1,18 +1,14 @@
-commit c1c3ce6b36bd4324f17b422d6127ae6d5dd7bae4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jan 9 13:03:55 2015 -0800
+commit 7ef59e4ed8c2bc4d79d1a40ece6e262677214ace
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 14:33:27 2015 -0500
 
-    cmd/6g: allocate fewer new registers in sgen
+    runtime: rename float64 constants to avoid name space pollution
     
-    When possible, generate nodl/nodr directly into DI/SI
-    rather than going through a temporary register.
+    Otherwise, if you mistakenly refer to an undeclared 'shift' variable, you get 52.
     
-    CX has already been saved; use it during trailing bytes cleanup.
-    
-    Change-Id: I4ec6209bcc5d3bfdc927c5c132009bd8d791ada3
-    Reviewed-on: https://go-review.googlesource.com/2608
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I845fb29f23baee1d8e17b37bde0239872eb54316
+    Reviewed-on: https://go-review.googlesource.com/2909
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/6g/cgen.c | 30 +++++++++++++++++++-----------
- 1 file changed, 19 insertions(+), 11 deletions(-)
+ src/runtime/sqrt.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

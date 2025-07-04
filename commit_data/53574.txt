@@ -1,34 +1,32 @@
-commit 2b0ff4b629cc86139e719b92e5fc94950c19b5c7
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jun 8 18:40:31 2023 +0000
+commit 9f0f87c806b7a11b2cb3ebcd02eac57ee389c43a
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu May 5 07:46:05 2022 +0000
 
-    reflect: fix ArenaNew to match documentation
+    cmd/internal/obj/arm64: remove the transition from $0 to ZR
     
-    Currently ArenaNew expects the type passed in to be a *T and it returns
-    a *T. This does not match the function's documentation.
+    Previously we convert $0 to the ZR register for some reasons, which causes
+    two problems:
+    1. Confusion, the special case of the ZR register needs to be considered
+    when dealing with constants. For encoding, some places we encode ZR, and
+    some places we encode $0, although we have converted $0 to ZR.
+    2. Unexpected instruction format. All instructions that support ZR register
+    operands can be replaced by $0.
     
-    Since this is an experiment, change ArenaNew to match the documentation.
-    This more closely aligns ArenaNew with arena.New. (Takes a type T,
-    returns a *T value.)
+    This patch removes this conversion. Note that this patch may cause previously
+    unintendedly supported instruction formats to no longer be supported.
     
-    Note that this is a breaking change. However, as far as pkg.go.dev can
-    tell, there's exactly one package using it in the open source world.
-    
-    Also, add smoke test for the exported API, which is just a wrapper
-    around the internal API. Clearly there's enough room for error here that
-    it should be tested, but we don't need thorough tests at this layer
-    because that already exists in the runtime. We just need to make sure it
-    basically works.
-    
-    Fixes #60528.
-    
-    Change-Id: I673cc4609378380ef80648b0c2eb2928e73f49c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501860
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I3d8d2c06711b7614a38191397da7776417f1861c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404316
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/testdir/testdir_test.go |  2 +-
- src/reflect/arena.go                     |  2 +-
- test/arenas/smoke.go                     | 65 ++++++++++++++++++++++++++++++++
- 3 files changed, 67 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s    |  19 +-
+ src/cmd/asm/internal/asm/testdata/arm64enc.s |   2 +-
+ src/cmd/internal/obj/arm64/a.out.go          |   3 +-
+ src/cmd/internal/obj/arm64/anames7.go        |   1 +
+ src/cmd/internal/obj/arm64/asm7.go           | 475 ++++++++++++++-------------
+ src/cmd/internal/obj/arm64/obj7.go           |  35 +-
+ test/codegen/bitfield.go                     |   5 +-
+ 7 files changed, 285 insertions(+), 255 deletions(-)

@@ -1,36 +1,24 @@
-commit 7a22c8a07f0909ea4da71df7379640cc281bda12
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Sun Aug 15 15:32:16 2021 +0800
+commit d19a53338fa6272b4fe9c39d66812a79e1464cd2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jun 29 16:53:44 2021 +1000
 
-    cmd/cgo: configure cgo tool for loong64
+    image: add Uniform.RGBA64At and Rectangle.RGBA64At
     
-    Define pointer and int type size for loong64
-    Add "-mabi=lp64d" argument to gcc
+    These types already implemented the Image interface. They should also
+    implement the RGBA64Image interface (new in Go 1.17)
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Updates #44808
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
-    
-    Updates #46229
-    
-    Change-Id: I9699fd9af0112e72193ac24b736b85c580887a0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342305
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9a2b13e305997088ae874efb95ad9e1648f94812
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331570
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/cgo/gcc.go  | 2 ++
- src/cmd/cgo/main.go | 2 ++
- 2 files changed, 4 insertions(+)
+ api/go1.17.txt          |  2 ++
+ doc/go1.17.html         |  4 ++--
+ src/image/geom.go       |  8 ++++++++
+ src/image/image_test.go | 12 ++++++++++++
+ src/image/names.go      |  5 +++++
+ 5 files changed, 29 insertions(+), 2 deletions(-)

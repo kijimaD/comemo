@@ -1,54 +1,12 @@
-commit cbbc6a102d5e7e5e2bb685a0c661d1f731c88344
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 6 15:24:47 2013 -0500
+commit b006cd9bb097c6b3a8cf7cebdb8067eef34957b1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 5 21:15:51 2013 +1100
 
-    cmd/5l, cmd/6l, cmd/8l, cmd/cc, cmd/gc: new flag parsing
+    cmd/go: avoid leaking timer if test process failed to start
     
-    This CL adds a flag parser that matches the semantics of Go's
-    package flag. It also changes the linkers and compilers to use
-    the new flag parser.
-    
-    Command lines that used to work, like
-            8c -FVw
-            6c -Dfoo
-            5g -I/foo/bar
-    now need to be split into separate arguments:
-            8c -F -V -w
-            6c -D foo
-            5g -I /foo/bar
-    The new spacing will work with both old and new tools.
-    
-    The new parser also allows = for arguments, as in
-            6c -D=foo
-            5g -I=/foo/bar
-    but that syntax will not work with the old tools.
-    
-    In addition to matching standard Go binary flag parsing,
-    the new flag parser generates more detailed usage messages
-    and opens the door to long flag names.
-    
-    The recently added gc flag -= has been renamed -complete.
-    
-    R=remyoudompheng, daniel.morsing, minux.ma, iant
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7035043
+    https://golang.org/cl/7034047
 
- doc/go1.1.html      |  12 +++
- include/libc.h      |  10 ++
- src/cmd/5c/peep.c   |   2 +-
- src/cmd/5l/l.h      |   2 +-
- src/cmd/5l/obj.c    | 100 +++++++-----------
- src/cmd/6l/l.h      |   6 +-
- src/cmd/6l/obj.c    |  99 ++++++-----------
- src/cmd/8l/l.h      |   3 +-
- src/cmd/8l/obj.c    |  96 ++++++-----------
- src/cmd/cc/cc.h     |   2 +-
- src/cmd/cc/lex.c    | 117 +++++++++++++-------
- src/cmd/cc/sub.c    |   6 --
- src/cmd/gc/go.h     |   2 +-
- src/cmd/gc/lex.c    | 128 ++++++++++------------
- src/cmd/go/build.go |  16 +--
- src/cmd/ld/lib.c    |  28 +++++
- src/cmd/ld/lib.h    |   5 +
- src/lib9/flag.c     | 300 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 18 files changed, 606 insertions(+), 328 deletions(-)
+ src/cmd/go/test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,22 +1,22 @@
-commit 3e4afe2307c3db0208bc33b06829ec00f8dd6f37
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 30 18:00:10 2017 -0700
+commit c8f1436948ca267dc904cf04c67bab7367503107
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Dec 23 03:23:10 2016 -0800
 
-    syscall: skip test on TestUnshareMountNameSpace permission error
+    test: lock in test for _ assignment evaluation/zerodivide panic
     
-    TestUnshareMountNameSpace fails on arm64 due to permission problems.
+    Fixes #5790.
+    Fixes #18421.
     
-    Skip that test for now when permission problems are encountered, so we
-    don't regress elsewhere in the meantime.
+    * Lock in _ = x1/x2 divide by zero runtime panics since
+    it is actually evaluated and not discarded as in previous
+    versions before Go1.8.
+    * Update a test that was skipping over zerodivide tests
+    that expected runtime panics, enabling us to check for
+    the expected panics.
     
-    Updates #19698
-    
-    Change-Id: I9058928afa474b813652c9489f343b8957160a6c
-    Reviewed-on: https://go-review.googlesource.com/39052
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I0af0a6ecc19345fa9763ab2e35b275fb2d9d0194
+    Reviewed-on: https://go-review.googlesource.com/34712
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/exec_linux_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ test/zerodivide.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

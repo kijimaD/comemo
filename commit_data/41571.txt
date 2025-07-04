@@ -1,49 +1,69 @@
-commit 4de606b55f58d0b0e4121516cb4b514507b614da
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 26 21:31:00 2020 -0800
+commit 3c56eb4083f2aca21804c341ca5f09032fe82989
+Author: zdjones <zachj1@gmail.com>
+Date:   Fri Oct 11 16:04:47 2019 +0100
 
-    cmd/compile/internal/syntax: faster and simpler source reader
+    cmd/compile: make poset use sufficient conditions for OrderedOrEqual
     
-    This is one of several changes that were part of a larger rewrite
-    which I made in early 2019 after switching to the new number literal
-    syntax implementation. The purpose of the rewrite was to simplify
-    reading of source code (Unicode character by character) and speed up
-    the scanner but was never submitted for review due to other priorities.
+    When assessing whether A <= B, the poset's OrderedOrEqual has a passing
+    condition which permits A <= B, but is not sufficient to infer that A <= B.
+    This CL removes that incorrect passing condition.
     
-    Part 3 of 3:
+    Having identified that A and B are in the poset, the method will report that
+    A <= B if any of these three conditions are true:
+     (1) A and B are the same node in the poset.
+            - This means we know that A == B.
+     (2) There is a directed path, strict or not, from A -> B
+            - This means we know that, at least, A <= B, but A < B is possible.
+     (3) There is a directed path from B -> A, AND that path has no strict edges.
+            - This means we know that B <= A, but do not know that B < A.
     
-    This change contains a complete rewrite of source.go, the file that
-    implements reading individual Unicode characters from the source.
-    The new implementation is easier to use and has simpler literal
-    buffer management, resulting in faster scanner and thus parser
-    performance.
+    In condition (3), we do not have enough information to say that A <= B, rather
+    we only know that B == A (which satisfies A <= B) is possible. The way I
+    understand it, a strict edge shows a known, strictly-ordered relation (<) but
+    the lack of a strict edge does not show the lack of a strictly-ordered relation.
     
-    Thew new source.go (internal) API is centered around nextch() which
-    advances the scanner by one character. The scanner has been adjusted
-    around nextch() and now consistently does one character look-ahead
-    (there's no need for complicated ungetr-ing anymore). Only in one
-    case backtrack is needed (when finding '..' rather than '...') and
-    that case is now more cleanly solved with the new reset() function.
+    The difference is highlighted by the example in #34802, where a bounds check is
+    incorrectly removed by prove, such that negative indexes into a slice
+    succeed:
     
-    Measuring line/s parsing peformance by running
+            n := make([]int, 1)
+            for i := -1; i <= 0; i++ {
+                fmt.Printf("i is %d\n", i)
+                n[i] = 1  // No Bounds check, program runs, assignment to n[-1] succeeds!!
+            }
     
-    go test -run StdLib -fast -skip "syntax/(scanner|source)\.go"
+    When prove is checking the negative/failed branch from the bounds check at n[i],
+    in the signed domain we learn (0 > i || i >= len(n)). Because prove can't learn
+    the OR condition, we check whether we know that i is non-negative so we can
+    learn something, namely that i >= len(n). Prove uses the poset to check whether
+    we know that i is non-negative.  At this point the poset holds the following
+    relations as a directed graph:
     
-    (best of 5 runs on "quiet" MacBook Pro, 3.3GHz Dual-Core i7, 16GB RAM,
-    OS X 10.15.3) before and after shows consistently 3-5% improvement of
-    line parsing speed:
+            -1 <= i <= 0
+            -1 < 0
     
-    old: parsed 1788155 lines (3969 files) in 1.255520307s (1424234 lines/s)
-    new: parsed 1788155 lines (3969 files) in 1.213197037s (1473919 lines/s)
+    In poset.OrderedOrEqual, we are testing for 0 <= i. In this case, condition (3)
+    above is true because there is a non-strict path from i -> 0, and that path
+    does NOT have any strict edges. Because this condition is true, the poset
+    reports to prove that i is known to be >= 0. Knowing, incorrectly, that i >= 0,
+    prove learns from the failed bounds check that i >= len(n) in the signed domain.
     
-    (scanner.go and parser.go are skipped because this CL changed those files.)
+    When the slice, n, was created, prove learned that len(n) == 1. Because i is
+    also the induction variable for the loop, upon entering the loop, prove previously
+    learned that i is in [-1,0]. So when prove attempts to learn from the failed
+    bounds check, it finds the new fact, i > len(n), unsatisfiable given that it
+    previously learned that i <= 0 and len(n) = 1.
     
-    Change-Id: Ida947f4b538d42eb2d2349062c69edb6c9e5ca66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221603
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #34802
+    
+    Change-Id: I235f4224bef97700c3aa5c01edcc595eb9f13afc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200759
+    Run-TryBot: Zach Jones <zachj1@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go       |   2 +-
- src/cmd/compile/internal/syntax/scanner.go      | 440 ++++++++++++------------
- src/cmd/compile/internal/syntax/scanner_test.go |   4 +-
- src/cmd/compile/internal/syntax/source.go       | 287 ++++++++--------
- 4 files changed, 367 insertions(+), 366 deletions(-)
+ src/cmd/compile/internal/ssa/poset.go      |  3 +--
+ src/cmd/compile/internal/ssa/poset_test.go |  4 ++--
+ test/prove.go                              | 22 ++++++++++++++++++++++
+ 3 files changed, 25 insertions(+), 4 deletions(-)

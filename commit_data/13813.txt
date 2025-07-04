@@ -1,17 +1,15 @@
-commit ef87c0edae19d6437801cd74203f5a2c19ea6534
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 13 10:47:01 2012 -0400
+commit ec9967ff11851facad48bb0c11639e52a77f79b9
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Thu Sep 13 10:25:35 2012 -0400
 
-    crypto/rsa: reject PublicKey.E if it won't fit in a 32-bit int
+    go/build: reject empty strings in Import
     
-    Right now we only have 32-bit ints so that's a no-op.
-    Took the opportunity to check for some other invalid values too.
-    Suggestions for additions or modifications welcome.
+    Fixes #3889.
     
-    R=agl
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/6493112
+    https://golang.org/cl/6499102
 
- src/pkg/crypto/rsa/pkcs1v15.go |  9 +++++++++
- src/pkg/crypto/rsa/rsa.go      | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+)
+ src/pkg/go/build/build.go      |  3 +++
+ src/pkg/go/build/build_test.go | 13 +++++++++++++
+ 2 files changed, 16 insertions(+)

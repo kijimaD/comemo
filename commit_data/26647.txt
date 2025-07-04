@@ -1,30 +1,16 @@
-commit aecfcd827edb4a7ab6248668f7329a330e1f0e4a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 31 05:36:20 2016 -0700
+commit 4e6e8e8c582bcd7d74378be31f070eecf0f1d5e4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 19 18:39:25 2016 -0800
 
-    net/http: clean up the Client redirect code, document Body.Close rules more
+    cmd/compile: change two pushedio.bin tests to use importpkg instead
     
-    Issue #8633 (and #9134) noted that we didn't document the rules about
-    closing the Response.Body when Client.Do returned both a non-nil
-    *Response and a non-nil error (which can only happen when the user's
-    CheckRedirect returns an error).
+    pushedio.bin and importpkg are both non-nil iff we're parsing an
+    package's export data, so "pushedio.bin == nil" and "importpkg == nil"
+    are equivalent tests.
     
-    In the process of investigating, I cleaned this code up a bunch, but
-    no user-visible behavior should have changed, except perhaps some
-    better error messages in some cases.
-    
-    It turns out it's always been the case that when a CheckRedirect error
-    occurs, the Response.Body is already closed. Document that.
-    
-    And the new code makes that more obvious too.
-    
-    Fixes #8633
-    
-    Change-Id: Ibc40cc786ad7fc4e0cf470d66bb559c3b931684d
-    Reviewed-on: https://go-review.googlesource.com/21364
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I571ee908fef867117ef72c5da1eb24fe9b3fd12d
+    Reviewed-on: https://go-review.googlesource.com/19751
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/client.go | 179 ++++++++++++++++++++++++++-----------------------
- 1 file changed, 94 insertions(+), 85 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

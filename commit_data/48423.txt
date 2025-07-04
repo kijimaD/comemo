@@ -1,18 +1,22 @@
-commit 3ea22cf3c4b32e6473ad1358a3cbfccc11abc5be
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Tue Feb 1 00:36:33 2022 +0000
+commit bb53bd49571e08909ab6274255ddddd6c6ffe041
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu May 13 13:13:26 2021 -0400
 
-    crypto/x509: return err ans1.Marshal gives an error
+    [dev.fuzz] cmd/go: fix test_fuzz_cache
     
-    Fixes #50663
+    This test started failing when coverage-based fuzzing was enabled.
+    It expects at least one file to be written to the fuzz cache. Nothing
+    was written because the fuzz function was trivial, and no interesting
+    inputs could be discovered.
     
-    Change-Id: I18754922bf139049443c0395eaa1606049df1331
-    GitHub-Last-Rev: 57ff5ddfe39c211ccff60aa74a30f97ddf7015fb
-    GitHub-Pull-Request: golang/go#50667
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379094
+    This CL makes the fuzz function return different values for different
+    inputs, which is enough to pass.
+    
+    Change-Id: I6ffd2667891cf5f3e4588133efb65f096a739c09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319871
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/x509.go | 20 ++++----------------
- 1 file changed, 4 insertions(+), 16 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_cache.txt | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

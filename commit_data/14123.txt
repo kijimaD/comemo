@@ -1,14 +1,13 @@
-commit 2100947d4a25dcf875be1941d0e3a409ea85051e
+commit a3d116cf78cc349fd4e0dd51c8cca64c27b2f4eb
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 11 14:21:19 2012 +1100
+Date:   Thu Oct 11 11:20:01 2012 +1100
 
-    doc/faq: discuss virtual memory use by go processes
+    A+C: add Jimmy Zelinskie (Individual CLA)
     
-    Fixes #3948.
-    
-    R=golang-dev, r, dave, dsymonds
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6639064
+    https://golang.org/cl/6642068
 
- doc/go_faq.html | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

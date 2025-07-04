@@ -1,27 +1,21 @@
-commit 554ac03637bd855179c93d76d05b9c847571d0e2
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Dec 6 18:25:14 2011 -0500
+commit bf59f081c16764633e072824fdc582a6ce9136db
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 6 18:13:20 2011 -0500
 
-    crypto: allocate less.
+    exp/ssh: cleanup client auth tests
     
-    The code in hash functions themselves could write directly into the
-    output buffer for a savings of about 50ns. But it's a little ugly so I
-    wasted a copy.
+    This CL cleans up the client auth tests, making the
+    individual test body more manageable.
     
-    R=bradfitz
+    Also, adds tests for rsa and dsa key negotiation.
+    
+    Finally, remove the package level use of the variable
+    strings, which avoids conflicting with the strings pkg.
+    
+    R=gustav.paul, agl, n13m3y3r, rsc
     CC=golang-dev
-    https://golang.org/cl/5440111
+    https://golang.org/cl/5447049
 
- src/pkg/crypto/hmac/hmac.go            |  9 ++++-----
- src/pkg/crypto/md5/md5.go              | 17 +++++++++--------
- src/pkg/crypto/openpgp/s2k/s2k.go      |  8 ++++++--
- src/pkg/crypto/ripemd160/ripemd160.go  | 17 +++++++++--------
- src/pkg/crypto/rsa/rsa.go              |  3 ++-
- src/pkg/crypto/sha1/sha1.go            | 17 +++++++++--------
- src/pkg/crypto/sha256/sha256.go        | 20 ++++++++++++--------
- src/pkg/crypto/sha512/sha512.go        | 25 +++++++++++++++----------
- src/pkg/crypto/tls/cipher_suites.go    | 14 +++++++-------
- src/pkg/crypto/tls/conn.go             |  9 +++++++--
- src/pkg/crypto/tls/handshake_client.go |  8 ++++----
- src/pkg/crypto/tls/handshake_server.go |  6 +++---
- 12 files changed, 87 insertions(+), 66 deletions(-)
+ src/pkg/exp/ssh/client_auth_test.go | 233 +++++++++++++++++++-----------------
+ src/pkg/exp/ssh/common_test.go      |  16 +--
+ 2 files changed, 129 insertions(+), 120 deletions(-)

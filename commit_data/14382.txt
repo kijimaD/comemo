@@ -1,16 +1,26 @@
-commit 16072c749750b7e4e6e1e48d4724afdfec574efa
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Nov 13 00:08:04 2012 +0100
+commit 80f4ff226ff8fb36ba3c8b4808982c6664ce47c3
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Nov 13 09:08:33 2012 +1100
 
-    cmd/6g: extend componentgen to small arrays and structs.
+    exp/types: avoid init race in check_test.go.
     
-    Fixes #4092.
+    There was an init race between
+            check_test.go:init
+            universe.go:def
+            use of Universe
+    and
+            universe.go:init
+            creation of Universe
     
-    R=golang-dev, dave, rsc
+    The order in which init funcs are executed in a package is unspecified.
+    The test is not currently broken in the golang.org environment
+    because the go tool compiles the test with non-test sources before test sources,
+    but other environments may, say, sort the source files before compiling,
+    and thus trigger this race, causing a nil pointer panic.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/6819083
+    https://golang.org/cl/6827076
 
- src/cmd/6g/cgen.c |  66 +++++++++++++++++++++++++++-
- src/cmd/6g/gg.h   |   1 +
- src/cmd/gc/gen.c  | 126 ++++++++++++++++++++++++++++--------------------------
- 3 files changed, 132 insertions(+), 61 deletions(-)
+ src/pkg/exp/types/check_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

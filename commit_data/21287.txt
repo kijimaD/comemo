@@ -1,16 +1,12 @@
-commit c2c0bf77efef5fd0e1cdecb330a9d30de1509ff8
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sat Jan 17 13:37:04 2015 +0100
+commit a034e478a7067db7ec0f3b549436bf6fbee3f4a0
+Author: Jan Mercl <0xjnml@gmail.com>
+Date:   Thu Dec 18 12:24:16 2014 +0100
 
-    net/http/cgi: correctly handle pathnames for cygwin perl on windows
+    cmd/yacc: Prevent index out of range. Fixes #9099.
     
-    Cygwin perl uses unix pathnames in windows. Include cygwin perl in the
-    list of special cases for unix pathname handling in test.cgi.
-    
-    Change-Id: I30445a9cc79d62d022ecc232c35aa5015b7418dc
-    Reviewed-on: https://go-review.googlesource.com/2973
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I7ef01a738b6ca49af1c148146d439c81b0a33b16
+    Reviewed-on: https://go-review.googlesource.com/1785
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/cgi/testdata/test.cgi | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/yacc/yacc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

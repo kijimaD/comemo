@@ -1,15 +1,39 @@
-commit 3147d2c4eef5da0110d392cd5128d64042dbbae5
+commit bfebf9ea8071683af608b8bf291fc7d8365d501b
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 7 12:07:40 2014 -0400
+Date:   Fri Sep 26 17:03:31 2014 -0400
 
-    cmd/5c, cmd/6c, cmd/8c: make failure to optimize fatal
+    cmd/yacc: fix parsing of character tokens
     
-    LGTM=bradfitz, dave, r
-    R=r, bradfitz, dave
+    From issue 7967 I learned:
+    
+    1) yacc accepts either 'x' or "x" to mean token value 0x78
+    2) yacc also accepts 'xyz' and "XYZ" to mean token value 0x78
+    
+    Use strconv.Unquote to simplify the handling of quoted
+    strings and check that each has only one rune.
+    
+    Although this does clean things up, it makes 'x' and "x"
+    treated as different internally (now they are stored as
+    `'x'` and `"x"`; before they were both ` x`). Grammars that
+    use both interchangeably will now die with an error
+    similar to the one from issue 7967:
+    
+            yacc bug -- cannot have 2 different Ts with same value
+                    "+" and '+'
+    
+    The echoing of the quotes should make clear what is going on.
+    
+    The other semantic change caused by using strconv.Unquote
+    is that '\"' and "\'" are no longer valid. Like in Go, they must be
+    spelled without the backslash: '"' and "'".
+    
+    On the other hand, now yacc and Go agree about what character
+    and string literals mean.
+    
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/152250044
+    https://golang.org/cl/149110043
 
- src/cmd/5c/reg.c |  9 +++------
- src/cmd/6c/reg.c | 14 ++++----------
- src/cmd/8c/reg.c |  9 +++------
- 3 files changed, 10 insertions(+), 22 deletions(-)
+ src/cmd/yacc/yacc.go | 76 +++++++++-------------------------------------------
+ 1 file changed, 13 insertions(+), 63 deletions(-)

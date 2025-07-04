@@ -1,35 +1,24 @@
-commit 24fb2e015af156c032a6598b0773785d766a8aad
-Author: Andrei Tudor Călin <mail@acln.ro>
-Date:   Thu Jun 21 19:11:34 2018 +0200
+commit 7a2a96d6ad75762f427669beb0220810adb6a9e1
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 7 18:23:21 2018 +0100
 
-    internal/poll: use more fine-grained locking in Splice
+    runtime/cgo: make sure nil is undefined before defining it
     
-    The previous code acquired a read lock on src and a write lock on
-    dst for the entire duration of Splice. This resulted in deadlock,
-    in a situation akin to the following:
+    While working on standalone builds of gomobile bindings, I ran into
+    errors on the form:
     
-    Splice is blocking, waiting to read from src.
+    gcc_darwin_arm.c:30:31: error: ambiguous expansion of macro 'nil' [-Werror,-Wambiguous-macro]
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.2.sdk/usr/include/MacTypes.h:94:15: note: expanding this definition of 'nil'
     
-    The caller tries to close dst from another goroutine, but Close on
-    dst blocks in runtime.semacquire, because Splice is still holding a
-    write lock on it, and the Close didn't unblock any I/O.
+    Fix it by undefining nil before defining it in libcgo.h.
     
-    The caller cannot unblock the read side of Splice through other means,
-    because they are stuck waiting in dst.Close().
-    
-    Use more fine-grained locking instead: acquire the read lock on src
-    just before trying to splice from the source socket to the pipe,
-    and acquire the write lock on dst just before trying to splice from
-    the pipe to the destination socket.
-    
-    Fixes #25985
-    
-    Change-Id: I264c91c7a69bb6c5e28610e2bd801244804cf86d
-    Reviewed-on: https://go-review.googlesource.com/120317
-    Run-TryBot: Aram Hăvărneanu <aram@mgk.ro>
+    Change-Id: I8e9660a68c6c351e592684d03d529f0d182c0493
+    Reviewed-on: https://go-review.googlesource.com/99215
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/splice_linux.go | 28 ++++++++---------
- src/net/splice_test.go            | 63 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 77 insertions(+), 14 deletions(-)
+ src/runtime/cgo/gcc_darwin_arm.c   | 6 +++---
+ src/runtime/cgo/gcc_darwin_arm64.c | 6 +++---
+ src/runtime/cgo/libcgo.h           | 1 +
+ 3 files changed, 7 insertions(+), 6 deletions(-)

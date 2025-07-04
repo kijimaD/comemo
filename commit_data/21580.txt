@@ -1,24 +1,25 @@
-commit 27ed1fcb04701477a62cc7cf883a1d64e26e6da9
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 12 10:37:01 2015 -0500
+commit fd4dc91a96518fdbb47781f97ba43ae36df215a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 18 12:50:22 2015 -0500
 
-    runtime: on Plan 9, zero memory returned to the brk by sysFree
+    strings: remove overengineered Compare implementation
     
-    Plan 9's sysFree has an optimization where if the object being freed
-    is the last object allocated, it will roll back the brk to allow the
-    memory to be reused by sysAlloc.  However, it does not zero this
-    "returned" memory, so as a result, sysAlloc can return non-zeroed
-    memory after a sysFree.  This leads to corruption because the runtime
-    assumes sysAlloc returns zeroed memory.
+    The function is here ONLY for symmetry with package bytes.
+    This function should be used ONLY if it makes code clearer.
+    It is not here for performance. Remove any performance benefit.
     
-    Fix this by zeroing the memory returned by sysFree.
+    If performance becomes an issue, the compiler should be fixed to
+    recognize the three-way compare (for all comparable types)
+    rather than encourage people to micro-optimize by using this function.
     
-    Fixes #9846.
-    
-    Change-Id: Id328c58236eb7c464b31ac1da376a0b757a5dc6a
-    Reviewed-on: https://go-review.googlesource.com/4700
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Change-Id: I71f4130bce853f7aef724c6044d15def7987b457
+    Reviewed-on: https://go-review.googlesource.com/3012
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mem_plan9.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/asm_386.s       |  3 ---
+ src/runtime/asm_amd64.s     |  3 ---
+ src/runtime/asm_amd64p32.s  |  3 ---
+ src/runtime/noasm.go        |  5 -----
+ src/strings/compare.go      | 28 ++++++++++++++++++++++++++++
+ src/strings/strings_decl.go |  7 -------
+ 6 files changed, 28 insertions(+), 21 deletions(-)

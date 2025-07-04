@@ -1,165 +1,18 @@
-commit 4dc5553930a7ead64e7cc62752907625642011d3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 17 17:15:38 2022 -0700
+commit b18b2d372e263dda8862c1eafef739403ba4521d
+Author: Dan Scales <danscales@google.com>
+Date:   Fri May 21 20:09:55 2021 -0700
 
-    go/types, types2: rename testfile suffixes from .src to .go
+    [dev.typeparams] cmd/compile:  fix case where we were copying a raw Node
     
-    Also, manually renamed some irregularly numbered files to
-    make their file names more regular.
+    Replace the raw Node copy with the creation of a new node, and the
+    copying of the needed flags and fields.
     
-    With this rename, all test files now end uniformly in .go.
-    
-    go fmt doesn't descend into testdata directories, so this
-    is fine and makes all test files behave like regular .go
-    files in editors with Go language support.
-    
-    Change-Id: I3abde32c35c494b94b17787788cd3d7e35662296
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393658
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I636bf228ba28c0d5dc25f8366d82379d86ecd731
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322189
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/types2/testdata/check/{blank.src => blank.go}    | 0
- .../compile/internal/types2/testdata/check/{builtins.src => builtins0.go} | 0
- .../compile/internal/types2/testdata/check/{builtins.go => builtins1.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{const0.src => const0.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{const1.src => const1.go}  | 0
- .../internal/types2/testdata/check/{constdecl.src => constdecl.go}        | 0
- .../internal/types2/testdata/check/{conversions.src => conversions0.go}   | 0
- .../internal/types2/testdata/check/{conversions2.src => conversions1.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{cycles.src => cycles0.go} | 0
- .../compile/internal/types2/testdata/check/{cycles1.src => cycles1.go}    | 0
- .../compile/internal/types2/testdata/check/{cycles2.src => cycles2.go}    | 0
- .../compile/internal/types2/testdata/check/{cycles3.src => cycles3.go}    | 0
- .../compile/internal/types2/testdata/check/{cycles4.src => cycles4.go}    | 0
- .../compile/internal/types2/testdata/check/{cycles5.src => cycles5.go}    | 0
- src/cmd/compile/internal/types2/testdata/check/{decls0.src => decls0.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{decls1.src => decls1.go}  | 0
- .../internal/types2/testdata/check/decls2/{decls2a.src => decls2a.go}     | 0
- .../internal/types2/testdata/check/decls2/{decls2b.src => decls2b.go}     | 0
- src/cmd/compile/internal/types2/testdata/check/{decls3.src => decls3.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{decls4.src => decls4.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{decls5.src => decls5.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{errors.src => errors.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{expr0.src => expr0.go}    | 0
- src/cmd/compile/internal/types2/testdata/check/{expr1.src => expr1.go}    | 0
- src/cmd/compile/internal/types2/testdata/check/{expr2.src => expr2.go}    | 0
- src/cmd/compile/internal/types2/testdata/check/{expr3.src => expr3.go}    | 0
- src/cmd/compile/internal/types2/testdata/check/{go1_12.src => go1_12.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{go1_13.src => go1_13.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{go1_16.src => go1_16.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{go1_8.src => go1_8.go}    | 0
- src/cmd/compile/internal/types2/testdata/check/{gotos.src => gotos.go}    | 0
- .../compile/internal/types2/testdata/check/{importC.src => importC.go}    | 0
- .../testdata/check/importdecl0/{importdecl0a.src => importdecl0a.go}      | 0
- .../testdata/check/importdecl0/{importdecl0b.src => importdecl0b.go}      | 0
- .../testdata/check/importdecl1/{importdecl1a.src => importdecl1a.go}      | 0
- .../testdata/check/importdecl1/{importdecl1b.src => importdecl1b.go}      | 0
- src/cmd/compile/internal/types2/testdata/check/{init0.src => init0.go}    | 0
- src/cmd/compile/internal/types2/testdata/check/{init1.src => init1.go}    | 0
- src/cmd/compile/internal/types2/testdata/check/{init2.src => init2.go}    | 0
- .../types2/testdata/check/issue25008/{issue25008a.src => issue25008a.go}  | 0
- .../types2/testdata/check/issue25008/{issue25008b.src => issue25008b.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{issues.src => issues0.go} | 0
- src/cmd/compile/internal/types2/testdata/check/{issues.go => issues1.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{labels.src => labels.go}  | 0
- .../compile/internal/types2/testdata/check/{literals.src => literals.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{main.src => main0.go}     | 0
- src/cmd/compile/internal/types2/testdata/check/{main.go => main1.go}      | 0
- src/cmd/compile/internal/types2/testdata/check/{map.go => map0.go}        | 0
- src/cmd/compile/internal/types2/testdata/check/{map2.go => map1.go}       | 0
- .../internal/types2/testdata/check/{methodsets.src => methodsets.go}      | 0
- src/cmd/compile/internal/types2/testdata/check/{shifts.src => shifts.go}  | 0
- src/cmd/compile/internal/types2/testdata/check/{stmt0.src => stmt0.go}    | 0
- src/cmd/compile/internal/types2/testdata/check/{stmt1.src => stmt1.go}    | 0
- .../compile/internal/types2/testdata/check/{typeinst.go => typeinst0.go}  | 0
- .../compile/internal/types2/testdata/check/{typeinst2.go => typeinst1.go} | 0
- .../compile/internal/types2/testdata/check/{vardecl.src => vardecl.go}    | 0
- .../internal/types2/testdata/fixedbugs/{issue20583.src => issue20583.go}  | 0
- .../types2/testdata/fixedbugs/{issue23203a.src => issue23203a.go}         | 0
- .../types2/testdata/fixedbugs/{issue23203b.src => issue23203b.go}         | 0
- .../internal/types2/testdata/fixedbugs/{issue26390.src => issue26390.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue28251.src => issue28251.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue42695.src => issue42695.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue42987.src => issue42987.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue43087.src => issue43087.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue43110.src => issue43110.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue43124.src => issue43124.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue43125.src => issue43125.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue43190.src => issue43190.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue46583.src => issue46583.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue48082.src => issue48082.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue48819.src => issue48819.go}  | 0
- .../internal/types2/testdata/fixedbugs/{issue6977.src => issue6977.go}    | 0
- src/go/types/testdata/check/{blank.src => blank.go}                       | 0
- src/go/types/testdata/check/{builtins.src => builtins0.go}                | 0
- src/go/types/testdata/check/{builtins.go => builtins1.go}                 | 0
- src/go/types/testdata/check/{const0.src => const0.go}                     | 0
- src/go/types/testdata/check/{const1.src => const1.go}                     | 0
- src/go/types/testdata/check/{constdecl.src => constdecl.go}               | 0
- src/go/types/testdata/check/{conversions.src => conversions0.go}          | 0
- src/go/types/testdata/check/{conversions2.src => conversions1.go}         | 0
- src/go/types/testdata/check/{cycles.src => cycles0.go}                    | 0
- src/go/types/testdata/check/{cycles1.src => cycles1.go}                   | 0
- src/go/types/testdata/check/{cycles2.src => cycles2.go}                   | 0
- src/go/types/testdata/check/{cycles3.src => cycles3.go}                   | 0
- src/go/types/testdata/check/{cycles4.src => cycles4.go}                   | 0
- src/go/types/testdata/check/{cycles5.src => cycles5.go}                   | 0
- src/go/types/testdata/check/{decls0.src => decls0.go}                     | 0
- src/go/types/testdata/check/{decls1.src => decls1.go}                     | 0
- src/go/types/testdata/check/decls2/{decls2a.src => decls2a.go}            | 0
- src/go/types/testdata/check/decls2/{decls2b.src => decls2b.go}            | 0
- src/go/types/testdata/check/{decls3.src => decls3.go}                     | 0
- src/go/types/testdata/check/{decls4.src => decls4.go}                     | 0
- src/go/types/testdata/check/{decls5.src => decls5.go}                     | 0
- src/go/types/testdata/check/{errors.src => errors.go}                     | 0
- src/go/types/testdata/check/{expr0.src => expr0.go}                       | 0
- src/go/types/testdata/check/{expr1.src => expr1.go}                       | 0
- src/go/types/testdata/check/{expr2.src => expr2.go}                       | 0
- src/go/types/testdata/check/{expr3.src => expr3.go}                       | 0
- src/go/types/testdata/check/{go1_12.src => go1_12.go}                     | 0
- src/go/types/testdata/check/{go1_13.src => go1_13.go}                     | 0
- src/go/types/testdata/check/{go1_16.src => go1_16.go}                     | 0
- src/go/types/testdata/check/{go1_8.src => go1_8.go}                       | 0
- src/go/types/testdata/check/{gotos.src => gotos.go}                       | 0
- src/go/types/testdata/check/{importC.src => importC.go}                   | 0
- .../testdata/check/importdecl0/{importdecl0a.src => importdecl0a.go}      | 0
- .../testdata/check/importdecl0/{importdecl0b.src => importdecl0b.go}      | 0
- .../testdata/check/importdecl1/{importdecl1a.src => importdecl1a.go}      | 0
- .../testdata/check/importdecl1/{importdecl1b.src => importdecl1b.go}      | 0
- src/go/types/testdata/check/{init0.src => init0.go}                       | 0
- src/go/types/testdata/check/{init1.src => init1.go}                       | 0
- src/go/types/testdata/check/{init2.src => init2.go}                       | 0
- .../types/testdata/check/issue25008/{issue25008a.src => issue25008a.go}   | 0
- .../types/testdata/check/issue25008/{issue25008b.src => issue25008b.go}   | 0
- src/go/types/testdata/check/{issues.src => issues0.go}                    | 0
- src/go/types/testdata/check/{issues.go => issues1.go}                     | 0
- src/go/types/testdata/check/{labels.src => labels.go}                     | 0
- src/go/types/testdata/check/{literals.src => literals.go}                 | 0
- src/go/types/testdata/check/{main.src => main0.go}                        | 0
- src/go/types/testdata/check/{main.go => main1.go}                         | 0
- src/go/types/testdata/check/{map.go => map0.go}                           | 0
- src/go/types/testdata/check/{map2.go => map1.go}                          | 0
- src/go/types/testdata/check/{methodsets.src => methodsets.go}             | 0
- src/go/types/testdata/check/{shifts.src => shifts.go}                     | 0
- src/go/types/testdata/check/{stmt0.src => stmt0.go}                       | 0
- src/go/types/testdata/check/{stmt1.src => stmt1.go}                       | 0
- src/go/types/testdata/check/{typeinst.go => typeinst0.go}                 | 0
- src/go/types/testdata/check/{typeinst2.go => typeinst1.go}                | 0
- src/go/types/testdata/check/{vardecl.src => vardecl.go}                   | 0
- src/go/types/testdata/fixedbugs/{issue20583.src => issue20583.go}         | 0
- src/go/types/testdata/fixedbugs/{issue23203a.src => issue23203a.go}       | 0
- src/go/types/testdata/fixedbugs/{issue23203b.src => issue23203b.go}       | 0
- src/go/types/testdata/fixedbugs/{issue26390.src => issue26390.go}         | 0
- src/go/types/testdata/fixedbugs/{issue28251.src => issue28251.go}         | 0
- src/go/types/testdata/fixedbugs/{issue42695.src => issue42695.go}         | 0
- src/go/types/testdata/fixedbugs/{issue42987.src => issue42987.go}         | 0
- src/go/types/testdata/fixedbugs/{issue43087.src => issue43087.go}         | 0
- src/go/types/testdata/fixedbugs/{issue43110.src => issue43110.go}         | 0
- src/go/types/testdata/fixedbugs/{issue43124.src => issue43124.go}         | 0
- src/go/types/testdata/fixedbugs/{issue43125.src => issue43125.go}         | 0
- src/go/types/testdata/fixedbugs/{issue43190.src => issue43190.go}         | 0
- src/go/types/testdata/fixedbugs/{issue46403.src => issue46403.go}         | 0
- src/go/types/testdata/fixedbugs/{issue48082.src => issue48082.go}         | 0
- src/go/types/testdata/fixedbugs/{issue48819.src => issue48819.go}         | 0
- src/go/types/testdata/fixedbugs/{issue6977.src => issue6977.go}           | 0
- 144 files changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 26 +++++++++++++++-----------
+ 1 file changed, 15 insertions(+), 11 deletions(-)

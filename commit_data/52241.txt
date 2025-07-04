@@ -1,25 +1,19 @@
-commit 86b69ef329c346fc6cc9b262e97bbdce7322288c
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 9 14:40:05 2023 -0500
+commit 104742fddae061b52c38e221697cf20ebd09bf10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 19 13:46:15 2022 -0700
 
-    runtime: replace cgoCtxt slice with index in traceback
+    cmd/compile/internal/types2: use correct value of iota
     
-    Currently, gentraceback consumes the gp.cgoCtxt slice by copying the
-    slice header and then sub-slicing it as it unwinds. The code for this
-    is nice and clear, but we're about to lift this state into a structure
-    and mutating it is going to introduce write barriers that are
-    disallowed in gentraceback.
+    Fixes #52438.
     
-    This CL replaces the mutable slice header with an index into
-    gp.cgoCtxt.
-    
-    For #54466.
-    
-    Change-Id: I6b701bb67d657290a784baaca34ed02d8247ede2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466863
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5cbf8c448dba037e9e0c5fe8f209401d6bf7d43f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401134
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/runtime/traceback.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/decl.go            |  2 +-
+ src/cmd/compile/internal/types2/resolver.go        |  2 +-
+ .../internal/types2/testdata/check/const0.go       | 19 +++++++++++
+ src/go/types/testdata/check/const0.go              | 19 +++++++++++
+ test/fixedbugs/issue52438.go                       | 39 ++++++++++++++++++++++
+ 5 files changed, 79 insertions(+), 2 deletions(-)

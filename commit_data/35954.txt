@@ -1,26 +1,20 @@
-commit 4b74506da1ccf8c2f57f11991b432a6d5ac86e4f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 11 21:14:42 2018 +0000
+commit 786899a72afe02836c003c1414ca279090e7d637
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 21 19:42:24 2018 +0100
 
-    doc: update the minimum support Windows version
+    runtime: adjust GOARM floating point compatibility error message
     
-    Also, remove some test code that was trying to work on XP and fix up
-    some comments referencing XP.
+    As pointed out by Josh Bleecher Snyder in CL 99780.
     
-    Fixes #26191
-    Updates #23380
+    The check is for GOARM > 6, so suggest to recompile with either GOARM=5
+    or GOARM=6.
     
-    Change-Id: I0b7319fe1954afddb22d396e5ec91d8c960268d8
-    Reviewed-on: https://go-review.googlesource.com/123415
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I6a97e87bdc17aa3932f5c8cb598bba85c3cf4be9
+    Reviewed-on: https://go-review.googlesource.com/101936
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/install.html                     |  2 +-
- src/crypto/x509/sha2_windows_test.go | 19 -------------------
- src/crypto/x509/verify_test.go       |  5 -----
- src/internal/poll/fd_windows.go      | 11 +++++------
- src/net/interface_windows.go         |  5 ++---
- src/runtime/syscall_windows.go       | 11 ++++++-----
- 6 files changed, 14 insertions(+), 39 deletions(-)
+ src/runtime/os_freebsd_arm.go | 2 +-
+ src/runtime/os_linux_arm.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

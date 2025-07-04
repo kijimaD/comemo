@@ -1,20 +1,28 @@
-commit cc9d3f548a0265124766dfdb45e77cf05579219d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Mar 4 11:17:43 2022 -0500
+commit 54e20b505d370210f05ab567c0d19e9bb51db8a3
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed May 5 19:27:51 2021 -0400
 
-    runtime: print goid when throwing in gentraceback
+    doc/go1.17: document fixes for negative rune handling
     
-    This makes it easier to figure out where the crash is occurring.
+    CL 317273 accidentally grouped a fix for bufio, bytes, strings
+    packages into a single entry, but they should be separate ones.
     
-    Change-Id: Ie1f78a360367090dcd61c61b2a55c34f3e2ff2eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390034
-    Trust: David Chase <drchase@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fix that, and document these negative rune handling fixes.
+    
+    The list of fixed functions in package unicode was computed by
+    taking the functions covered by the new TestNegativeRunes test,
+    and including those that fail when tested with Go 1.16.3.
+    
+    For #44513.
+    Updates #43254.
+    
+    Change-Id: I6f387327f83ae52543526dbdcdd0bb5775c678bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317469
+    Reviewed-by: David Benjamin <davidben@google.com>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
 
- src/runtime/crash_test.go | 2 +-
- src/runtime/traceback.go  | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ doc/go1.17.html | 41 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 37 insertions(+), 4 deletions(-)

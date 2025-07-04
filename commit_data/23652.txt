@@ -1,15 +1,28 @@
-commit 73ca459a56ef003ad0892ef46454bc98afd30a05
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 13 18:17:24 2015 -0600
+commit 6d9df14fec6361a022c9732da0ac87fda7f9963f
+Author: Aamir Khan <syst3m.w0rm@gmail.com>
+Date:   Wed Jun 3 12:51:56 2015 +0900
 
-    os/exec: ignore pipe write errors when command completes successfully
+    text/template: refactor code to accomodate bi-state requirement for templates
     
-    Fixes #9173
+    This is follow-up to CL10607
     
-    Change-Id: I83530533db84b07cb88dbf6ec690be48a06a9d7d
-    Reviewed-on: https://go-review.googlesource.com/12152
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    - Refactor AddParseTree() to use t.associate()
+    - Refactor Parse() to use AddParseTree() to put entries into common structure
+    - Clone() should not put entry in t.tmpl for undefined template
+    - Clarify documentation for Templates()
+    - Clarify documentation for AddParseTree() to include the error case
+    
+    Updates #10910
+    Uodates #10926
+    
+    Includes test cases for most of the above changes
+    
+    Change-Id: I25b2fce6f9651272866f881acf44e4dbca04a4a8
+    Reviewed-on: https://go-review.googlesource.com/10622
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/exec/exec.go      | 10 ++++++++++
- src/os/exec/exec_test.go | 21 +++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/text/template/multi_test.go | 67 +++++++++++++++++++++++++++++++++++++++++
+ src/text/template/template.go   | 41 +++++++++++--------------
+ 2 files changed, 85 insertions(+), 23 deletions(-)

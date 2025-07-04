@@ -1,38 +1,42 @@
-commit f444b48fe419c2d19b7b9a89faad30f0e8b0e474
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 12 16:54:02 2016 -0400
+commit d08010f94e06e5d5b6d01c248ba2a976b75d95a2
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 10 11:44:57 2016 -0700
 
-    encoding/json: fix decoding of null into Unmarshaler, TextUnmarshaler
+    [dev.ssa] cmd/compile: PPC64, FP to/from int conversions.
     
-    1. Define behavior for Unmarshal of JSON null into Unmarshaler and
-    TextUnmarshaler. Specifically, an Unmarshaler will be given the
-    literal null and can decide what to do (because otherwise
-    json.RawMessage is impossible to implement), and a TextUnmarshaler
-    will be skipped over (because there is no text to unmarshal), like
-    most other inappropriate types. Document this in Unmarshal, with a
-    reminder in UnmarshalJSON about handling null.
+    Passes ssa_test.
     
-    2. Test all this.
+    Requires a few new instructions and some scratchpad
+    memory to move data between G and F registers.
     
-    3. Fix the TextUnmarshaler case, which was returning an unmarshalling
-    error, to match the definition.
+    Also fixed comparisons to be correct in case of NaN.
+    Added missing instructions for run.bash.
+    Removed some FP registers that are apparently "reserved"
+    (but that are also apparently also unused except for a
+    gratuitous multiplication by two when y = x+x would work
+    just as well).
     
-    4. Fix the error that had been used for the TextUnmarshaler, since it
-    was claiming that there was a JSON string when in fact the problem was
-    NOT having a string.
+    Currently failing stack splits.
     
-    5. Adjust time.Time and big.Int's UnmarshalJSON to ignore null, as is
-    conventional.
+    Updates #16010.
     
-    Fixes #9037.
-    
-    Change-Id: If78350414eb8dda712867dc8f4ca35a9db041b0c
-    Reviewed-on: https://go-review.googlesource.com/30944
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I73b161bfff54445d72bd7b813b1479f89fc72602
+    Reviewed-on: https://go-review.googlesource.com/26813
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/big/intmarsh.go |   4 +
- src/encoding/json/decode.go              |  31 ++++-
- src/encoding/json/decode_test.go         | 225 ++++++++++++++++++++++++++-----
- src/math/big/intmarsh.go                 |   4 +
- src/time/time.go                         |   4 +
- 5 files changed, 231 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |   9 +-
+ src/cmd/compile/internal/ppc64/prog.go       |   3 +
+ src/cmd/compile/internal/ppc64/ssa.go        | 175 ++++++++---
+ src/cmd/compile/internal/ssa/config.go       |   3 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  52 +++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  65 ++--
+ src/cmd/compile/internal/ssa/lower.go        |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 255 ++++++++++++----
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 426 ++++++++++++++++++++++++++-
+ src/cmd/compile/internal/x86/387.go          |   4 +-
+ src/cmd/internal/obj/ppc64/a.out.go          |   6 +-
+ src/cmd/internal/obj/ppc64/anames.go         |   2 +
+ src/cmd/internal/obj/ppc64/asm9.go           |  18 +-
+ 13 files changed, 863 insertions(+), 157 deletions(-)

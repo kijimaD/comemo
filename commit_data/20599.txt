@@ -1,16 +1,17 @@
-commit 1b89cd16589c223f1d5fb73b88a2612800d68e67
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Sep 30 11:49:15 2014 -0700
+commit 5d5e73b14a46178a636b20f45ed8f8fae0177dee
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 22 17:48:13 2014 -0700
 
-    encoding/asn1: fix unmarshaling of implicitly tagged UTF-8 strings.
+    text/template: type-check chained node as argument
+    Was just a missing case (literally) in the type checker.
     
-    Fixes #8541.
+    Fixes #8473.
     
-    LGTM=rsc
-    R=rsc
+    LGTM=adg
+    R=golang-codereviews, adg
     CC=golang-codereviews
-    https://golang.org/cl/153770043
+    https://golang.org/cl/142460043
 
- src/encoding/asn1/asn1.go      | 12 ++++++++----
- src/encoding/asn1/asn1_test.go |  5 +++++
- 2 files changed, 13 insertions(+), 4 deletions(-)
+ src/text/template/exec.go      | 2 ++
+ src/text/template/exec_test.go | 8 ++++++++
+ 2 files changed, 10 insertions(+)

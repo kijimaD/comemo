@@ -1,13 +1,12 @@
-commit 68aff958ae7076ded8b4f051554106625c8dd56d
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Jan 27 10:12:27 2012 -0800
+commit 903752f4844703517b6a0aa21ed38afabc445abf
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Fri Jan 27 09:52:58 2012 -0800
 
-    doc: update Go1 release notes in light of the crypto/hmac change.
+    compress/flate: remove unused huffmanEncoder.generateChains.
     
-    R=r
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/5532108
+    https://golang.org/cl/5577061
 
- doc/go1.html | 13 +++++++++++++
- doc/go1.tmpl | 13 +++++++++++++
- 2 files changed, 26 insertions(+)
+ src/pkg/compress/flate/huffman_code.go | 55 ----------------------------------
+ 1 file changed, 55 deletions(-)

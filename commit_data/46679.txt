@@ -1,25 +1,19 @@
-commit 6b0026ae31720a01f846335d05e42e67e3a2a7cc
-Author: Leigh McCulloch <351529+leighmcculloch@users.noreply.github.com>
-Date:   Wed Sep 29 02:19:34 2021 +0000
+commit 213c3905e9eb4fcc4847d3f7e55ce6a0d3087318
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jan 21 02:35:03 2021 +0700
 
-    time: add doc comment about tzdata package
+    [dev.regabi] cmd/compile: use node walked flag to prevent double walk for walkSelect
     
-    Add doc comment about the time/tzdata package to the time.LoadLocation
-    function. The time.LoadLocation function was changed in Go 1.15 to add an extra
-    source that it considers for the time zone database. That location is the
-    time/tzdata package. It is not easy to discover this behavior because the
-    documentation for the time package doesn't mention it in the discussion on the
-    time.LoadLocation function when discussing the different sources. It would be helpful to
-    describe all possible sources that time.LoadLocation considers when loading the
-    time zone database, and so I think it would be worthwhile to mention
-    time/tzdata.
+    Same as CL 283733, but for walkSelect.
     
-    Change-Id: I408fbe188bf9d4ba797e59ec17eb677136d6a9c2
-    GitHub-Last-Rev: 3dac204326960a18c4e44d3ea24fd428e91e9fcb
-    GitHub-Pull-Request: golang/go#48673
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352830
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Heschi Kreinick <heschi@google.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I3ecb8d6eafd395379191c15fc58c95f75809fec9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284895
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/time/zoneinfo.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/walk/select.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

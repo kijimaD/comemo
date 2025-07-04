@@ -1,26 +1,24 @@
-commit 93c05627f9e542476d8f88e2e472082d526689ff
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 26 11:11:45 2019 -0400
+commit 4832bf8bde9df6695f6f4e15a7885a1609bb579f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Feb 14 23:42:24 2019 +0100
 
-    sync: fix pool wrap-around test
+    debug/elf: perform stricter section header table checks in NewFile
     
-    TestPoolDequeue in long mode does a little more than 1<<21 pushes.
-    This was originally because the head and tail indexes were 21 bits and
-    the intent was to test wrap-around behavior. However, in the final
-    version they were both 32 bits, so the test no longer tested
-    wrap-around.
+    If an ELF file has no section header table (shoff = 0), shnum must be
+    zero as well according to elf(5).
     
-    It would take too long to reach 32-bit wrap around in a test, so
-    instead we initialize the poolDequeue with indexes that are already
-    nearly at their limit. This keeps the knowledge of the maximum index
-    in one place, and lets us test wrap-around even in short mode.
+    So far, when only shnum was zero but shoff was non-zero (i.e. in an
+    invalid ELF file) shstrndx wasn't properly checked and could result in
+    an 'index out of range' later on.
     
-    Change-Id: Ib9b8d85b6d9b5be235849c2b32e81c809e806579
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183979
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #10996
+    
+    Change-Id: Ic248d2d77099b0036458e2a844b086a5f463c844
+    Reviewed-on: https://go-review.googlesource.com/c/162857
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sync/export_test.go | 6 +++++-
- src/sync/pool_test.go   | 4 +---
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/debug/elf/file.go      |  7 +++++--
+ src/debug/elf/file_test.go | 11 +++++++++++
+ 2 files changed, 16 insertions(+), 2 deletions(-)

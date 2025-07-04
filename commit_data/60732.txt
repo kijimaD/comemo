@@ -1,0 +1,16 @@
+commit 92dd05682c514bc84352ec716280b5d3a66399e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 21 09:54:36 2024 -0700
+
+    internal/pkgbits: fix incorrect doc comment
+    
+    Change-Id: I71d1dfec11657ffa8ffe12e87f6dbd65cbb1854b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607475
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ src/internal/pkgbits/encoder.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

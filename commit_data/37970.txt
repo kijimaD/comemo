@@ -1,25 +1,16 @@
-commit e2d87f2ca5affab517baef8008cb80559d03e15a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 29 20:16:59 2019 -0500
+commit 19ac6a82d3be818572881d60026109946a5a69e6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 18 07:58:11 2018 -0700
 
-    strconv: format hex floats
+    runtime: ignore EAGAIN from exec in TestCgoExecSignalMask
     
-    This CL updates FormatFloat to format
-    standard hexadecimal floating-point constants,
-    using the 'x' and 'X' verbs.
+    Fixes #27731
     
-    See golang.org/design/19308-number-literals for background.
-    
-    For #29008.
-    
-    Change-Id: I540b8f71d492cfdb7c58af533d357a564591f28b
-    Reviewed-on: https://go-review.googlesource.com/c/160242
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ifb4d57923b1bba0210ec1f623d779d7b5f442812
+    Reviewed-on: https://go-review.googlesource.com/135995
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/big/floatconv_test.go |  6 +--
- src/strconv/ftoa.go            | 98 +++++++++++++++++++++++++++++++++++++++---
- src/strconv/ftoa_test.go       | 27 +++++++++++-
- src/strconv/quote.go           |  5 ++-
- 4 files changed, 126 insertions(+), 10 deletions(-)
+ src/runtime/testdata/testprogcgo/exec.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

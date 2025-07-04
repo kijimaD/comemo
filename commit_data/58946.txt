@@ -1,32 +1,36 @@
-commit 37026a7c563c580bef0fac1e5b60e9498650e3a2
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Feb 28 16:57:44 2025 -0500
+commit b495ddbe13e6e836d52ae39de7bf809283928e50
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jan 24 22:13:17 2024 +0100
 
-    cmd/go: skip some tests that run builds in short mode
+    net/netip: further optimize AddrPort.String
     
-    cmd/go tests that run builds are generally skipped in short mode. This
-    change will adds skips for some tests that were running builds.
+    name                          old time/op    new time/op    delta
+    AddrPortString/v4-8             29.0ns ± 0%    28.2ns ± 1%   -2.74%  (p=0.000 n=8+9)
+    AddrPortString/v6-8             96.0ns ± 0%    65.1ns ± 0%  -32.22%  (p=0.000 n=10+10)
+    AddrPortString/v6_ellipsis-8    98.5ns ± 0%    68.0ns ± 1%  -30.95%  (p=0.000 n=10+10)
+    AddrPortString/v6_v4-8          71.8ns ± 1%    33.9ns ± 0%  -52.88%  (p=0.000 n=10+10)
+    AddrPortString/v6_zone-8        98.5ns ± 0%    68.6ns ± 0%  -30.35%  (p=0.000 n=8+9)
     
-    I found these by sorting tests by elapsed time and removing the top
-    tests that invoked go build. It's our practice to skip tests that run go
-    build without the -n flag (which prints but doesn't execute commands).
+    name                          old alloc/op   new alloc/op   delta
+    AddrPortString/v4-8              24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    AddrPortString/v6-8              96.0B ± 0%     48.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    AddrPortString/v6_ellipsis-8     56.0B ± 0%     32.0B ± 0%  -42.86%  (p=0.000 n=10+10)
+    AddrPortString/v6_v4-8           56.0B ± 0%     32.0B ± 0%  -42.86%  (p=0.000 n=10+10)
+    AddrPortString/v6_zone-8         56.0B ± 0%     32.0B ± 0%  -42.86%  (p=0.000 n=10+10)
     
-    On my work laptop this reduces test run time from about 20 seconds to
-    about 16 seconds. On my linux workstation it reduces test run time from
-    about 10 seconds to about 5 seconds.
+    name                          old allocs/op  new allocs/op  delta
+    AddrPortString/v4-8               1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrPortString/v6-8               2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    AddrPortString/v6_ellipsis-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    AddrPortString/v6_v4-8            2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    AddrPortString/v6_zone-8          2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
     
-    Change-Id: I18ffcc231df013cb6ac5f5eb3544bed28dadeda8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/653775
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Iae077c5c80db3d236d7ec9a02d20a96b0e3a96e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557775
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/go_test.go                          | 2 ++
- src/cmd/go/note_test.go                        | 2 ++
- src/cmd/go/testdata/script/build_GOTMPDIR.txt  | 2 ++
- src/cmd/go/testdata/script/cgo_path.txt        | 2 ++
- src/cmd/go/testdata/script/clean_cache_n.txt   | 2 ++
- src/cmd/go/testdata/script/goauth_userauth.txt | 2 ++
- src/cmd/go/testdata/script/test_skip.txt       | 2 ++
- src/cmd/go/testdata/script/vet_flags.txt       | 2 ++
- src/cmd/go/testdata/script/work.txt            | 2 ++
- 9 files changed, 18 insertions(+)
+ src/net/netip/netip.go | 52 ++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 31 insertions(+), 21 deletions(-)

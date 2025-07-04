@@ -1,14 +1,30 @@
-commit 5ecbdb049bc9f33be49e1fd2e7279b6d84f801d2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Aug 7 13:51:29 2014 -0700
+commit aac7f1a0d68984f3c776e90f775a7de9649f1a12
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 7 13:34:30 2014 +0400
 
-    cmd/go: don't pass --buildid=none on FreeBSD
+    runtime: convert markallocated from C to Go
     
-    According to the FreeBSD builder, it doesn't work.
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkMalloc8               28.7          22.4          -21.95%
+    BenchmarkMalloc16              44.8          33.8          -24.55%
+    BenchmarkMallocTypeInfo8       49.0          32.9          -32.86%
+    BenchmarkMallocTypeInfo16      46.7          35.8          -23.34%
+    BenchmarkMallocLargeStruct     907           901           -0.66%
+    BenchmarkGobDecode             13235542      12036851      -9.06%
+    BenchmarkGobEncode             10639699      9539155       -10.34%
+    BenchmarkJSONEncode            25193036      21898922      -13.08%
+    BenchmarkJSONDecode            96104044      89464904      -6.91%
     
-    TBR=bradfitz
+    Fixes #8452.
+    
+    LGTM=khr
+    R=golang-codereviews, bradfitz, rsc, dave, khr
     CC=golang-codereviews
-    https://golang.org/cl/121400043
+    https://golang.org/cl/122090043
 
- src/cmd/go/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/malloc.go | 130 +++++++++++++++++++++++++++++++++++++++++++---
+ src/pkg/runtime/malloc.h  |   1 -
+ src/pkg/runtime/mgc0.c    | 129 +++++++--------------------------------------
+ src/pkg/runtime/stubs.go  |  11 +++-
+ src/pkg/runtime/stubs.goc |  10 ++++
+ 5 files changed, 161 insertions(+), 120 deletions(-)

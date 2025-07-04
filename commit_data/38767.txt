@@ -1,46 +1,26 @@
-commit 9b968df17782f21cc0af14c9d3c0bcf4cf3f911f
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Apr 15 23:10:50 2019 +0900
+commit 041526c6ef669743afc6c4b757b95011f1475d1a
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Oct 1 09:58:40 2018 +0200
 
-    all: clean up code with token.IsExported
+    runtime: handle 64bits addresses for AIX
     
-    A handful of packages were reimplementing IsExported, so use
-    token.IsExported instead. This caused the deps test to fail for net/rpc.
-    However, net/rpc deals with Go types, and go/token is light and fairly
-    low-level in terms of Go tooling packages, so that's okay.
+    This commit allows the runtime to handle 64bits addresses returned by
+    mmap syscall on AIX.
     
-    While at it, replace all uses of ast.IsExported with token.IsExported.
-    This is more consistent, and also means that the import graphs are
-    leaner. A couple of files no longer need to import go/ast, for example.
+    Mmap syscall returns addresses on 59bits on AIX. But the Arena
+    implementation only allows addresses with less than 48 bits.
+    This commit increases the arena size up to 1<<60 for aix/ppc64.
     
-    We can't get rid of cmd/compile/internal/types.IsExported, as the
-    compiler can only depend on go/token as of Go 1.4. However, gc used
-    different implementations in a couple of places, so consolidate the use
-    of types.IsExported there.
+    Update: #25893
     
-    Finally, we can't get rid of the copied IsExported implementation in
-    encoding/gob, as go/token depends on it as part of a test. That test
-    can't be an external test either, so there's no easy way to break the
-    import cycle.
-    
-    Overall, this removes about forty lines of unnecessary code.
-    
-    Change-Id: I86a475b7614261e6a7b0b153d5ca02b9f64a7b2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172037
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iea72e8a944d10d4f00be915785e33ae82dd6329e
+    Reviewed-on: https://go-review.googlesource.com/c/138736
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/api/goapi.go                   |  2 +-
- src/cmd/compile/internal/gc/dump.go    |  9 +--------
- src/cmd/compile/internal/gc/iexport.go |  3 +--
- src/cmd/doc/main.go                    | 14 +++-----------
- src/go/build/deps_test.go              |  2 +-
- src/go/doc/exports.go                  | 12 ++++++------
- src/go/doc/reader.go                   |  4 ++--
- src/go/internal/gcimporter/bimport.go  | 11 ++---------
- src/go/types/object.go                 |  5 ++---
- src/net/http/response_test.go          |  4 ++--
- src/net/rpc/server.go                  | 13 +++----------
- src/reflect/all_test.go                | 13 ++-----------
- 12 files changed, 26 insertions(+), 66 deletions(-)
+ src/cmd/compile/internal/ppc64/galign.go |  2 +-
+ src/runtime/lfstack_64bit.go             | 14 +++++++++++++
+ src/runtime/malloc.go                    | 34 +++++++++++++++++++++++---------
+ test/chancap.go                          |  4 +++-
+ test/fixedbugs/bug273.go                 |  2 +-
+ test/fixedbugs/issue4085b.go             |  4 +++-
+ 6 files changed, 47 insertions(+), 13 deletions(-)

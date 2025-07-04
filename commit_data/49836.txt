@@ -1,35 +1,27 @@
-commit a526ec1569984fd452acb09c8c48c9d972a442d3
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Jun 15 21:49:50 2022 +0100
+commit 6196979365ec6b527b3731c9ec13d7ddfe429f86
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Aug 24 11:51:07 2021 -0700
 
-    go/printer: avoid copying bytes when counting node sizes
+    cmd/go/internal/modload: prevent tidy downgrading disambiguating modules
     
-    When making the recursive call to fprint,
-    we just need to know how many bytes were written
-    and whether multiple lines were written.
+    If an indirectly required module does not provide any packages needed
+    to build packages in the main module but is needed to disambiguate
+    imports, 'go mod tidy' may keep an indirect requirement on that module
+    to prevent it from being downgraded. This can prevent the introduction
+    of new ambiguities. This also ensures tidy keeps sums needed to load
+    all packages.
     
-    We don't need a buffer to accomplish those;
-    a custom writer can keep track of the two in a cheap way,
-    avoiding the allocation of a byte slice and copying bytes.
+    Fixes #47738
     
-            name      old time/op    new time/op    delta
-            Print-16    6.28ms ± 2%    6.12ms ± 1%  -2.50%  (p=0.000 n=10+9)
-    
-            name      old speed      new speed      delta
-            Print-16  8.26MB/s ± 3%  8.47MB/s ± 1%  +2.56%  (p=0.000 n=10+9)
-    
-            name      old alloc/op   new alloc/op   delta
-            Print-16     483kB ± 0%     443kB ± 0%  -8.20%  (p=0.000 n=10+10)
-    
-            name      old allocs/op  new allocs/op  delta
-            Print-16     17.8k ± 0%     17.3k ± 0%  -2.31%  (p=0.000 n=9+10)
-    
-    Change-Id: Ib8411ae6738a2acae6af6d185da71727ce2eb97a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412555
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ib8e33422b95394707894cda7cfbb71a4b111e0ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344572
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/printer/nodes.go | 36 +++++++++++++++++++++++++-----------
- 1 file changed, 25 insertions(+), 11 deletions(-)
+ src/cmd/go/internal/modload/buildlist.go           | 68 +++++++++++++++++++---
+ src/cmd/go/internal/modload/import.go              | 46 ++++++++-------
+ src/cmd/go/internal/modload/load.go                | 12 ++--
+ .../script/mod_tidy_downgrade_ambiguous.txt        | 58 ++++++++++++++++++
+ 4 files changed, 150 insertions(+), 34 deletions(-)

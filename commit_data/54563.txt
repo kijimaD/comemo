@@ -1,21 +1,31 @@
-commit 11084a9a1e6118a4492aa5d40df5c972c8aac1eb
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed Sep 27 10:54:14 2023 +0800
+commit 2730170f633811ca42aa4086aab6396c58449535
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 26 11:33:28 2022 -0400
 
-    all: fix misuses of "a" vs "an"
+    cmd/{go,cover}: fix for -coverprofile path capture with local pkg
     
-    Fixes the misuse of "a" vs "an", according to English grammatical
-    expectations and using https://www.a-or-an.com/
+    When coverage testing a local package (defined by a relative import
+    path such as "./foo/bar") the convention when "-coverprofile" is used
+    has been to capture source files by full pathname, as opposed to
+    recording the full import path or the invented import path
+    ("command-line-arguments/") created by the go command in the case of
+    building named Go files. Doing this makes it much easier to use
+    collected profiles with "go tool -cover -html=<profile>".
     
-    Change-Id: Ic9600dcbb3d843880349729478266c4b9bcf7316
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531335
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The support for this feature/convention wound up being inadvertantly
+    dropped during the GOEXPERIMENT=coverageredesign implementation; this
+    patch restores it.
+    
+    Fixes #56433.
+    
+    Change-Id: Ib9556fdc86011b00c155caa614ab23e5148f3eb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445917
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/errors.go | 2 +-
- src/go/types/errors.go                    | 2 +-
- src/syscall/js/js.go                      | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/cover/cover.go                             | 12 ++++++-
+ src/cmd/go/internal/work/exec.go                   |  1 +
+ .../script/cover_test_localpkg_filepath.txt        | 40 ++++++++++++++++++++++
+ src/internal/coverage/cmddefs.go                   |  7 ++++
+ 4 files changed, 59 insertions(+), 1 deletion(-)

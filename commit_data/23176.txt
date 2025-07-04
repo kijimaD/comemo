@@ -1,26 +1,16 @@
-commit c04813e130eea824428deba5242e4fba26538078
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 29 10:37:11 2015 -0700
+commit a0cff2989ae15cd2cc29bf1d956c833d1b28593c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 29 13:15:22 2015 +0900
 
-    cmd/internal/obj: combine Pcrel and Comefrom
+    net: remove dead code in Write
     
-    They're each architecture-specific.
-    Let them share.
+    Also, please be informed that the Write method on both connected and
+    unconnected-mode sockets may return a positive number of bytes written
+    with timeout or use of closed network connection error.
     
-    Reduces Prog size to 288, which is the
-    next smaller malloc class.
-    
-    Reduces inuse_space while compiling the
-    rotate tests by ~3.2%.
-    
-    Change-Id: Ica8ec90e466c97b569745fffff0e5acd364e55fa
-    Reviewed-on: https://go-review.googlesource.com/10514
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e2e6192e29cef4e9389eb0422c605c6d12e6a3c
+    Reviewed-on: https://go-review.googlesource.com/9466
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go | 12 +++++-----
- src/cmd/internal/obj/arm/obj5.go |  2 +-
- src/cmd/internal/obj/link.go     | 47 ++++++++++++++++++++--------------------
- src/cmd/internal/obj/x86/asm6.go |  8 +++----
- 4 files changed, 34 insertions(+), 35 deletions(-)
+ src/net/fd_unix.go | 1 -
+ 1 file changed, 1 deletion(-)

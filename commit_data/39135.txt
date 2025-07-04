@@ -1,25 +1,14 @@
-commit ed7a92bab459806c958459264f8c88495ea6c4ba
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 13 11:59:27 2019 -0700
+commit 73fb3c38a685158591503a3d760ae6e1d1a2a565
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Mon Jan 7 09:48:39 2019 +0100
 
-    cmd/objdump: mark tests as parallel
+    doc: remove incorrect space in %T and %v output examples
     
-    Speeds up
-    
-    go test -short -count=1 cmd/objdump
-    
-    on my machine from 1.7s to 1.3s.
-    
-    Not much, but as the backpacking saying goes,
-    take care of the ounces and the pounds will take care of themselves.
-    
-    Updates #26473
-    
-    Change-Id: I59fe9a179e48537c7d82cbba72cde9f92b42a029
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176901
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I321890237f703b945711e59c15233ccf59c4f190
+    Reviewed-on: https://go-review.googlesource.com/c/156477
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/objdump/objdump_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

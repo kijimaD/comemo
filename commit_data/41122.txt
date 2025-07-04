@@ -1,16 +1,18 @@
-commit 5d9f1c847f856d19332227ca876fb247fed05db1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 15 19:29:33 2020 +0000
+commit d4a6a2661c726dd2443d7bb65da32a421331e438
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 4 12:28:03 2019 -0400
 
-    crypto/tls: stop a timeout timer
+    test: add test that failed with gccgo
     
-    I noticed this leak while writing CL 214977.
+    Test with some code that triggered a compilation error bug in gccgo.
     
-    Change-Id: I7566952b8e4bc58939d23435aea86576fc58ddca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214978
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #33866.
+    
+    Change-Id: Ib2f226bbbebbfae33b41037438fe34dc5f2ad034
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193261
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/tls.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ test/fixedbugs/issue33866.dir/a.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue33866.dir/b.go | 15 +++++++++++++++
+ test/fixedbugs/issue33866.go       |  9 +++++++++
+ 3 files changed, 42 insertions(+)

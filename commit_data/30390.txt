@@ -1,30 +1,16 @@
-commit 0b8c983ece56b63c433a65fd3de6a411cb2aac87
+commit fc2e282c04a3c36761254eb662bb20bad4eb4a35
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 17 00:17:26 2017 -0500
+Date:   Wed Nov 2 23:31:08 2016 -0400
 
-    runtime/pprof/internal/profile: move internal/pprof/profile here
+    cmd/go: add version of GOROOT to go bug details
     
-    Nothing needs internal/pprof anymore except the runtime/pprof tests.
-    Move the package here to prevent new dependencies.
+    Fixes #15877.
     
-    Change-Id: Ia119af91cc2b980e0fa03a15f46f69d7f71d2926
-    Reviewed-on: https://go-review.googlesource.com/37165
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ia1e327c0cea3be43e5f8ba637c97c223cee4bb5a
+    Reviewed-on: https://go-review.googlesource.com/32643
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/trace/pprof.go                             |  3 +-
- src/go/build/deps_test.go                          | 94 +++++++++++-----------
- .../pprof/internal}/profile/encode.go              |  0
- .../pprof/internal}/profile/filter.go              |  0
- .../pprof/internal}/profile/legacy_profile.go      |  0
- .../pprof/internal}/profile/profile.go             |  3 +
- .../pprof/internal}/profile/profile_test.go        |  0
- .../pprof/internal}/profile/proto.go               |  0
- .../pprof/internal}/profile/proto_test.go          |  0
- .../pprof/internal}/profile/prune.go               |  0
- src/runtime/pprof/pprof_test.go                    |  2 +-
- src/runtime/pprof/proto_test.go                    |  2 +-
- src/runtime/pprof/protomem_test.go                 |  2 +-
- test/locklinear.go                                 | 10 +++
- 14 files changed, 65 insertions(+), 51 deletions(-)
+ src/cmd/go/bug.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

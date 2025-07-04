@@ -1,20 +1,18 @@
-commit e985245cd520cabe4bd3d99058d1089aac50cf45
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 2 14:36:36 2021 -0700
+commit 0dc369b127651830edef453938dfb5c149aa37cf
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 16 15:42:00 2020 +0700
 
-    net: make ErrClosed and ParseError implement net.Error
+    cmd/compile: make typecheck set correct untyped type
     
-    Fixes #45357
+    Passes toolstash-check.
     
-    Change-Id: Iafd41fff232a89be4c88d4b1d66bc3c04d888bcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307030
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie631d8dacb1cc76613e1f50da8422850ac7119a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255217
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/poll/fd.go | 19 +++++++++++++++----
- src/net/net.go          |  5 ++++-
- src/net/net_test.go     | 20 ++++++++++++++++++++
- 3 files changed, 39 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/const.go     | 122 +++++++++++--------------------
+ src/cmd/compile/internal/gc/typecheck.go |  19 ++++-
+ 2 files changed, 60 insertions(+), 81 deletions(-)
